@@ -38,7 +38,7 @@ export async function assemblePremiere(input, context) {
     if (config.launch && process.platform === "darwin") {
       await runProcess("open", ["-a", config.applicationName], { timeoutMs: 30_000 });
     }
-    context.log(`Premiere bridge waiting at http://${host}:${port}`);
+    context.log(`Premiere bridge waiting at ${broker.url}`);
     const result = await broker.waitForResult(context.timeoutMs);
     if (!result.ok) throw new Error(result.error ?? "Premiere UXP job failed");
     return { jobId: job.id, ...result.outputs };
@@ -54,7 +54,7 @@ function optionalPath(value, context, preference) {
   return context.resolvePath(value);
 }
 
-async function createBroker(host, port, job) {
+export async function createBroker(host, port, job) {
   let resolveResult;
   let rejectResult;
   const resultPromise = new Promise((resolvePromise, rejectPromise) => {
@@ -97,8 +97,11 @@ async function createBroker(host, port, job) {
     server.once("error", rejectPromise);
     server.listen(port, host, resolvePromise);
   });
+  const address = server.address();
+  const activePort = typeof address === "object" && address ? address.port : port;
 
   return {
+    url: `http://${host}:${activePort}`,
     waitForResult(timeoutMs) {
       const timer = setTimeout(() => rejectResult(new Error(
         `Premiere bridge timed out after ${timeoutMs}ms. Open the PSU AVA Bridge panel and click Connect.`

@@ -19,37 +19,75 @@ export async function bindAfterEffectsTemplate(input, context) {
   await access(hostScript);
   await mkdir(path.dirname(outputProject), { recursive: true });
   const resultFile = path.join(context.stepDir, "ae-result.json");
+  const logFile = path.join(context.stepDir, "ae-milestones.log");
   const jobFile = path.join(context.stepDir, "ae-job.json");
   const runnerFile = path.join(context.stepDir, "ae-runner.jsx");
-  await writeFile(jobFile, `${JSON.stringify({
+  const job = {
     templateProject,
     outputProject,
     composition: input.composition ?? "MASTER",
     text: absoluteFootageMap(input.text ?? {}, context, false),
     footage: absoluteFootageMap(input.footage ?? {}, context, true),
-    resultFile
-  }, null, 2)}\n`, "utf8");
-  await writeFile(runnerFile, [
-    `$.global.AVA_JOB_FILE = ${jsxString(jobFile)};`,
-    `$.evalFile(File(${jsxString(hostScript)}));`,
-    ""
-  ].join("\n"), "utf8");
+    resultFile,
+    logFile
+  };
+  await writeFile(jobFile, `${JSON.stringify(job, null, 2)}\n`, "utf8");
+  const hostSource = await readFile(hostScript, "utf8");
+  await writeFile(runnerFile, buildAfterEffectsRunner(job, hostSource), "utf8");
 
+  const deadline = Date.now() + context.timeoutMs;
+  let invocationError;
   if (process.platform === "darwin") {
     const appId = context.settings.adobe.afterEffects.applicationId;
     const script = `tell application id ${appleScriptString(appId)} to DoScriptFile (POSIX file ${appleScriptString(runnerFile)})`;
-    await runProcess("osascript", ["-e", script], { timeoutMs: context.timeoutMs });
+    try {
+      await runProcess("osascript", ["-e", script], { timeoutMs: context.timeoutMs });
+    } catch (error) {
+      invocationError = error;
+    }
   } else {
     const executable = context.settings.adobe.afterEffects.executablePath ?? "afterfx.exe";
-    await runProcess(executable, ["-r", runnerFile], { timeoutMs: context.timeoutMs });
+    try {
+      await runProcess(executable, ["-r", runnerFile], { timeoutMs: context.timeoutMs });
+    } catch (error) {
+      invocationError = error;
+    }
   }
 
-  const result = await waitForJsonFile(resultFile, context.timeoutMs);
-  if (!result.ok) throw new Error(result.error ?? "After Effects template binding failed");
-  return { project: outputProject, composition: input.composition ?? "MASTER", hostResult: result };
+  const result = await waitForJsonFile(
+    resultFile,
+    Math.max(1_000, deadline - Date.now()),
+    logFile,
+    invocationError
+  );
+  if (!result.ok) {
+    throw new Error([
+      result.error ?? "After Effects template binding failed",
+      result.stage ? `(stage: ${result.stage})` : undefined
+    ].filter(Boolean).join(" "));
+  }
+  return {
+    project: outputProject,
+    composition: input.composition ?? "MASTER",
+    diagnosticLog: logFile,
+    hostResult: result
+  };
 }
 
-async function waitForJsonFile(filePath, timeoutMs) {
+export function buildAfterEffectsRunner(job, hostSource) {
+  const payload = JSON.stringify(job)
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  return [
+    `$.global.AVA_JOB = ${payload};`,
+    `$.global.AVA_RESULT_FILE = ${jsxString(job.resultFile)};`,
+    `$.global.AVA_LOG_FILE = ${jsxString(job.logFile)};`,
+    hostSource.trim(),
+    ""
+  ].join("\n");
+}
+
+async function waitForJsonFile(filePath, timeoutMs, logFile, invocationError) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
@@ -60,7 +98,18 @@ async function waitForJsonFile(filePath, timeoutMs) {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
-  throw new Error(`After Effects did not write a result file within ${timeoutMs}ms: ${lastError?.message ?? filePath}`);
+  let milestones = "";
+  try {
+    milestones = (await readFile(logFile, "utf8")).trim();
+  } catch (_) {
+    // The log may not exist when AE file access is disabled.
+  }
+  throw new Error([
+    `After Effects did not write a result file within ${timeoutMs}ms.`,
+    invocationError ? `Host invocation: ${invocationError.message}` : undefined,
+    lastError ? `Result read: ${lastError.message}` : undefined,
+    milestones ? `AE milestones:\n${milestones}` : `AE milestone log was not written: ${logFile}`
+  ].filter(Boolean).join("\n"));
 }
 
 export async function renderAfterEffects(input, context) {
