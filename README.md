@@ -27,6 +27,18 @@ Create the included AE prototype template once:
 npm run prototype:template
 ```
 
+Check local Adobe host readiness without launching AE, Premiere, or ComfyUI:
+
+```bash
+npm run prototype:doctor
+```
+
+After a live run, verify and save the complete prototype evidence bundle:
+
+```bash
+npm run prototype:verify -- ./prototype-runs/<run-id> --write
+```
+
 Resume a failed run:
 
 ```bash
@@ -77,4 +89,4 @@ test/                      Node tests
 
 The AE binding script refuses to run if AE already contains project items. Start with a clean/dedicated AE session so automation cannot replace a user's open project.
 
-Premiere UXP commands and panels run inside Premiere, not as a truly headless CLI. Load the bridge once with Adobe UXP Developer Tool, open **Window → UXP Plugins → PSU AVA Bridge**, and connect it before a `premiere.assemble` node begins.
+Premiere UXP commands and panels run inside Premiere, not as a truly headless CLI. Install UXP Developer Tool 2.2+, enable Premiere Developer Mode, load `adobe/premiere-uxp/manifest.json`, open **Window → UXP Plugins → PSU AVA Bridge**, and connect it before a `premiere.assemble` node begins. The bridge requires an explicit output project and never falls back to modifying the active project.

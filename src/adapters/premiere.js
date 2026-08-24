@@ -5,6 +5,7 @@ import path from "node:path";
 import { runProcess } from "../core/process.js";
 
 export async function assemblePremiere(input, context) {
+  if (!input.outputProject) throw new Error("Premiere node requires with.outputProject for safe automation");
   const config = context.settings.adobe.premiere;
   const host = config.bridgeHost ?? "127.0.0.1";
   const port = Number(config.bridgePort ?? 47652);
@@ -135,6 +136,9 @@ function setCors(response) {
 }
 
 function json(response, status, value) {
-  response.writeHead(status, { "content-type": "application/json" });
+  response.writeHead(status, {
+    "content-type": "application/json",
+    "cache-control": "no-store, max-age=0"
+  });
   response.end(JSON.stringify(value));
 }

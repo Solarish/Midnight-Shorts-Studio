@@ -11,7 +11,9 @@
     "validate": "node ./src/cli.js validate ./examples/assembly.workflow.json",
     "dry-run": "node ./src/cli.js run ./examples/assembly.workflow.json --dry-run",
     "prototype:template": "node ./tools/create-prototype-template.js",
+    "prototype:doctor": "node ./tools/prototype-doctor.js",
     "prototype:dry-run": "node ./src/cli.js run ./examples/prototype.workflow.json --dry-run",
+    "prototype:verify": "node ./tools/verify-prototype.js",
     "test": "node --test"
   },
   "engines": {

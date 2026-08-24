@@ -1,11 +1,14 @@
 const { entrypoints } = require("uxp");
 const ppro = require("premierepro");
+const { assemblePremiereJob } = globalThis.AvaPremiereAssembly;
 
 const BRIDGE = "http://127.0.0.1:47652";
 let connected = false;
 let busy = false;
 let timer;
 let lastCompletedJobId;
+let lastProcessedJobId;
+let pendingResult;
 
 entrypoints.setup({
   panels: {
@@ -45,13 +48,17 @@ function stopPolling() {
 async function poll() {
   if (!connected || busy) return schedulePoll(1000);
   try {
+    if (pendingResult) {
+      await reportPendingResult();
+      return;
+    }
     const response = await fetch(`${BRIDGE}/job`, { cache: "no-store" });
     if (!response.ok) throw new Error(`Bridge HTTP ${response.status}`);
     const job = await response.json();
-    if (job.id && job.id !== lastCompletedJobId) await executeAndReport(job);
+    if (job.id && job.id !== lastProcessedJobId && job.id !== lastCompletedJobId) await executeAndReport(job);
     else setStatus("Connected — waiting", "ok");
   } catch (error) {
-    setStatus("CLI bridge unavailable", "idle");
+    setStatus(pendingResult ? "Result ready — bridge unavailable" : "CLI bridge unavailable", "idle");
   } finally {
     schedulePoll(1000);
   }
@@ -63,70 +70,36 @@ async function executeAndReport(job) {
   appendLog(`Received ${job.type}: ${job.id}`);
   let result;
   try {
-    const outputs = await assemble(job);
+    const outputs = await assemblePremiereJob(ppro, job, appendLog);
     result = { jobId: job.id, ok: true, outputs };
-    lastCompletedJobId = job.id;
-    setStatus("Job complete", "ok");
+    setStatus("Assembly complete — reporting", "ok");
   } catch (error) {
     result = { jobId: job.id, ok: false, error: error.message, stack: error.stack };
     setStatus(`Failed: ${error.message}`, "error");
   }
-
-  await fetch(`${BRIDGE}/result`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(result)
-  });
-  busy = false;
+  pendingResult = result;
+  lastProcessedJobId = job.id;
+  try {
+    await reportPendingResult();
+  } finally {
+    busy = false;
+  }
 }
 
-async function assemble(job) {
-  let project;
-  if (job.templateProject) {
-    project = await ppro.Project.open(job.templateProject, {});
-  } else if (job.outputProject) {
-    project = await ppro.Project.createProject(job.outputProject);
-  } else {
-    project = await ppro.Project.getActiveProject();
-  }
-  if (!project) throw new Error("No Premiere project is available");
-
-  const rootFolder = await project.getRootItem();
-  const rootItem = ppro.ProjectItem.cast(rootFolder);
-
-  for (const ae of job.aeComps || []) {
-    if (ae.compositions && ae.compositions.length > 0) {
-      await project.importAEComps(ae.project, ae.compositions, rootItem);
-    } else {
-      await project.importAllAEComps(ae.project, rootItem);
-    }
-  }
-
-  if (job.media && job.media.length > 0) {
-    const imported = await project.importFiles(job.media, true, rootItem, false);
-    if (!imported) throw new Error("Premiere failed to import one or more media files");
-  }
-
-  let sequence;
-  if (job.createSequence && job.media && job.media.length > 0) {
-    const clips = [];
-    for (const mediaPath of job.media) {
-      const matches = await ppro.ClipProjectItem.findItemsMatchingMediaPath(mediaPath, false);
-      if (!matches || matches.length === 0) throw new Error(`Imported media not found: ${mediaPath}`);
-      clips.push(ppro.ClipProjectItem.cast(matches[0]));
-    }
-    sequence = await project.createSequenceFromMedia(job.sequenceName, clips, rootItem);
-    await project.setActiveSequence(sequence);
-  }
-
-  if (job.outputProject && project.path !== job.outputProject) await project.saveAs(job.outputProject);
-  if (job.save) await project.save();
-  return {
-    project: job.outputProject || project.path,
-    sequenceName: sequence ? job.sequenceName : undefined,
-    sequenceGuid: sequence ? sequence.guid : undefined,
-    importedMedia: job.media || []
-  };
+async function reportPendingResult() {
+  if (!pendingResult) return;
+  const response = await fetch(`${BRIDGE}/result`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(pendingResult)
+  });
+  if (!response.ok) throw new Error(`Bridge rejected result with HTTP ${response.status}`);
+  const accepted = await response.json();
+  if (!accepted.accepted) throw new Error("Bridge did not accept the result");
+  lastCompletedJobId = pendingResult.jobId;
+  appendLog(`Reported ${pendingResult.ok ? "success" : "failure"}: ${pendingResult.jobId}`);
+  setStatus(pendingResult.ok ? "Job complete" : "Failure reported", pendingResult.ok ? "ok" : "error");
+  pendingResult = undefined;
 }
 
 function setStatus(message, kind) {
@@ -139,4 +112,3 @@ function appendLog(message) {
   const element = document.getElementById("log");
   element.textContent = `${new Date().toLocaleTimeString()} ${message}\n${element.textContent}`;
 }
-

@@ -1,6 +1,6 @@
 # Prototype Checkpoint
 
-Updated: 2026-08-24 16:50:04 +07
+Updated: 2026-08-24 17:01:09 +07
 
 ## Objective
 
@@ -9,7 +9,7 @@ Produce a verified single-JSON, sequential automated video assembly prototype sp
 ## Proven working
 
 - Node CLI validates a single JSON workflow and executes nodes sequentially.
-- Checkpoint/resume and staged `--to` execution work; all 7 unit tests pass.
+- Checkpoint/resume and staged `--to` execution work; all 11 unit tests pass.
 - ComfyUI `0.20.1` at `10.135.66.70:8188` is reachable and uses an RTX 3060 12 GB worker.
 - The prototype input image exists at `assets/input/prototype-presenter.png` (`1024x1536`).
 - `image.removeBackground` uses Apple Vision locally and produced a real RGBA cutout with alpha.
@@ -19,6 +19,9 @@ Produce a verified single-JSON, sequential automated video assembly prototype sp
 - The AE runner is now one self-contained JSX file with its job embedded, avoiding nested reads of `ae-job.json` and `assemble.jsx` inside AE.
 - AE writes a milestone log and structured failure stage without rethrowing host errors into another AE alert dialog.
 - The Premiere loopback broker is covered by an offline integration test for health, job delivery, job-ID rejection, and result acceptance.
+- Premiere UXP assembly is separated into a host-testable module and is covered for template copying, dialog-suppression options, exact imported-media ownership, sequence creation, unsafe active-project refusal, and host import failure.
+- Premiere template workflows now save the new output project before importing anything, and a temporarily failed result POST is retried without running the assembly twice.
+- `prototype:verify` now provides the final acceptance gate: it checks all seven live steps, non-overlapping timestamps, PNG alpha/dimensions, AE host result/milestones, AEP/MOV/PRPROJ artifacts, and Premiere sequence/import evidence; `--write` saves `prototype-evidence.json` in the run directory.
 
 Verified media from the successful staged run:
 
@@ -55,6 +58,8 @@ Missing evidence:
 - rendered MOV
 - Premiere project/sequence
 
+Running the new acceptance verifier against this partial live run reports `16/28` checks passed. The failed checks are exactly the unfinished AE binding, MOV render, and Premiere project/sequence evidence; the real cutout alpha, image dimensions, sequential timestamps, and completed preprocessing nodes pass.
+
 ## AE issue observed
 
 `DoScriptFile` caused AE dialogs and did not write `ae-result.json`. A minimal file-write diagnostic created a zero-byte file. The preference file currently shows:
@@ -69,7 +74,20 @@ Missing evidence:
 
 AE was left running intentionally. Do not send more automation commands until a person is present; do not force-quit it because dialog/session state is uncertain.
 
-After the user paused interactive work, no further AE, Premiere, or ComfyUI commands were sent. Only offline source changes, local tests, validation, and dry runs were performed.
+After the user paused interactive work, no further AE, Premiere, or ComfyUI commands were sent. Only offline source changes, local tests, host-install inspection, official API documentation review, validation, and dry runs were performed.
+
+## Premiere readiness discovered offline
+
+`npm run prototype:doctor` confirms:
+
+- Adobe After Effects 2026 `26.2.1` is installed, but scripting access preferences conflict: `Main Pref Section=1` and `Main Pref Section v2=0`.
+- Adobe Premiere Pro 2025 `25.6.4` is installed and meets the UXP 25.6 minimum.
+- The fixed loopback bridge and safe output-project setting are correct.
+- The UXP plugin source and manifest are present.
+- UXP Developer Tool was not found and must be installed from Adobe Creative Cloud.
+- UXP Developer Mode still needs to be enabled/confirmed in Premiere, followed by a Premiere restart.
+
+The doctor exits with code `2` while these three interactive setup items remain; it reported zero file/configuration failures.
 
 ## First actions tomorrow
 
@@ -85,7 +103,17 @@ After the user paused interactive work, no further AE, Premiere, or ComfyUI comm
    Success requires `/tmp/ava-ae-diagnostics.txt` to contain `json=...`, `projectItems=0`, and the AE version.
 
 5. If file access works, resume AE binding with a fresh workflow run or retry the saved `ae-runner.jsx`.
-6. Render `MASTER` with `aerender`, inspect the MOV, then load/test the Premiere UXP bridge.
+6. Render `MASTER` with `aerender` and inspect the MOV.
+7. Install UXP Developer Tool 2.2+ from Creative Cloud if it is still absent.
+8. Enable **Developer Mode** in Premiere **Settings → Plugins**, restart Premiere, load `adobe/premiere-uxp/manifest.json`, and open the PSU AVA Bridge panel.
+9. Connect the panel, run `premiere_assembly`, then verify the `.prproj`, sequence name, sequence GUID, and imported MOV.
+10. Run the final acceptance gate and save its evidence:
+
+    ```bash
+    npm run prototype:verify -- ./prototype-runs/<successful-run-id> --write
+    ```
+
+    Completion requires every reported check to pass and `prototype-evidence.json` to contain `"ok": true`.
 
 ## Diagnostics prepared for tomorrow
 
@@ -99,7 +127,7 @@ The first two fallback items are implemented and pass offline tests:
 Offline verification completed at this checkpoint:
 
 ```text
-npm test                 7 passed, 0 failed
+npm test                 11 passed, 0 failed
 npm run validate         VALID (7 sequential steps)
 npm run dry-run          SUCCESS
 npm run prototype:dry-run SUCCESS
