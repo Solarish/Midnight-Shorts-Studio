@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  padding: 16px;
+  color: #f2f4f8;
+  background: #111827;
+  font-family: system-ui, sans-serif;
+}
+
+h1 { margin: 0 0 8px; font-size: 18px; }
+p { color: #aeb8c7; line-height: 1.45; }
+button { padding: 8px 14px; }
+#status { margin-top: 12px; font-weight: 600; }
+#status[data-kind="ok"] { color: #7ee787; }
+#status[data-kind="error"] { color: #ff7b72; }
+pre {
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #aeb8c7;
+  font-size: 11px;
+}
+

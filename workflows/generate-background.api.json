@@ -1,0 +1,83 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": { "title": "Load Z-Image Turbo" }
+  },
+  "2": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": { "title": "Load Qwen text encoder" }
+  },
+  "3": {
+    "inputs": {
+      "seed": 20260824,
+      "steps": 5,
+      "cfg": 1,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": ["1", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["5", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": { "title": "Generate background" }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": { "title": "Load VAE" }
+  },
+  "5": {
+    "inputs": {
+      "width": 768,
+      "height": 1344,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": { "title": "Vertical background canvas" }
+  },
+  "6": {
+    "inputs": {
+      "text": "premium midnight-blue university broadcast studio background, abstract architectural panels, warm amber edge lighting, subtle depth, editorial photography, clean center composition, no people, no words, no logos",
+      "clip": ["2", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Background prompt" }
+  },
+  "7": {
+    "inputs": {
+      "text": "person, face, human, readable text, logo, watermark, clutter, low resolution",
+      "clip": ["2", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Negative prompt" }
+  },
+  "8": {
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["4", 0]
+    },
+    "class_type": "VAEDecode",
+    "_meta": { "title": "Decode background" }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "ava_prototype/generated_background",
+      "images": ["8", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": { "title": "Save generated background" }
+  }
+}
+

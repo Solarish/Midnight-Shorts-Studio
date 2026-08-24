@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psu.ac.th/schemas/automated-video-assembly-workflow-v1.json",
+  "title": "Automated Video Assembly Workflow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "steps"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$" },
+    "name": { "type": "string" },
+    "variables": { "type": "object" },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "runRoot": { "type": "string" },
+        "stepTimeoutMs": { "type": "integer", "minimum": 1000 },
+        "retryAttempts": { "type": "integer", "minimum": 1 },
+        "pollIntervalMs": { "type": "integer", "minimum": 100 },
+        "services": { "type": "object" },
+        "adobe": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$" },
+        "type": {
+          "enum": [
+            "asset.select",
+            "image.removeBackground",
+            "template.payload",
+            "llm.chat",
+            "comfyui.workflow",
+            "ae.template",
+            "ae.render",
+            "premiere.assemble"
+          ]
+        },
+        "name": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "timeoutMs": { "type": "integer", "minimum": 1000 },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "attempts": { "type": "integer", "minimum": 1 },
+            "delayMs": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "with": { "type": "object" }
+      }
+    }
+  }
+}

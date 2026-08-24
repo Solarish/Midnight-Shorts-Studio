@@ -1,0 +1,38 @@
+{
+  "1": {
+    "inputs": {
+      "image": "prototype-presenter.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load prototype portrait" }
+  },
+  "2": {
+    "inputs": {
+      "image": ["1", 0],
+      "prompt": "person",
+      "sam2_model_name": "sam2_hiera_large.safetensors",
+      "dino_model_dir": "models/grounding-dino/grounding-dino-base",
+      "box_threshold": 0.3,
+      "text_threshold": 0.25
+    },
+    "class_type": "MidnightLook-SAM2Loader",
+    "_meta": { "title": "Detect presenter and build mask" }
+  },
+  "3": {
+    "inputs": {
+      "image": ["1", 0],
+      "alpha": ["2", 1]
+    },
+    "class_type": "JoinImageWithAlpha",
+    "_meta": { "title": "Apply presenter alpha" }
+  },
+  "4": {
+    "inputs": {
+      "images": ["3", 0],
+      "filename_prefix": "ava_prototype/presenter_cutout"
+    },
+    "class_type": "SaveImage",
+    "_meta": { "title": "Save transparent presenter" }
+  }
+}
+

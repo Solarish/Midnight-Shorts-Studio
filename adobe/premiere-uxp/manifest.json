@@ -1,0 +1,28 @@
+{
+  "manifestVersion": 5,
+  "id": "th.ac.psu.ava.bridge",
+  "name": "PSU AVA Bridge",
+  "version": "0.1.0",
+  "main": "index.html",
+  "host": {
+    "app": "premierepro",
+    "minVersion": "25.6.0"
+  },
+  "requiredPermissions": {
+    "network": {
+      "domains": ["http://127.0.0.1:47652"]
+    },
+    "localFileSystem": "fullAccess"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "avaBridge",
+      "label": { "default": "PSU AVA Bridge" },
+      "minimumSize": { "width": 280, "height": 180 },
+      "preferredDockedSize": { "width": 340, "height": 280 },
+      "preferredFloatingSize": { "width": 420, "height": 320 }
+    }
+  ]
+}
+

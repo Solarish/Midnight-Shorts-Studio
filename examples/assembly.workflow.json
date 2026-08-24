@@ -1,0 +1,121 @@
+{
+  "$schema": "../schema/workflow.schema.json",
+  "schemaVersion": 1,
+  "id": "portrait_story_assembly",
+  "name": "Portrait cutout, generated background, doodle, fixed title, AE render, PR assembly",
+  "variables": {
+    "headline": "PSU BROADCAST",
+    "subheadline": "เรื่องเล่าจากมหาวิทยาลัย"
+  },
+  "settings": {
+    "runRoot": "../.pipeline-runs",
+    "stepTimeoutMs": 900000,
+    "retryAttempts": 1,
+    "pollIntervalMs": 1500,
+    "services": {
+      "comfyui": {
+        "baseUrl": "http://10.135.66.70:8188",
+        "clientId": "psu-ava-cli"
+      },
+      "llm": {
+        "provider": "ollama",
+        "baseUrl": "http://10.135.66.70:11434",
+        "model": "gemma4:12b"
+      }
+    },
+    "adobe": {
+      "afterEffects": {
+        "applicationId": "com.adobe.AfterEffects.application",
+        "aerenderPath": "/Applications/Adobe After Effects 2026/aerender"
+      },
+      "premiere": {
+        "applicationName": "Adobe Premiere Pro 2025",
+        "bridgeHost": "127.0.0.1",
+        "bridgePort": 47652,
+        "launch": true
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "select_portrait",
+      "type": "asset.select",
+      "with": {
+        "path": "../assets/input/portrait.png"
+      }
+    },
+    {
+      "id": "remove_background",
+      "type": "comfyui.workflow",
+      "with": {
+        "workflowFile": "../workflows/remove-background.api.json",
+        "uploads": [
+          {
+            "file": "${steps.select_portrait.outputs.path}",
+            "patch": "10.inputs.image"
+          }
+        ],
+        "downloadDir": "outputs/remove-background"
+      }
+    },
+    {
+      "id": "generate_background",
+      "type": "comfyui.workflow",
+      "with": {
+        "workflowFile": "../workflows/generate-background.api.json",
+        "patches": {
+          "6.inputs.text": "modern university broadcast studio, midnight blue, clean editorial background"
+        },
+        "downloadDir": "outputs/background"
+      }
+    },
+    {
+      "id": "fixed_template_data",
+      "type": "template.payload",
+      "with": {
+        "text": {
+          "TITLE": "${workflow.variables.headline}",
+          "SUBTITLE": "${workflow.variables.subheadline}"
+        },
+        "footage": {
+          "PORTRAIT": "${steps.remove_background.outputs.images.0.localPath}",
+          "BACKGROUND": "${steps.generate_background.outputs.images.0.localPath}",
+          "DOODLE": "../assets/doodles/doodle-01.png"
+        }
+      }
+    },
+    {
+      "id": "ae_bind",
+      "type": "ae.template",
+      "with": {
+        "templateProject": "../templates/after-effects/story-template.aep",
+        "outputProject": "outputs/story-assembled.aep",
+        "composition": "MASTER",
+        "text": "${steps.fixed_template_data.outputs.text}",
+        "footage": "${steps.fixed_template_data.outputs.footage}"
+      }
+    },
+    {
+      "id": "ae_render",
+      "type": "ae.render",
+      "with": {
+        "project": "${steps.ae_bind.outputs.project}",
+        "composition": "MASTER",
+        "output": "outputs/story-master.mov",
+        "renderSettingsTemplate": "Best Settings",
+        "outputModuleTemplate": "Lossless"
+      }
+    },
+    {
+      "id": "premiere_assembly",
+      "type": "premiere.assemble",
+      "with": {
+        "templateProject": "../templates/premiere/story-template.prproj",
+        "outputProject": "outputs/story-final.prproj",
+        "sequenceName": "AUTO_ASSEMBLY",
+        "media": ["${steps.ae_render.outputs.output}"],
+        "createSequence": true
+      }
+    }
+  ]
+}

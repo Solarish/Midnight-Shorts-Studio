@@ -1,0 +1,111 @@
+{
+  "$schema": "../schema/workflow.schema.json",
+  "schemaVersion": 1,
+  "id": "ava_prototype",
+  "name": "Verified presenter cutout, generated background, fixed AE design, and Premiere assembly",
+  "variables": {
+    "headline": "MIDNIGHT SCHOLAR",
+    "subheadline": "AUTOMATED VIDEO ASSEMBLY • PROTOTYPE"
+  },
+  "settings": {
+    "runRoot": "../prototype-runs",
+    "stepTimeoutMs": 1200000,
+    "retryAttempts": 1,
+    "pollIntervalMs": 1500,
+    "services": {
+      "comfyui": {
+        "baseUrl": "http://10.135.66.70:8188",
+        "clientId": "psu-ava-prototype"
+      }
+    },
+    "adobe": {
+      "afterEffects": {
+        "applicationId": "com.adobe.AfterEffects.application",
+        "aerenderPath": "/Applications/Adobe After Effects 2026/aerender"
+      },
+      "premiere": {
+        "applicationName": "Adobe Premiere Pro 2025",
+        "bridgeHost": "127.0.0.1",
+        "bridgePort": 47652,
+        "launch": true
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "select_presenter",
+      "type": "asset.select",
+      "with": { "path": "../assets/input/prototype-presenter.png" }
+    },
+    {
+      "id": "remove_background",
+      "type": "image.removeBackground",
+      "timeoutMs": 300000,
+      "with": {
+        "path": "${steps.select_presenter.outputs.path}",
+        "output": "media/presenter-cutout/presenter.png"
+      }
+    },
+    {
+      "id": "generate_background",
+      "type": "comfyui.workflow",
+      "timeoutMs": 900000,
+      "with": {
+        "workflowFile": "../workflows/generate-background.api.json",
+        "patches": {
+          "6.inputs.text": "premium midnight-blue university broadcast studio background, abstract architectural panels, warm amber rim lighting, subtle depth, editorial photography, clean center composition, no people, no words, no logos"
+        },
+        "downloadDir": "media/generated-background"
+      }
+    },
+    {
+      "id": "fixed_design",
+      "type": "template.payload",
+      "with": {
+        "text": {
+          "TITLE": "${workflow.variables.headline}",
+          "SUBTITLE": "${workflow.variables.subheadline}"
+        },
+        "footage": {
+          "PORTRAIT": "${steps.remove_background.outputs.path}",
+          "BACKGROUND": "${steps.generate_background.outputs.images.0.localPath}"
+        }
+      }
+    },
+    {
+      "id": "ae_bind",
+      "type": "ae.template",
+      "with": {
+        "templateProject": "../templates/after-effects/prototype-story.aep",
+        "outputProject": "adobe/prototype-assembled.aep",
+        "composition": "MASTER",
+        "text": "${steps.fixed_design.outputs.text}",
+        "footage": "${steps.fixed_design.outputs.footage}"
+      }
+    },
+    {
+      "id": "ae_render",
+      "type": "ae.render",
+      "timeoutMs": 1200000,
+      "with": {
+        "project": "${steps.ae_bind.outputs.project}",
+        "composition": "MASTER",
+        "output": "renders/prototype-master.mov",
+        "renderSettingsTemplate": "Best Settings",
+        "outputModuleTemplate": "Lossless"
+      }
+    },
+    {
+      "id": "premiere_assembly",
+      "type": "premiere.assemble",
+      "timeoutMs": 600000,
+      "with": {
+        "outputProject": "adobe/prototype-final.prproj",
+        "sequenceName": "AVA_PROTOTYPE",
+        "media": ["${steps.ae_render.outputs.output}"],
+        "createSequence": true,
+        "save": true
+      }
+    }
+  ]
+}

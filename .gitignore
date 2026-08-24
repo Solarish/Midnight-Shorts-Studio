@@ -1,0 +1,6 @@
+.pipeline-runs/
+prototype-runs/
+templates/after-effects/.build/
+node_modules/
+.DS_Store
+*.log
