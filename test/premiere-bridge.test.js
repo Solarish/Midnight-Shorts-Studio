@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createBroker } from "../src/adapters/premiere.js";
 
 test("Premiere bridge serves one job and accepts only its matching result", async () => {
@@ -36,5 +39,26 @@ test("Premiere bridge serves one job and accepts only its matching result", asyn
     });
   } finally {
     await broker.close();
+  }
+});
+
+test("Premiere bridge exchanges a job and result through its file mailbox", async () => {
+  const mailboxDir = await mkdtemp(path.join(os.tmpdir(), "ava-premiere-test-"));
+  const job = { id: "mailbox-test-job", type: "premiere.assemble", media: [] };
+  const broker = await createBroker("127.0.0.1", 0, job, { mailboxDir });
+
+  try {
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(mailboxDir, "job.json"), "utf8")),
+      job
+    );
+
+    const pendingResult = broker.waitForResult(1_000);
+    const result = { jobId: job.id, ok: true, outputs: { project: "/tmp/final.prproj" } };
+    await writeFile(path.join(mailboxDir, "result.json"), JSON.stringify(result), "utf8");
+    assert.deepEqual(await pendingResult, result);
+  } finally {
+    await broker.close();
+    await rm(mailboxDir, { recursive: true, force: true });
   }
 });

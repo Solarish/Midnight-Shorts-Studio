@@ -27,7 +27,12 @@
   }
 
   async function findImportedClip(ppro, project, mediaPath) {
-    var matches = await ppro.ClipProjectItem.findItemsMatchingMediaPath(mediaPath, false);
+    var matches;
+    if (typeof ppro.ClipProjectItem.findItemsMatchingMediaPath === "function") {
+      matches = await ppro.ClipProjectItem.findItemsMatchingMediaPath(mediaPath, false);
+    } else {
+      matches = await collectProjectItems(ppro, await project.getRootItem());
+    }
     if (!matches || matches.length === 0) return null;
 
     var expectedPath = normalizedPath(mediaPath);
@@ -41,6 +46,28 @@
       } catch (_) {}
     }
     return null;
+  }
+
+  async function collectProjectItems(ppro, rootItem) {
+    var pending = [rootItem];
+    var clips = [];
+    while (pending.length > 0) {
+      var item = pending.shift();
+      try {
+        var clip = ppro.ClipProjectItem.cast(item);
+        await clip.getMediaFilePath();
+        clips.push(item);
+        continue;
+      } catch (_) {}
+      try {
+        var folder = ppro.FolderItem.cast(item);
+        var children = await folder.getItems();
+        for (var childIndex = 0; childIndex < children.length; childIndex += 1) {
+          pending.push(children[childIndex]);
+        }
+      } catch (_) {}
+    }
+    return clips;
   }
 
   async function assemblePremiereJob(ppro, job, log) {
@@ -98,10 +125,14 @@
 
     if (job.save) ensure(await project.save(), "Premiere could not save the output project");
     log("Saved Premiere output project");
+    var sequenceGuid = sequence && sequence.guid;
+    if (sequenceGuid && typeof sequenceGuid.toString === "function") {
+      sequenceGuid = sequenceGuid.toString();
+    }
     return {
       project: job.outputProject,
       sequenceName: sequence ? job.sequenceName : undefined,
-      sequenceGuid: sequence ? sequence.guid : undefined,
+      sequenceGuid: sequence ? sequenceGuid : undefined,
       importedMedia: job.media || []
     };
   }
@@ -109,6 +140,7 @@
   root.AvaPremiereAssembly = {
     assemblePremiereJob: assemblePremiereJob,
     createOpenOptions: createOpenOptions,
-    findImportedClip: findImportedClip
+    findImportedClip: findImportedClip,
+    collectProjectItems: collectProjectItems
   };
 }(globalThis));

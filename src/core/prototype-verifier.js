@@ -80,7 +80,11 @@ export async function verifyPrototype(runDirectory) {
   const premiere = state.steps?.premiere_assembly?.outputs;
   await verifyFile("premiere.project", premiere?.project, checks, 1_024);
   add("premiere.sequence_name", premiere?.sequenceName === "AVA_PROTOTYPE", premiere?.sequenceName ?? "missing");
-  add("premiere.sequence_guid", Boolean(premiere?.sequenceGuid), premiere?.sequenceGuid ?? "missing");
+  add(
+    "premiere.sequence_guid",
+    typeof premiere?.sequenceGuid === "string" && premiere.sequenceGuid.length > 0,
+    typeof premiere?.sequenceGuid === "string" ? premiere.sequenceGuid : JSON.stringify(premiere?.sequenceGuid ?? null)
+  );
   add(
     "premiere.imported_render",
     Array.isArray(premiere?.importedMedia) && premiere.importedMedia.includes(renderPath),

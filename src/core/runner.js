@@ -23,6 +23,10 @@ export async function runWorkflow(loaded, adapters, options = {}) {
     if (state.workflowDigest !== digest) {
       throw new Error("Resume refused: workflow JSON changed since this checkpoint was created");
     }
+    state.status = "running";
+    delete state.error;
+    delete state.finishedAt;
+    delete state.stoppedAtStep;
   } else {
     state = {
       workflowId: workflow.id,
@@ -98,8 +102,9 @@ export async function runWorkflow(loaded, adapters, options = {}) {
           resolveRunPath: (value) => path.resolve(runDir, value),
           log: options.log ?? (() => {})
         });
+        const { lastError: _lastError, ...successfulStep } = state.steps[step.id];
         state.steps[step.id] = {
-          ...state.steps[step.id],
+          ...successfulStep,
           status: "success",
           finishedAt: new Date().toISOString(),
           outputs: outputs ?? {}
@@ -134,6 +139,8 @@ export async function runWorkflow(loaded, adapters, options = {}) {
   }
 
   state.status = "success";
+  delete state.error;
+  delete state.stoppedAtStep;
   state.finishedAt = new Date().toISOString();
   await checkpoint();
   return state;

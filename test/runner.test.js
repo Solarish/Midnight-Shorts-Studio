@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runWorkflow } from "../src/core/runner.js";
@@ -65,4 +65,32 @@ test("runner can stop after a requested step for staged prototype verification",
   assert.equal(state.stoppedAtStep, "two");
   assert.deepEqual(events, ["one", "two"]);
   assert.equal(state.steps.three, undefined);
+});
+
+test("runner clears stale failure evidence after a successful resume", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "ava-runner-resume-"));
+  const workflow = {
+    schemaVersion: 1,
+    id: "resume_test",
+    variables: {},
+    settings: { runRoot: root, stepTimeoutMs: 1000, retryAttempts: 1, pollIntervalMs: 10, services: {}, adobe: {} },
+    steps: [{ id: "one", type: "test", enabled: true, with: {} }]
+  };
+  const loaded = { workflow, configDir: root, raw: JSON.stringify(workflow) };
+
+  await assert.rejects(
+    runWorkflow(loaded, { test: async () => { throw new Error("first attempt failed"); } }),
+    /first attempt failed/
+  );
+  const [runName] = await readdir(root);
+  const state = await runWorkflow(
+    loaded,
+    { test: async () => ({ recovered: true }) },
+    { resume: path.join(root, runName), from: "one" }
+  );
+
+  assert.equal(state.status, "success");
+  assert.equal(state.error, undefined);
+  assert.equal(state.steps.one.lastError, undefined);
+  assert.equal(state.steps.one.outputs.recovered, true);
 });

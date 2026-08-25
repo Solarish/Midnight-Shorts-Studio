@@ -1,14 +1,18 @@
 import http from "node:http";
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { runProcess } from "../core/process.js";
+
+const DEFAULT_MAILBOX_DIR = path.join(tmpdir(), "psu-ava-premiere-bridge");
 
 export async function assemblePremiere(input, context) {
   if (!input.outputProject) throw new Error("Premiere node requires with.outputProject for safe automation");
   const config = context.settings.adobe.premiere;
   const host = config.bridgeHost ?? "127.0.0.1";
   const port = Number(config.bridgePort ?? 47652);
+  const mailboxDir = config.bridgeMailbox ?? DEFAULT_MAILBOX_DIR;
   if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
     throw new Error("Premiere bridge must bind to loopback only");
   }
@@ -34,12 +38,12 @@ export async function assemblePremiere(input, context) {
 
   if (job.outputProject) await mkdir(path.dirname(job.outputProject), { recursive: true });
 
-  const broker = await createBroker(host, port, job);
+  const broker = await createBroker(host, port, job, { mailboxDir });
   try {
     if (config.launch && process.platform === "darwin") {
       await runProcess("open", ["-a", config.applicationName], { timeoutMs: 30_000 });
     }
-    context.log(`Premiere bridge waiting at ${broker.url}`);
+    context.log(`Premiere bridge waiting at ${broker.url} or ${broker.mailboxDir}`);
     const result = await broker.waitForResult(context.timeoutMs);
     if (!result.ok) throw new Error(result.error ?? "Premiere UXP job failed");
     return { jobId: job.id, ...result.outputs };
@@ -55,13 +59,30 @@ function optionalPath(value, context, preference) {
   return context.resolvePath(value);
 }
 
-export async function createBroker(host, port, job) {
+export async function createBroker(host, port, job, options = {}) {
+  const mailboxDir = options.mailboxDir;
+  const jobPath = mailboxDir ? path.join(mailboxDir, "job.json") : undefined;
+  const resultPath = mailboxDir ? path.join(mailboxDir, "result.json") : undefined;
   let resolveResult;
   let rejectResult;
+  let settled = false;
+  let mailboxTimer;
   const resultPromise = new Promise((resolvePromise, rejectPromise) => {
     resolveResult = resolvePromise;
     rejectResult = rejectPromise;
   });
+
+  const settleResult = (result) => {
+    if (settled) return;
+    settled = true;
+    resolveResult(result);
+  };
+
+  if (mailboxDir) {
+    await mkdir(mailboxDir, { recursive: true });
+    await rm(resultPath, { force: true });
+    await writeJsonAtomic(jobPath, job);
+  }
 
   const server = http.createServer(async (request, response) => {
     setCors(response);
@@ -84,7 +105,7 @@ export async function createBroker(host, port, job) {
           json(response, 409, { error: "jobId mismatch" });
           return;
         }
-        resolveResult(result);
+        settleResult(result);
         json(response, 200, { accepted: true });
       } catch (error) {
         json(response, 400, { error: error.message });
@@ -103,18 +124,45 @@ export async function createBroker(host, port, job) {
 
   return {
     url: `http://${host}:${activePort}`,
+    mailboxDir,
     waitForResult(timeoutMs) {
-      const timer = setTimeout(() => rejectResult(new Error(
-        `Premiere bridge timed out after ${timeoutMs}ms. Open the PSU AVA Bridge panel and click Connect.`
-      )), timeoutMs);
-      return resultPromise.finally(() => clearTimeout(timer));
+      if (resultPath) {
+        mailboxTimer = setInterval(async () => {
+          try {
+            const result = JSON.parse(await readFile(resultPath, "utf8"));
+            if (result.jobId === job.id) settleResult(result);
+          } catch (error) {
+            if (error.code !== "ENOENT" && !(error instanceof SyntaxError)) rejectResult(error);
+          }
+        }, 250);
+      }
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        rejectResult(new Error(
+          `Premiere bridge timed out after ${timeoutMs}ms. Open the PSU AVA Bridge panel and click Connect.`
+        ));
+      }, timeoutMs);
+      return resultPromise.finally(() => {
+        clearTimeout(timer);
+        clearInterval(mailboxTimer);
+      });
     },
-    close() {
-      return new Promise((resolvePromise, rejectPromise) => {
+    async close() {
+      clearInterval(mailboxTimer);
+      await new Promise((resolvePromise, rejectPromise) => {
         server.close((error) => error ? rejectPromise(error) : resolvePromise());
       });
+      if (jobPath) await rm(jobPath, { force: true });
+      if (resultPath) await rm(resultPath, { force: true });
     }
   };
+}
+
+async function writeJsonAtomic(filePath, value) {
+  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await rename(temporaryPath, filePath);
 }
 
 function readBody(request) {

@@ -100,6 +100,7 @@ function applyDefaults(workflow) {
           applicationName: "Adobe Premiere Pro 2025",
           bridgeHost: "127.0.0.1",
           bridgePort: 47652,
+          bridgeMailbox: "/tmp/psu-ava-premiere-bridge",
           launch: true,
           ...(settings.adobe?.premiere ?? {})
         }

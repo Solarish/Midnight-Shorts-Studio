@@ -9,7 +9,7 @@ Load this folder as a plugin with Adobe UXP Developer Tool. The installed Premie
 3. In UXP Developer Tool, add `adobe/premiere-uxp/manifest.json` to the workspace.
 4. Load the plugin into Premiere Pro.
 5. Open **Window → UXP Plugins → PSU AVA Bridge**.
-6. Click **Connect** before the CLI reaches a `premiere.assemble` node.
+6. The bridge connects automatically when Premiere loads the plugin. The panel button can still pause or resume the connection manually.
 
 Run the local readiness check before opening the host applications:
 
@@ -17,7 +17,9 @@ Run the local readiness check before opening the host applications:
 npm run prototype:doctor
 ```
 
-The bridge only connects to `http://127.0.0.1:47652`.
+The bridge uses `http://127.0.0.1:47652` where the host permits local HTTP. On macOS,
+where Premiere UXP blocks HTTP, it automatically falls back to the local
+`/tmp/psu-ava-premiere-bridge` file mailbox.
 
 ## Safety and retry behavior
 
@@ -25,6 +27,7 @@ The bridge only connects to `http://127.0.0.1:47652`.
 - A template job saves an output copy before importing AE compositions or media.
 - Project-open warning, locate, and conversion dialogs are disabled through Premiere's `OpenProjectOptions` for the automated open.
 - If reporting to the CLI briefly fails, the completed result is retained and retried without assembling the project again.
+- The plugin polls the loopback bridge in the background after host startup; the panel does not need to remain open.
 - The bridge verifies each imported media item belongs to the new output project before creating the sequence.
 
 Adobe references: [Premiere UXP setup](https://developer.adobe.com/premiere-pro/uxp/plugins/), [plugin installation and Developer Mode](https://developer.adobe.com/premiere-pro/uxp/plugins/distribution/install/), and [Project API](https://developer.adobe.com/premiere-pro/uxp/ppro-reference/classes/project/).

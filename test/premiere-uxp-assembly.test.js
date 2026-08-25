@@ -7,7 +7,7 @@ const source = await readFile(new URL("../adobe/premiere-uxp/assembly.js", impor
 const sandbox = {};
 sandbox.globalThis = sandbox;
 vm.runInNewContext(source, sandbox, { filename: "assembly.js" });
-const { assemblePremiereJob } = sandbox.AvaPremiereAssembly;
+const { assemblePremiereJob, findImportedClip } = sandbox.AvaPremiereAssembly;
 
 test("Premiere UXP assembly copies a template before importing and builds a sequence from exact project media", async () => {
   const events = [];
@@ -92,6 +92,33 @@ test("Premiere UXP assembly refuses unsafe active-project automation", async () 
     assemblePremiereJob({}, { id: "unsafe", type: "premiere.assemble" }),
     /outputProject is required/
   );
+});
+
+test("Premiere UXP assembly traverses project bins when the host omits the documented static finder", async () => {
+  const mediaPath = "/tmp/prototype-master.mov";
+  const project = { guid: "project-guid", async getRootItem() { return root; } };
+  const clip = {
+    kind: "clip",
+    async getProject() { return project; },
+    async getMediaFilePath() { return mediaPath; }
+  };
+  const root = { kind: "folder", children: [{ kind: "folder", children: [clip] }] };
+  const ppro = {
+    ClipProjectItem: {
+      cast(item) {
+        if (item.kind !== "clip") throw new Error("not a clip");
+        return item;
+      }
+    },
+    FolderItem: {
+      cast(item) {
+        if (item.kind !== "folder") throw new Error("not a folder");
+        return { async getItems() { return item.children; } };
+      }
+    }
+  };
+
+  assert.equal(await findImportedClip(ppro, project, mediaPath), clip);
 });
 
 test("Premiere UXP assembly surfaces a failed host import", async () => {
