@@ -1,18 +1,16 @@
-# PSU Automated Video Assembly
+# 🎬 Midnight Shorts Studio
 
-A CLI-driven, sequential video assembly pipeline that coordinates image selection, ComfyUI, optional LLM steps, After Effects templates, and Premiere Pro assembly from one JSON file.
+A cloud-ready, decoupled automated video assembly engine supporting both **Vertical (9:16 - TikTok/Reels/Shorts)** and **Horizontal (16:9 - YouTube/Broadcast)** formats with parametric presets and web-based dynamic rendering.
 
-The pipeline is deliberately sequential: only one node runs at a time, and each successful node writes a checkpoint before the next node begins. This keeps RAM/VRAM usage predictable and allows a failed run to resume.
+Originally evolved from PSU AVA, this studio decouples heavy Adobe dependencies (After Effects & Premiere Pro) in favor of lightweight, containerized Web-to-Video technologies (Remotion / CSS / Canvas / FFmpeg) for high-throughput, multi-tenant automated video production.
 
-The repository also includes a local Control Center. Its guided form compiles the verified portrait-story recipe into that same single JSON workflow, while Workflow Studio lets an admin build typed visual DAGs. The loopback API owns graph revisions, immutable published versions, compiled snapshots, the durable queue, events, checkpoints, history, and artifact access. Live adapters execute in isolated one-job macOS worker subprocesses; dry runs stay inline.
+## Core Features & Multi-Aspect Ratio Support
 
-## Current baseline
-
-- Premiere Pro Beta 26.5.0 with Media Encoder Beta 26.5.0 is controlled through the included UXP bridge panel and exact-version readiness gate.
-- After Effects template binding uses ExtendScript; final AE rendering uses `aerender`.
-- ComfyUI defaults to the existing internal GPU worker at `http://10.135.66.70:8188`.
-- LLM steps support Ollama and OpenAI-compatible chat endpoints.
-- No credentials are stored in workflow files.
+- **Multi-Format Assembly:** Native support for Vertical (1080x1920 @ 9:16), Horizontal (1920x1080 @ 16:9), and Square (1:1) with automatic safe-zone alignments.
+- **Parametric Preset Animations:** Reusable CSS/Web motion graphics presets (Bounce, Pop, Spring, Zoom-punch, Backdrop blur).
+- **Dynamic Word-by-Word Thai Subtitles:** Word-level karaoke captioning synchronized with Whisper/JaiTTS audio timecodes.
+- **High-Throughput Parallel Rendering:** Independent worker architecture with zero desktop GUI/Adobe license locks.
+- **AI Synthesis Integration:** Native connectivity with ComfyUI (10.135.66.70), JaiTTS Studio voice synthesis, and Ollama LLMs.
 
 ## Quick start
 
