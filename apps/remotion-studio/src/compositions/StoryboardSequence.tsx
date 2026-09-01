@@ -1,16 +1,170 @@
-import React from "react";
+import React, { useState } from "react";
 import { AbsoluteFill, Audio, Img, Sequence, Video, useVideoConfig } from "remotion";
 import { CoverCard } from "../components/CoverCard";
 import { DynamicThaiSubtitles } from "../components/DynamicThaiSubtitles";
 import { LogoOutro } from "../components/LogoOutro";
 import { TitleCard } from "../components/TitleCard";
 import { PresetWrapper } from "../presets";
+import { isAudioFile, isImageFile, isVideoFile, resolveMediaUrl } from "../media-resolver";
 import activeStoryboardData from "../active-storyboard.json";
 import type { AspectRatioMode, BrollItemProps, StoryboardAssemblyProps, StoryboardItemProps } from "../types";
 
 interface StoryboardSequenceProps extends StoryboardAssemblyProps {
   aspectRatio: AspectRatioMode;
 }
+
+const ARollMediaView: React.FC<{
+  sourcePath?: string;
+  sourceInMs?: number;
+  audioPolicy?: "preserve" | "mute" | "mix";
+  speaker?: string;
+  fps: number;
+  theme?: StoryboardAssemblyProps["theme"];
+}> = ({ sourcePath, sourceInMs, audioPolicy, speaker, fps, theme }) => {
+  const [hasError, setHasError] = useState(false);
+  const resolved = resolveMediaUrl(sourcePath);
+  const isVideo = isVideoFile(sourcePath);
+  const isImage = isImageFile(sourcePath);
+
+  if (hasError || !resolved || (!isVideo && !isImage)) {
+    return (
+      <AbsoluteFill
+        style={{
+          background:
+            "linear-gradient(180deg, #101B2E 0%, #0B1220 60%, #060A12 100%)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center"
+        }}
+      >
+        <div
+          style={{
+            padding: "24px 40px",
+            borderRadius: 16,
+            backgroundColor: "rgba(11, 18, 32, 0.85)",
+            border: "1px solid rgba(229, 169, 60, 0.3)",
+            color: theme?.primaryColor ?? "#E5A93C",
+            fontSize: 28,
+            fontWeight: 700,
+            fontFamily: theme?.fontFamily ?? "sans-serif",
+            textAlign: "center"
+          }}
+        >
+          {speaker || "A-Roll Interview"}
+        </div>
+      </AbsoluteFill>
+    );
+  }
+
+  if (isVideo) {
+    const startFromFrames = sourceInMs ? Math.max(0, Math.round((sourceInMs / 1000) * fps)) : 0;
+    return (
+      <Video
+        src={resolved}
+        startFrom={startFromFrames}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover"
+        }}
+        volume={audioPolicy === "mute" ? 0 : 1}
+        onError={() => setHasError(true)}
+      />
+    );
+  }
+
+  return (
+    <Img
+      src={resolved}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover"
+      }}
+      onError={() => setHasError(true)}
+    />
+  );
+};
+
+const BrollMediaView: React.FC<{
+  broll: BrollItemProps;
+  aspectRatio: AspectRatioMode;
+  theme?: StoryboardAssemblyProps["theme"];
+}> = ({ broll, aspectRatio, theme }) => {
+  const [hasError, setHasError] = useState(false);
+  const resolved = resolveMediaUrl(broll.assetPath);
+  const isVideo = isVideoFile(broll.assetPath);
+  const isImage = isImageFile(broll.assetPath);
+
+  if (hasError || !resolved || (!isVideo && !isImage)) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          top: aspectRatio === "9:16" ? "65%" : "70%",
+          left: "8%",
+          right: "8%",
+          padding: "16px 24px",
+          borderRadius: 16,
+          backgroundColor: "rgba(11, 18, 32, 0.88)",
+          backdropFilter: "blur(12px)",
+          border: `1px solid ${theme?.accentColor ?? "#00E5FF"}`,
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)"
+        }}
+      >
+        {broll.title ? (
+          <div
+            style={{
+              fontSize: aspectRatio === "9:16" ? 28 : 24,
+              fontWeight: 800,
+              color: theme?.primaryColor ?? "#E5A93C",
+              marginBottom: 4
+            }}
+          >
+            {broll.title}
+          </div>
+        ) : null}
+        {broll.description ? (
+          <div
+            style={{
+              fontSize: aspectRatio === "9:16" ? 22 : 18,
+              color: theme?.textColor ?? "#FFFFFF"
+            }}
+          >
+            {broll.description}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <Video
+        src={resolved}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: broll.fit ?? "cover"
+        }}
+        volume={broll.audioPolicy === "preserve" ? 1 : 0}
+        onError={() => setHasError(true)}
+      />
+    );
+  }
+
+  return (
+    <Img
+      src={resolved}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: broll.fit ?? "cover"
+      }}
+      onError={() => setHasError(true)}
+    />
+  );
+};
 
 export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
   items = [],
@@ -55,14 +209,6 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         const fromFrame = currentFrameOffset;
         currentFrameOffset += itemDurationFrames;
 
-        const isVideoSource =
-          typeof item.params?.sourcePath === "string" &&
-          /\.(mp4|mov|webm|m4v)$/i.test(item.params.sourcePath);
-
-        const isImageSource =
-          typeof item.params?.sourcePath === "string" &&
-          /\.(png|jpe?g|webp|gif|svg)$/i.test(item.params.sourcePath);
-
         return (
           <Sequence
             key={`${item.id}_${index}`}
@@ -102,56 +248,14 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
             ) : item.kind === "a_roll" ? (
               <AbsoluteFill>
                 {/* Visual A-Roll Layer */}
-                {isVideoSource ? (
-                  <Video
-                    src={item.params!.sourcePath!}
-                    startFrom={
-                      item.params?.sourceInMs
-                        ? Math.round((item.params.sourceInMs / 1000) * fps)
-                        : 0
-                    }
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover"
-                    }}
-                    volume={item.audioPolicy === "mute" ? 0 : 1}
-                  />
-                ) : isImageSource ? (
-                  <Img
-                    src={item.params!.sourcePath!}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover"
-                    }}
-                  />
-                ) : (
-                  <AbsoluteFill
-                    style={{
-                      background:
-                        "linear-gradient(180deg, #101B2E 0%, #0B1220 60%, #060A12 100%)",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center"
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "24px 40px",
-                        borderRadius: 16,
-                        backgroundColor: "rgba(11, 18, 32, 0.8)",
-                        border: "1px solid rgba(229, 169, 60, 0.3)",
-                        color: theme?.primaryColor ?? "#E5A93C",
-                        fontSize: 28,
-                        fontWeight: 700,
-                        fontFamily: theme?.fontFamily ?? "sans-serif"
-                      }}
-                    >
-                      {item.params?.speaker || "A-Roll Interview"}
-                    </div>
-                  </AbsoluteFill>
-                )}
+                <ARollMediaView
+                  sourcePath={item.params?.sourcePath}
+                  sourceInMs={item.params?.sourceInMs}
+                  audioPolicy={item.audioPolicy}
+                  speaker={item.params?.speaker}
+                  fps={fps}
+                  theme={theme}
+                />
 
                 {/* Nested B-roll Overlays on this A-roll segment */}
                 {Array.isArray(item.broll)
@@ -160,8 +264,6 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                       const durationMs = b.durationMs ?? 3000;
                       const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
                       const bDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
-                      const isBrollVideo = typeof b.assetPath === "string" && /\.(mp4|mov|webm)$/i.test(b.assetPath);
-                      const isBrollImage = typeof b.assetPath === "string" && /\.(png|jpe?g|webp|gif|svg)$/i.test(b.assetPath);
 
                       return (
                         <Sequence
@@ -177,64 +279,11 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                               zIndex: 20
                             }}
                           >
-                            {isBrollVideo ? (
-                              <Video
-                                src={b.assetPath!}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: b.fit ?? "cover"
-                                }}
-                                volume={b.audioPolicy === "preserve" ? 1 : 0}
-                              />
-                            ) : isBrollImage ? (
-                              <Img
-                                src={b.assetPath!}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: b.fit ?? "cover"
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: aspectRatio === "9:16" ? "65%" : "70%",
-                                  left: "8%",
-                                  right: "8%",
-                                  padding: "16px 24px",
-                                  borderRadius: 16,
-                                  backgroundColor: "rgba(11, 18, 32, 0.88)",
-                                  backdropFilter: "blur(12px)",
-                                  border: `1px solid ${theme?.accentColor ?? "#00E5FF"}`,
-                                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)"
-                                }}
-                              >
-                                {b.title ? (
-                                  <div
-                                    style={{
-                                      fontSize: aspectRatio === "9:16" ? 28 : 24,
-                                      fontWeight: 800,
-                                      color: theme?.primaryColor ?? "#E5A93C",
-                                      marginBottom: 4
-                                    }}
-                                  >
-                                    {b.title}
-                                  </div>
-                                ) : null}
-                                {b.description ? (
-                                  <div
-                                    style={{
-                                      fontSize: aspectRatio === "9:16" ? 22 : 18,
-                                      color: theme?.textColor ?? "#FFFFFF"
-                                    }}
-                                  >
-                                    {b.description}
-                                  </div>
-                                ) : null}
-                              </div>
-                            )}
+                            <BrollMediaView
+                              broll={b}
+                              aspectRatio={aspectRatio}
+                              theme={theme}
+                            />
                           </PresetWrapper>
                         </Sequence>
                       );
@@ -263,8 +312,6 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         const durationMs = b.durationMs ?? 3000;
         const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
         const bDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
-        const isBrollVideo = typeof b.assetPath === "string" && /\.(mp4|mov|webm)$/i.test(b.assetPath);
-        const isBrollImage = typeof b.assetPath === "string" && /\.(png|jpe?g|webp|gif|svg)$/i.test(b.assetPath);
 
         return (
           <Sequence
@@ -280,64 +327,11 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                 zIndex: 30
               }}
             >
-              {isBrollVideo ? (
-                <Video
-                  src={b.assetPath!}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: b.fit ?? "cover"
-                  }}
-                  volume={b.audioPolicy === "preserve" ? 1 : 0}
-                />
-              ) : isBrollImage ? (
-                <Img
-                  src={b.assetPath!}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: b.fit ?? "cover"
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: aspectRatio === "9:16" ? "65%" : "70%",
-                    left: "8%",
-                    right: "8%",
-                    padding: "16px 24px",
-                    borderRadius: 16,
-                    backgroundColor: "rgba(11, 18, 32, 0.88)",
-                    backdropFilter: "blur(12px)",
-                    border: `1px solid ${theme?.accentColor ?? "#00E5FF"}`,
-                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)"
-                  }}
-                >
-                  {b.title ? (
-                    <div
-                      style={{
-                        fontSize: aspectRatio === "9:16" ? 28 : 24,
-                        fontWeight: 800,
-                        color: theme?.primaryColor ?? "#E5A93C",
-                        marginBottom: 4
-                      }}
-                    >
-                      {b.title}
-                    </div>
-                  ) : null}
-                  {b.description ? (
-                    <div
-                      style={{
-                        fontSize: aspectRatio === "9:16" ? 22 : 18,
-                        color: theme?.textColor ?? "#FFFFFF"
-                      }}
-                    >
-                      {b.description}
-                    </div>
-                  ) : null}
-                </div>
-              )}
+              <BrollMediaView
+                broll={b}
+                aspectRatio={aspectRatio}
+                theme={theme}
+              />
             </PresetWrapper>
           </Sequence>
         );
@@ -374,6 +368,9 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         const durationFrames = track.durationMs
           ? Math.round((track.durationMs / 1000) * fps)
           : undefined;
+        const resolvedAudio = resolveMediaUrl(track.path);
+
+        if (!resolvedAudio) return null;
 
         return (
           <Sequence
@@ -382,7 +379,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
             durationInFrames={durationFrames}
           >
             <Audio
-              src={track.path}
+              src={resolvedAudio}
               volume={track.volume ?? 1}
             />
           </Sequence>

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Pop } from "../presets/Pop";
+import { resolveMediaUrl } from "../media-resolver";
 import type { AspectRatioMode, StudioThemeProps } from "../types";
 
 interface LogoOutroProps {
@@ -18,6 +19,7 @@ export const LogoOutro: React.FC<LogoOutroProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const [hasLogoError, setHasLogoError] = useState(false);
 
   const primaryColor = theme?.primaryColor ?? "#E5A93C"; // Warm Gold
   const accentColor = theme?.accentColor ?? "#00E5FF"; // Bright Cyan
@@ -28,6 +30,7 @@ export const LogoOutro: React.FC<LogoOutroProps> = ({
 
   // Pulse effect
   const pulse = Math.sin((frame / fps) * Math.PI * 2) * 0.04 + 1.0;
+  const resolvedLogo = resolveMediaUrl(sourcePath);
 
   return (
     <AbsoluteFill
@@ -61,9 +64,10 @@ export const LogoOutro: React.FC<LogoOutroProps> = ({
             textAlign: "center"
           }}
         >
-          {sourcePath ? (
+          {resolvedLogo && !hasLogoError ? (
             <Img
-              src={sourcePath}
+              src={resolvedLogo}
+              onError={() => setHasLogoError(true)}
               style={{
                 width: aspectRatio === "9:16" ? 220 : 180,
                 height: "auto",

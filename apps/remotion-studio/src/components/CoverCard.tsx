@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { PresetWrapper } from "../presets";
+import { resolveMediaUrl } from "../media-resolver";
 import type { AspectRatioMode, MotionPresetType, StudioThemeProps } from "../types";
 
 interface CoverCardProps {
@@ -30,6 +31,7 @@ export const CoverCard: React.FC<CoverCardProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const [hasImageError, setHasImageError] = useState(false);
 
   const primaryColor = theme?.primaryColor ?? "#E5A93C"; // Warm Gold
   const accentColor = theme?.accentColor ?? "#00E5FF"; // Bright Cyan
@@ -46,6 +48,7 @@ export const CoverCard: React.FC<CoverCardProps> = ({
 
   // Background slow ambient zoom
   const bgScale = interpolate(frame, [0, fps * 10], [1.0, 1.08]);
+  const resolvedImage = resolveMediaUrl(sourceImage);
 
   return (
     <AbsoluteFill
@@ -56,10 +59,11 @@ export const CoverCard: React.FC<CoverCardProps> = ({
       }}
     >
       {/* Background Graphic or Plate */}
-      {sourceImage ? (
+      {resolvedImage && !hasImageError ? (
         <AbsoluteFill style={{ transform: `scale(${bgScale})`, transformOrigin: "center center" }}>
           <Img
-            src={sourceImage}
+            src={resolvedImage}
+            onError={() => setHasImageError(true)}
             style={{
               width: "100%",
               height: "100%",

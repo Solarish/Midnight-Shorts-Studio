@@ -52,7 +52,17 @@ const activeEventStreams = new Set<() => void>();
 const instanceLease = { release: async () => true };
 await Promise.all([store.init(), graphStore.init(), storyboardStore.init(), workflowSnapshots.init(), mkdir(assetRoot, { recursive: true })]);
 await scheduler.initialize();
-await app.register(cors, { origin: [`http://127.0.0.1:${port}`, `http://localhost:${port}`, "http://127.0.0.1:5173", "http://localhost:5173"], credentials: true, allowedHeaders: ["content-type", "x-ava-csrf", "last-event-id", "idempotency-key", "if-match"] });
+await app.register(cors, {
+  origin: (origin, cb) => {
+    if (!origin || /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Not allowed by CORS"), false);
+  },
+  credentials: true,
+  allowedHeaders: ["content-type", "x-ava-csrf", "last-event-id", "idempotency-key", "if-match"]
+});
 await app.register(multipart, { limits: { files: 1, fileSize: MEDIA_MAX_BYTES } });
 
 app.addHook("onRequest", async (request, reply) => {

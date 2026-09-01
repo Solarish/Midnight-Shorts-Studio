@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { PresetWrapper } from "../presets";
+import { resolveMediaUrl } from "../media-resolver";
 import type { AspectRatioMode, MotionPresetType, StudioThemeProps } from "../types";
 
 interface TitleCardProps {
@@ -24,6 +25,7 @@ export const TitleCard: React.FC<TitleCardProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const [hasMediaError, setHasMediaError] = useState(false);
 
   const primaryColor = theme?.primaryColor ?? "#E5A93C"; // Warm Gold
   const accentColor = theme?.accentColor ?? "#00E5FF"; // Bright Cyan
@@ -35,6 +37,7 @@ export const TitleCard: React.FC<TitleCardProps> = ({
   const mainTitle = title || texts?.["Text 1"] || texts?.title || "PSU BROADCAST";
   const subTitle = subtitle || texts?.["Text 2"] || texts?.subtitle || "Midnight Shorts Studio";
   const firstMedia = Array.isArray(media) && media.length > 0 ? media[0] : undefined;
+  const resolvedMedia = resolveMediaUrl(firstMedia);
 
   const titleSize = aspectRatio === "9:16" ? 68 : aspectRatio === "16:9" ? 60 : 52;
 
@@ -49,10 +52,11 @@ export const TitleCard: React.FC<TitleCardProps> = ({
         fontFamily
       }}
     >
-      {firstMedia ? (
+      {resolvedMedia && !hasMediaError ? (
         <AbsoluteFill style={{ transform: `scale(${bgScale})`, transformOrigin: "center center" }}>
           <Img
-            src={firstMedia}
+            src={resolvedMedia}
+            onError={() => setHasMediaError(true)}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
           <AbsoluteFill

@@ -3,6 +3,7 @@ import { Composition } from "remotion";
 import { VerticalComposition } from "./compositions/VerticalComposition";
 import { HorizontalComposition } from "./compositions/HorizontalComposition";
 import { SquareComposition } from "./compositions/SquareComposition";
+import { setActiveApiPort } from "./media-resolver";
 import type { StoryboardAssemblyProps, StoryboardItemProps } from "./types";
 
 import activeStoryboardData from "./active-storyboard.json";
@@ -17,7 +18,7 @@ function convertApiItemsToRemotion(apiItems: any[]): StoryboardItemProps[] {
       ? item.broll.map((b: any, bIdx: number) => ({
           id: b.id || `broll_${idx}_${bIdx}`,
           assetPath: b.asset?.path || b.assetPath,
-          offsetMs: b.offsetMs ?? 0,
+          offsetMs: b.offsetMs ?? b.startMs ?? 0,
           durationMs: b.durationMs ?? 3000,
           preset: b.preset || "Spring",
           fit: b.fit || "cover",
@@ -31,6 +32,8 @@ function convertApiItemsToRemotion(apiItems: any[]): StoryboardItemProps[] {
       id: item.id || `item_${idx + 1}`,
       kind: item.kind,
       durationMs: Number(item.durationMs) || 4000,
+      audioPolicy: item.audioPolicy,
+      presetId: item.presetId,
       params: {
         ...rawParams,
         title: rawParams.title || rawParams.personName || rawParams.texts?.title,
@@ -39,6 +42,10 @@ function convertApiItemsToRemotion(apiItems: any[]): StoryboardItemProps[] {
         speaker: rawParams.speaker || rawParams.personName,
         dialogue: rawParams.dialogue || rawParams.soundNote || rawParams.text,
         sourcePath: rawParams.sourcePath,
+        sourceImage: rawParams.sourceImage,
+        media: rawParams.media,
+        texts: rawParams.texts,
+        note: rawParams.note,
         sourceInMs: rawParams.sourceInMs,
         sourceOutMs: rawParams.sourceOutMs,
         motionPreset: rawParams.motionPreset || "Spring"
@@ -55,36 +62,41 @@ async function resolveDynamicStoryboardProps(
   if (
     incomingProps.items &&
     incomingProps.items.length > 0 &&
-    incomingProps.storyboardId !== "default-storyboard"
+    incomingProps.storyboardId !== "default-storyboard" &&
+    incomingProps.storyboardId !== "kewalin_documentary_2569"
   ) {
     return incomingProps;
   }
 
-  // Otherwise, fetch active storyboard from local Control API
-  try {
-    const response = await fetch("http://127.0.0.1:47660/api/v1/storyboards");
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const activeStoryboard = data[0];
-        const converted = convertApiItemsToRemotion(activeStoryboard.items);
-        if (converted.length > 0) {
-          const totalMs = converted.reduce(
-            (sum, item) => sum + (item.durationMs || 0),
-            0
-          );
-          return {
-            ...incomingProps,
-            storyboardId: activeStoryboard.storyboardId,
-            title: activeStoryboard.name || incomingProps.title,
-            durationInFrames: Math.max(1, Math.round((totalMs / 1000) * 25)),
-            items: converted
-          };
+  // Try candidate ports for local Control API
+  const candidatePorts = [47650, 47660];
+  for (const port of candidatePorts) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/v1/storyboards`);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setActiveApiPort(port);
+          const activeStoryboard = data[0];
+          const converted = convertApiItemsToRemotion(activeStoryboard.items);
+          if (converted.length > 0) {
+            const totalMs = converted.reduce(
+              (sum, item) => sum + (item.durationMs || 0),
+              0
+            );
+            return {
+              ...incomingProps,
+              storyboardId: activeStoryboard.storyboardId,
+              title: activeStoryboard.name || incomingProps.title,
+              durationInFrames: Math.max(1, Math.round((totalMs / 1000) * 25)),
+              items: converted
+            };
+          }
         }
       }
+    } catch {
+      // Continue to next port
     }
-  } catch {
-    // Control API not reachable, fallback to incoming
   }
 
   return incomingProps;
