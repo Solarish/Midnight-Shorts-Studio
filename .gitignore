@@ -2,5 +2,14 @@
 prototype-runs/
 templates/after-effects/.build/
 node_modules/
+dist/
+.ava-control/
+.ava-generated/
+assets/input/ui/
+playwright-report/
+test-results/
+*.tsbuildinfo
 .DS_Store
 *.log
+outputs/
+.ava-cache/

@@ -1,11 +1,20 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import Ajv2020Import from "ajv/dist/2020.js";
 
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const Ajv2020 = Ajv2020Import.default ?? Ajv2020Import;
+const workflowSchema = JSON.parse(await readFile(new URL("../../schema/workflow.schema.json", import.meta.url), "utf8"));
+const validateSchema = new Ajv2020({ allErrors: true, strict: true }).compile(workflowSchema);
 
 export async function loadWorkflow(configPath) {
   const absolutePath = path.resolve(configPath);
   const raw = await readFile(absolutePath, "utf8");
+  return loadWorkflowText(raw, { configPath: absolutePath, configDir: path.dirname(absolutePath) });
+}
+
+export function loadWorkflowText(raw, options = {}) {
+  const absolutePath = path.resolve(options.configPath ?? "workflow.json");
   let workflow;
 
   try {
@@ -21,7 +30,7 @@ export async function loadWorkflow(configPath) {
 
   return {
     configPath: absolutePath,
-    configDir: path.dirname(absolutePath),
+    configDir: path.resolve(options.configDir ?? path.dirname(absolutePath)),
     raw,
     workflow: applyDefaults(workflow)
   };
@@ -33,14 +42,10 @@ export function validateWorkflow(workflow) {
   if (!workflow || typeof workflow !== "object" || Array.isArray(workflow)) {
     return ["root must be a JSON object"];
   }
-  if (workflow.schemaVersion !== 1) errors.push("schemaVersion must be 1");
-  if (typeof workflow.id !== "string" || !ID_PATTERN.test(workflow.id)) {
-    errors.push("id must contain only letters, numbers, underscore, or hyphen");
+  if (!validateSchema(workflow)) {
+    errors.push(...(validateSchema.errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? error.keyword}`));
   }
-  if (!Array.isArray(workflow.steps) || workflow.steps.length === 0) {
-    errors.push("steps must be a non-empty array");
-    return errors;
-  }
+  if (!Array.isArray(workflow.steps)) return errors;
 
   const ids = new Set();
   for (const [index, step] of workflow.steps.entries()) {
@@ -49,18 +54,10 @@ export function validateWorkflow(workflow) {
       errors.push(`${label} must be an object`);
       continue;
     }
-    if (typeof step.id !== "string" || !ID_PATTERN.test(step.id)) {
-      errors.push(`${label}.id is invalid`);
-    } else if (ids.has(step.id)) {
+    if (typeof step.id === "string" && ids.has(step.id)) {
       errors.push(`${label}.id duplicates '${step.id}'`);
-    } else {
+    } else if (typeof step.id === "string" && ID_PATTERN.test(step.id)) {
       ids.add(step.id);
-    }
-    if (typeof step.type !== "string" || step.type.length === 0) {
-      errors.push(`${label}.type is required`);
-    }
-    if (step.with !== undefined && (!step.with || typeof step.with !== "object" || Array.isArray(step.with))) {
-      errors.push(`${label}.with must be an object`);
     }
   }
 
@@ -88,6 +85,10 @@ function applyDefaults(workflow) {
           baseUrl: "http://10.135.66.70:11434",
           model: "gemma4:12b",
           ...(settings.services?.llm ?? {})
+        },
+        jaitts: {
+          baseUrl: "http://10.135.66.70:7861",
+          ...(settings.services?.jaitts ?? {})
         }
       },
       adobe: {
@@ -97,7 +98,8 @@ function applyDefaults(workflow) {
           ...(settings.adobe?.afterEffects ?? {})
         },
         premiere: {
-          applicationName: "Adobe Premiere Pro 2025",
+          applicationName: "Adobe Premiere Pro (Beta)",
+          requiredVersion: "26.5.0",
           bridgeHost: "127.0.0.1",
           bridgePort: 47652,
           bridgeMailbox: "/tmp/psu-ava-premiere-bridge",

@@ -1,0 +1,121 @@
+{
+  "$schema": "../schema/workflow.schema.json",
+  "schemaVersion": 1,
+  "id": "ajarn_deeden_69_vlog_master",
+  "name": "อาจารย์ดีเด่น-69 — รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ (Vlog Doodle Lifestyle Master)",
+  "metadata": {
+    "version": "2.0.0",
+    "theme": "vlog_lifestyle_doodle",
+    "targetPlatform": "broadcast_and_mobile",
+    "author": "PSU Automated Video Assembly (AVA)"
+  },
+  "variables": {
+    "professor_name": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    "faculty": "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+    "award_title": "อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙",
+    "motto": "ความภูมิใจที่สุดคือการได้เห็นลูกศิษย์เติบโต และนำหลักคิดไปใช้เพื่อประโยชน์ของเพื่อนมนุษย์",
+    "comfyui_server": "http://10.135.66.70:8188",
+    "source_volume_root": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ ",
+    "photo_folder": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /ภาพนิ่ง",
+    "broll_folder": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins",
+    "output_video": "outputs/rendered/documentary-kewalin-69-full-storyboard-master.mp4",
+    "output_xml": "outputs/kewalin_2569_ultimate_master.xml"
+  },
+  "steps": [
+    {
+      "id": "step_1_comfy_background_gen",
+      "type": "comfyui.workflow",
+      "name": "Generate Photorealistic Dental Studio Background",
+      "with": {
+        "server": "${workflow.variables.comfyui_server}",
+        "model": "z_image_turbo_bf16.safetensors",
+        "clip": "qwen_3_4b.safetensors",
+        "prompt": "luxury futuristic dental medicine clinic and research laboratory background, clean medical navy and teal ambient glow, soft bokeh depth of field, 3D holographic dental tooth models in background blur, glassmorphic panels, cinematic studio lighting, photorealistic, 8k resolution",
+        "negative_prompt": "human, face, person, portrait, readable text, typo, logo, watermark, ugly, low quality, noisy, dark muddy",
+        "resolution": { "width": 1344, "height": 768 },
+        "steps": 8,
+        "output": ".ava-cache/comfy-dental/comfy_dental_bg.png"
+      }
+    },
+    {
+      "id": "step_2_vlog_graphics_synthesis",
+      "type": "cg.vlog_doodle_suite",
+      "name": "Synthesize Title Bumper, AR Cover Card & Climax Quote Card",
+      "with": {
+        "heroPhoto": "${workflow.variables.photo_folder}/DSC02129.JPG",
+        "quoteBgPhoto": "${workflow.variables.photo_folder}/DSC02135.JPG",
+        "bgImage": "${steps.step_1_comfy_background_gen.outputs.output}",
+        "style": {
+          "title": "PSU MODEL TEACHER 2026",
+          "subtitle": "${workflow.variables.faculty}",
+          "awardBadge": "${workflow.variables.award_title}",
+          "professorName": "${workflow.variables.professor_name}",
+          "quote": "${workflow.variables.motto}",
+          "doodles": ["handdrawn_star", "handdrawn_flower", "handdrawn_tooth", "curved_arrow", "stacked_hearts", "curved_arc_text"]
+        },
+        "outputs": {
+          "bumper": ".ava-cache/vlog-suite-perfect/vlog_title_bumper.png",
+          "cover": ".ava-cache/vlog-suite-perfect/vlog_ar_cover_card.png",
+          "quote": ".ava-cache/vlog-suite-perfect/vlog_climax_quote_card.png"
+        }
+      }
+    },
+    {
+      "id": "step_3_aroll_and_broll_cut",
+      "type": "video.multitrack_cut",
+      "name": "Ingest & Trim Real A-Roll Interviews and Contextual Video B-Roll",
+      "with": {
+        "aRoll": [
+          { "file": "${workflow.variables.source_volume_root}/C7723.MP4", "in": "00:11", "duration": 17.0, "segment": "Intro" },
+          { "file": "${workflow.variables.source_volume_root}/C7723.MP4", "in": "00:43", "duration": 76.0, "segment": "Harvard & 20 Yrs Experience" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "00:25", "duration": 25.0, "segment": "Mentorship Culture" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "00:54", "duration": 48.0, "segment": "Lecture Style" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "01:45", "duration": 54.0, "segment": "Feedback Reinforcement" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "03:51", "duration": 44.0, "segment": "3D Teeth Innovation" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "04:48", "duration": 36.0, "segment": "Adaptive Difficulty" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "02:59", "duration": 51.0, "segment": "Teacher Pride" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "05:41", "duration": 59.0, "segment": "Award Speech" },
+          { "file": "${workflow.variables.source_volume_root}/C7724.MP4", "in": "06:50", "duration": 18.0, "segment": "Love & Dedication" }
+        ],
+        "bRoll": [
+          { "file": "${workflow.variables.broll_folder}/C7736.MP4", "duration": 12.0, "topic": "Dental Lab & Model Discussion" },
+          { "file": "${workflow.variables.broll_folder}/C7742.MP4", "duration": 14.0, "topic": "Student Mentoring & Interaction" },
+          { "file": "${workflow.variables.broll_folder}/C7740.MP4", "duration": 16.0, "topic": "3D Printing Equipment in Action" },
+          { "file": "${workflow.variables.broll_folder}/C7748.MP4", "duration": 12.0, "topic": "Clinical Patient Dental Care" }
+        ]
+      }
+    },
+    {
+      "id": "step_4_render_master_mp4",
+      "type": "video.render_master",
+      "name": "Render 100% Broadcast Master Video (1080p25 @ H.264/AAC)",
+      "with": {
+        "sequence": [
+          "step_2_vlog_graphics_synthesis.outputs.bumper",
+          "step_3_aroll_and_broll_cut.segments.intro",
+          "step_2_vlog_graphics_synthesis.outputs.cover",
+          "step_3_aroll_and_broll_cut.segments.body_with_broll",
+          "step_2_vlog_graphics_synthesis.outputs.quote"
+        ],
+        "targetFile": "${workflow.variables.output_video}",
+        "resolution": "1920x1080",
+        "fps": 25,
+        "crf": 18
+      }
+    },
+    {
+      "id": "step_5_export_premiere_xml",
+      "type": "premiere.export_xml",
+      "name": "Export RFC 3986 URL-Encoded Final Cut Pro XML Project",
+      "with": {
+        "targetXml": "${workflow.variables.output_xml}",
+        "timebase": 25,
+        "tracks": {
+          "v1": "A-Roll Interview & CG Cards",
+          "v2": "B-Roll Video Overlays from /Ins",
+          "a1": "Master Dialogue Audio"
+        }
+      }
+    }
+  ]
+}

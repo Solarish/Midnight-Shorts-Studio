@@ -1,0 +1,290 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Z-Image Turbo"
+    }
+  },
+  "2": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load Qwen text encoder"
+    }
+  },
+  "3": {
+    "inputs": {
+      "seed": 20260829,
+      "steps": 8,
+      "cfg": 1.5,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "Synthesize empty environment background"
+    }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 1920,
+      "height": 1080,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty 1920x1080 latent"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "empty realistic elegant university and dental-science documentary environment; PSU-inspired deep navy, warm gold, and subtle teal ambient documentary lighting; natural photographic bokeh; clean cinematic empty negative space on the left for title overlay; high resolution professional cinematography, absolutely no people, no human silhouettes, no rendered text",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive background environment prompt (no people)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "people, person, human, face, body, silhouettes, hands, man, woman, professor, duplicated subjects, flat gray panels, solid background, vertical seams, visible border, framing, split screen, pillarbox, hard dividing lines, words, text, logo, watermark, signature, blurry, low quality, distorted, extra limbs, bad anatomy, deformed",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative prompt (no people/logos/watermarks/seams/borders)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decode background image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "ava_storyboard/cover_card",
+      "images": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save final composite cover"
+    }
+  },
+  "10": {
+    "inputs": {
+      "image": "cover_cutout.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Apple Vision cutout (RGBA)"
+    }
+  },
+  "11": {
+    "inputs": {
+      "upscale_method": "bicubic",
+      "width": 720,
+      "height": 1080,
+      "crop": "disabled",
+      "image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "Scale cutout RGB to 720x1080"
+    }
+  },
+  "14": {
+    "inputs": {
+      "mask": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "Convert cutout alpha mask to image for scaling"
+    }
+  },
+  "15": {
+    "inputs": {
+      "upscale_method": "bicubic",
+      "width": 720,
+      "height": 1080,
+      "crop": "disabled",
+      "image": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "Scale alpha mask to 720x1080"
+    }
+  },
+  "16": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "Convert scaled mask image back to mask"
+    }
+  },
+  "17": {
+    "inputs": {
+      "mask": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "InvertMask",
+    "_meta": {
+      "title": "Invert mask to obtain opaque subject=1"
+    }
+  },
+  "19": {
+    "inputs": {
+      "width": 1050,
+      "height": 1080,
+      "batch_size": 1,
+      "color": 463134
+    },
+    "class_type": "EmptyImage",
+    "_meta": {
+      "title": "Title-safe solid deep navy color (#07111E)"
+    }
+  },
+  "20": {
+    "inputs": {
+      "value": 1.0,
+      "width": 1050,
+      "height": 1080
+    },
+    "class_type": "SolidMask",
+    "_meta": {
+      "title": "Title-safe solid mask"
+    }
+  },
+  "21": {
+    "inputs": {
+      "mask": [
+        "20",
+        0
+      ],
+      "left": 0,
+      "top": 0,
+      "right": 120,
+      "bottom": 0
+    },
+    "class_type": "FeatherMask",
+    "_meta": {
+      "title": "Feather title-safe panel right edge into background"
+    }
+  },
+  "18": {
+    "inputs": {
+      "x": 1050,
+      "y": 0,
+      "resize_source": false,
+      "destination": [
+        "8",
+        0
+      ],
+      "source": [
+        "11",
+        0
+      ],
+      "mask": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "ImageCompositeMasked",
+    "_meta": {
+      "title": "Composite professor cutout onto background"
+    }
+  },
+  "22": {
+    "inputs": {
+      "x": 0,
+      "y": 0,
+      "resize_source": false,
+      "destination": [
+        "18",
+        0
+      ],
+      "source": [
+        "19",
+        0
+      ],
+      "mask": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "ImageCompositeMasked",
+    "_meta": {
+      "title": "Composite title-safe deep navy gradient over left area"
+    }
+  }
+}

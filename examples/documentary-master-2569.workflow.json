@@ -1,0 +1,202 @@
+{
+  "$schema": "../schema/workflow.schema.json",
+  "schemaVersion": 1,
+  "id": "documentary_master_2569",
+  "name": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ — Master Workflow",
+  "variables": {
+    "professor_name": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    "faculty": "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+    "award_title": "อาจารย์ตัวอย่างดีเด่น ประจำปี 2569",
+    "tagline": "ทำหน้าที่ของตัวเองให้ดีที่สุด ทำด้วยความรักและสนุก",
+    "badge": "PSU BROADCAST SPECIAL REPORT",
+    "source_volume_root": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    "docx_path": "${workflow.variables.source_volume_root}/SB-รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ .docx"
+  },
+  "settings": {
+    "runRoot": "../prototype-runs",
+    "stepTimeoutMs": 1200000,
+    "retryAttempts": 1,
+    "pollIntervalMs": 1500,
+    "services": {
+      "comfyui": {
+        "baseUrl": "http://10.135.66.70:8188",
+        "clientId": "psu-ava-carousel"
+      }
+    },
+    "adobe": {
+      "afterEffects": {
+        "applicationId": "com.adobe.AfterEffects.application",
+        "aerenderPath": "/Applications/Adobe After Effects 2026/aerender"
+      },
+      "premiere": {
+        "applicationName": "Adobe Premiere Pro (Beta)",
+        "requiredVersion": "26.5.0",
+        "bridgeHost": "127.0.0.1",
+        "bridgePort": 47652,
+        "launch": true
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "import_storyboard",
+      "type": "storyboard.docx_import",
+      "with": {
+        "path": "${workflow.variables.docx_path}"
+      }
+    },
+    {
+      "id": "catalog_media",
+      "type": "media.catalog",
+      "with": {
+        "directories": [
+          "${workflow.variables.source_volume_root}",
+          "${workflow.variables.source_volume_root}/Ins"
+        ]
+      }
+    },
+    {
+      "id": "create_cutlist",
+      "type": "edit.cutlist",
+      "with": {
+        "storyboard": "${steps.import_storyboard.outputs.storyboard}",
+        "catalog": "${steps.catalog_media.outputs.catalog}",
+        "introDurationMs": 15000
+      }
+    },
+    {
+      "id": "select_photos",
+      "type": "asset.multi_select",
+      "with": {
+        "paths": [
+          "${workflow.variables.source_volume_root}/ภาพนิ่ง/DSC02129.JPG",
+          "${workflow.variables.source_volume_root}/ภาพนิ่ง/DSC02130.JPG",
+          "${workflow.variables.source_volume_root}/ภาพนิ่ง/DSC02135.JPG"
+        ]
+      }
+    },
+    {
+      "id": "ae_carousel_effect",
+      "type": "effect.3d_carousel",
+      "with": {
+        "media": "${steps.select_photos.outputs.mediaList}",
+        "cycleMode": "loop",
+        "mediaFit": "cover",
+        "templateProject": "../templates/after-effects/3d-photo-carousel.aep",
+        "outputProject": "projects/carousel-composite.aep",
+        "composition": "Main",
+        "texts": {
+          "Text 1": "${workflow.variables.professor_name}",
+          "Text 2": "${workflow.variables.faculty}",
+          "Text 3": "${workflow.variables.award_title}",
+          "Text 4": "${workflow.variables.tagline}",
+          "Text 5": "${workflow.variables.badge}"
+        },
+        "timing": {
+          "durationSeconds": 15,
+          "frameRate": 25,
+          "pacing": "cinematic"
+        },
+        "styling": {
+          "theme": "psu_blue_gold",
+          "enableParticles": true,
+          "enableDepthOfField": true
+        }
+      }
+    },
+    {
+      "id": "scene_carousel",
+      "type": "timeline.scene",
+      "with": {
+        "source": "${steps.ae_carousel_effect.outputs.project}",
+        "durationMs": 15000,
+        "sourceInMs": 0,
+        "track": 1
+      }
+    },
+    {
+      "id": "comfy_intro_cover",
+      "type": "comfyui.workflow",
+      "with": {
+        "workflowFile": "../workflows/generate-cover-zimage.api.json",
+        "uploads": [
+          {
+            "file": "${workflow.variables.source_volume_root}/ภาพนิ่ง/DSC02129.JPG",
+            "patch": "10.inputs.image"
+          }
+        ],
+        "patches": {
+          "6.inputs.text": "luxury futuristic dental medicine clinic and research laboratory background, clean medical navy and teal ambient glow",
+          "text.name": "${workflow.variables.professor_name}",
+          "text.title": "${workflow.variables.award_title}",
+          "font.family": "PSU Satiti"
+        },
+        "downloadDir": "media/intro-cover"
+      }
+    },
+    {
+      "id": "scene_intro_cover",
+      "type": "timeline.scene",
+      "with": {
+        "source": "${steps.comfy_intro_cover.outputs.images.0.localPath}",
+        "durationMs": 5000,
+        "sourceInMs": 0,
+        "track": 1
+      }
+    },
+    {
+      "id": "comfy_outro_cover",
+      "type": "comfyui.workflow",
+      "with": {
+        "workflowFile": "../workflows/generate-cover-zimage.api.json",
+        "uploads": [
+          {
+            "file": "${workflow.variables.source_volume_root}/ภาพนิ่ง/DSC02135.JPG",
+            "patch": "10.inputs.image"
+          }
+        ],
+        "patches": {
+          "6.inputs.text": "luxury futuristic dental medicine clinic and research laboratory background, clean medical navy and teal ambient glow",
+          "text.name": "ความรู้สึกที่ได้รับรางวัลอาจารย์ตัวอย่างดีเด่น",
+          "text.title": "มหาวิทยาลัยสงขลานครินทร์ ปี 2569",
+          "font.family": "PSU Satiti"
+        },
+        "downloadDir": "media/outro-cover"
+      }
+    },
+    {
+      "id": "scene_outro_cover",
+      "type": "timeline.scene",
+      "with": {
+        "source": "${steps.comfy_outro_cover.outputs.images.0.localPath}",
+        "durationMs": 5000,
+        "sourceInMs": 0,
+        "track": 1
+      }
+    },
+    {
+      "id": "compose_timeline",
+      "type": "timeline.compose",
+      "with": {
+        "name": "DOCUMENTARY_MASTER",
+        "scenes": [
+          "${steps.scene_carousel.outputs.scene}",
+          "${steps.scene_intro_cover.outputs.scene}",
+          "${steps.create_cutlist.outputs.segments}",
+          "${steps.scene_outro_cover.outputs.scene}"
+        ]
+      }
+    },
+    {
+      "id": "build_premiere",
+      "type": "premiere.build",
+      "with": {
+        "outputProject": "outputs/premiere/documentary-story.prproj",
+        "sequenceName": "DOCUMENTARY_MASTER",
+        "sequencePresetPath": "/Applications/Adobe Premiere Pro 2026/Adobe Premiere Pro 2026.app/Contents/Settings/SequencePresets/Legacy/DNxHD/1080p 25/DNX HQ 1080p 25.sqpreset",
+        "save": true,
+        "timelineSpec": "${steps.compose_timeline.outputs.timelineSpec}"
+      }
+    }
+  ]
+}

@@ -7,10 +7,13 @@ export async function runLlmChat(input, context) {
   const messages = normalizeMessages(input);
 
   if (context.dryRun) {
+    const content = validateOutputLanguage(input.mockResponse ?? "DRY_RUN_LLM_RESPONSE", input.outputLanguage);
     return {
       provider: config.provider,
       model: input.model ?? config.model,
-      content: input.mockResponse ?? "DRY_RUN_LLM_RESPONSE",
+      content,
+      outputLanguage: input.outputLanguage,
+      provenance: input.provenance,
       parsed: input.parseJson ? {} : undefined
     };
   }
@@ -55,13 +58,24 @@ export async function runLlmChat(input, context) {
     ? payload.message?.content
     : payload.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("LLM response did not contain message content");
+  const validatedContent = validateOutputLanguage(content, input.outputLanguage);
 
   return {
     provider: config.provider,
     model: input.model ?? config.model,
-    content,
-    parsed: input.parseJson ? JSON.parse(content) : undefined
+    content: validatedContent,
+    outputLanguage: input.outputLanguage,
+    provenance: input.provenance,
+    parsed: input.parseJson ? JSON.parse(validatedContent) : undefined
   };
+}
+
+function validateOutputLanguage(content, outputLanguage) {
+  if (typeof content !== "string" || !content.trim()) throw new Error("LLM response content must be non-empty");
+  if (outputLanguage === "en" && /[\u0E00-\u0E7F]/u.test(content)) {
+    throw new Error("llm.chat outputLanguage=en rejected Thai characters; Z-Image prompt translation failed closed");
+  }
+  return content.trim();
 }
 
 function normalizeMessages(input) {
@@ -72,4 +86,3 @@ function normalizeMessages(input) {
   if (messages.length === 0) throw new Error("llm.chat requires messages or prompt");
   return messages;
 }
-

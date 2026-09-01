@@ -1,0 +1,119 @@
+{
+  "$schema": "../schema/workflow.schema.json",
+  "schemaVersion": 1,
+  "id": "3d_photo_carousel_story",
+  "name": "3D Photo Carousel Intro (Multi-Comp AE & Premiere Pro)",
+  "variables": {
+    "title": "รศ.ดร.ทพญ. เกวลิน ธรรมสิทธิ์บูรณ์",
+    "subtitle": "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+    "award": "อาจารย์ตัวอย่างดีเด่น ประจำปี 2569",
+    "tagline": "ทำหน้าที่ของตัวเองให้ดีที่สุด ทำด้วยความรักและสนุก",
+    "badge": "PSU BROADCAST SPECIAL REPORT"
+  },
+  "settings": {
+    "runRoot": "../prototype-runs",
+    "stepTimeoutMs": 1200000,
+    "retryAttempts": 1,
+    "pollIntervalMs": 1500,
+    "services": {
+      "comfyui": {
+        "baseUrl": "http://10.135.66.70:8188",
+        "clientId": "psu-ava-carousel"
+      }
+    },
+    "adobe": {
+      "afterEffects": {
+        "applicationId": "com.adobe.AfterEffects.application",
+        "aerenderPath": "/Applications/Adobe After Effects 2026/aerender"
+      },
+      "premiere": {
+        "applicationName": "Adobe Premiere Pro (Beta)",
+        "requiredVersion": "26.5.0",
+        "bridgeHost": "127.0.0.1",
+        "bridgePort": 47652,
+        "launch": true
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "select_photos",
+      "type": "asset.multi_select",
+      "with": {
+        "paths": [
+          "../assets/input/prototype-presenter.png"
+        ]
+      }
+    },
+    {
+      "id": "ae_carousel_effect",
+      "type": "effect.3d_carousel",
+      "with": {
+        "media": "${steps.select_photos.outputs.mediaList}",
+        "cycleMode": "loop",
+        "mediaFit": "cover",
+        "templateProject": "../templates/after-effects/3d-photo-carousel.aep",
+        "outputProject": "projects/carousel-composite.aep",
+        "composition": "Main",
+        "texts": {
+          "Text 1": "${workflow.variables.title}",
+          "Text 2": "${workflow.variables.subtitle}",
+          "Text 3": "${workflow.variables.award}",
+          "Text 4": "${workflow.variables.tagline}",
+          "Text 5": "${workflow.variables.badge}"
+        },
+        "timing": {
+          "durationSeconds": 15,
+          "frameRate": 25,
+          "pacing": "cinematic"
+        },
+        "styling": {
+          "theme": "psu_blue_gold",
+          "enableParticles": true,
+          "enableDepthOfField": true
+        }
+      }
+    },
+    {
+      "id": "ae_carousel_render",
+      "type": "ae.render",
+      "timeoutMs": 1200000,
+      "with": {
+        "project": "${steps.ae_carousel_effect.outputs.project}",
+        "composition": "Main",
+        "output": "media/carousel-intro.mov",
+        "renderSettingsTemplate": "Best Settings",
+        "outputModuleTemplate": "Lossless"
+      }
+    },
+    {
+      "id": "scene_carousel",
+      "type": "timeline.scene",
+      "with": {
+        "source": "${steps.ae_carousel_render.outputs.output}",
+        "durationMs": 15000,
+        "sourceInMs": 0,
+        "track": 1
+      }
+    },
+    {
+      "id": "compose_timeline",
+      "type": "timeline.compose",
+      "with": {
+        "name": "CAROUSEL_INTRO",
+        "scenes": ["${steps.scene_carousel.outputs.scene}"]
+      }
+    },
+    {
+      "id": "build_premiere",
+      "type": "premiere.build",
+      "with": {
+        "outputProject": "outputs/premiere/carousel-story.prproj",
+        "sequenceName": "CAROUSEL_INTRO",
+        "sequencePresetPath": "/Applications/Adobe Premiere Pro 2026/Adobe Premiere Pro 2026.app/Contents/Settings/SequencePresets/Legacy/DNxHD/1080p 25/DNX HQ 1080p 25.sqpreset",
+        "save": true,
+        "timelineSpec": "${steps.compose_timeline.outputs.timelineSpec}"
+      }
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 # Premiere UXP bridge
 
-Load this folder as a plugin with Adobe UXP Developer Tool. The installed Premiere version must be 25.6 or newer.
+Current bridge protocol: v1 · plugin version 0.4.4. Reload the plugin after updating so TimelineSpec build/export capabilities, busy heartbeat, and staged restart-safe receipts are active.
+
+Load this folder as a plugin with Adobe UXP Developer Tool. The currently accepted host is Premiere Pro Beta 26.5.0 paired with Media Encoder Beta 26.5.0; both are exact-pinned for the first user trial.
 
 ## One-time host setup
 
@@ -29,5 +31,7 @@ where Premiere UXP blocks HTTP, it automatically falls back to the local
 - If reporting to the CLI briefly fails, the completed result is retained and retried without assembling the project again.
 - The plugin polls the loopback bridge in the background after host startup; the panel does not need to remain open.
 - The bridge verifies each imported media item belongs to the new output project before creating the sequence.
+- H.264 and ProRes export one at a time. A completion receipt is written only after the exact fresh output is stable and nonzero; an ambiguous started receipt is never replayed automatically.
+- The heartbeat runs independently from the job poller so readiness remains observable during long Premiere operations.
 
 Adobe references: [Premiere UXP setup](https://developer.adobe.com/premiere-pro/uxp/plugins/), [plugin installation and Developer Mode](https://developer.adobe.com/premiere-pro/uxp/plugins/distribution/install/), and [Project API](https://developer.adobe.com/premiere-pro/uxp/ppro-reference/classes/project/).

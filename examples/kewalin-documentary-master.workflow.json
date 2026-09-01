@@ -1,0 +1,78 @@
+{
+  "$schema": "../schema/workflow.schema.json",
+  "schemaVersion": 1,
+  "id": "kewalin_documentary_production_master",
+  "name": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ — Documentary Broadcast Master Pipeline",
+  "variables": {
+    "professor_name": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    "faculty": "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+    "award_title": "อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙",
+    "motto": "ความภูมิใจที่สุดคือการได้เห็นลูกศิษย์เติบโต และนำหลักคิดไปใช้เพื่อประโยชน์ของเพื่อนมนุษย์",
+    "source_volume_root": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ "
+  },
+  "steps": [
+    {
+      "id": "step_1_carousel_bumper",
+      "type": "ae.template",
+      "description": "3D Photo Carousel Title Bumper with 21 media slots bound to real photos",
+      "with": {
+        "templateProject": "templates/after-effects/3d-photo-carousel.aep",
+        "outputProject": ".ava-cache/carousel-kewalin.aep",
+        "composition": "Main",
+        "photoSourceDir": "${workflow.variables.source_volume_root}/ภาพนิ่ง",
+        "durationSeconds": 8.0
+      }
+    },
+    {
+      "id": "step_2_ar_dental_cover_card",
+      "type": "cg.dental_card",
+      "description": "AI Portrait Cutout + Medical Navy Background + Dental Tooth Doodles",
+      "with": {
+        "heroPhoto": "${workflow.variables.source_volume_root}/ภาพนิ่ง/DSC02129.JPG",
+        "theme": "medical_dental_clinic",
+        "badge": "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
+        "professorName": "${workflow.variables.professor_name}",
+        "faculty": "${workflow.variables.faculty}",
+        "durationSeconds": 6.0
+      }
+    },
+    {
+      "id": "step_3_aroll_and_broll_assembly",
+      "type": "video.multitrack_cut",
+      "description": "Trim A-Roll interviews (C7723, C7724) and match B-Roll moving videos (/Ins)",
+      "with": {
+        "aRollFiles": [
+          "${workflow.variables.source_volume_root}/C7723.MP4",
+          "${workflow.variables.source_volume_root}/C7724.MP4"
+        ],
+        "bRollDir": "${workflow.variables.source_volume_root}/Ins",
+        "bRollInserts": [
+          { "time": "01:05", "clip": "C7736.MP4", "duration": 12.0, "topic": "Dental Lab & Tooth Models" },
+          { "time": "02:25", "clip": "C7742.MP4", "duration": 14.0, "topic": "Student Mentorship" },
+          { "time": "04:30", "clip": "C7740.MP4", "duration": 16.0, "topic": "3D Printing Technology" },
+          { "time": "06:15", "clip": "C7748.MP4", "duration": 12.0, "topic": "Clinical Patient Care" }
+        ]
+      }
+    },
+    {
+      "id": "step_4_climax_quote_card",
+      "type": "cg.dental_card",
+      "description": "Climax Quote Card with Dental theme and gold typography",
+      "with": {
+        "quote": "${workflow.variables.motto}",
+        "author": "${workflow.variables.professor_name}",
+        "faculty": "${workflow.variables.faculty}",
+        "durationSeconds": 6.0
+      }
+    },
+    {
+      "id": "step_5_premiere_multitrack_xml",
+      "type": "premiere.export_xml",
+      "description": "Export RFC 3986 compliant Final Cut Pro XML with Tracks V1, V2, and A1",
+      "with": {
+        "outputXml": "outputs/kewalin_2569_ultimate_master.xml",
+        "timebase": 25
+      }
+    }
+  ]
+}

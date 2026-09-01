@@ -1,22 +1,49 @@
 {
-  "name": "psu-automated-video-assembly",
+  "name": "midnight-shorts-studio",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Sequential JSON-driven video assembly pipeline for After Effects, Premiere Pro, ComfyUI, and LLM workflows.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "description": "Automated Short-form Video Assembly Engine for TikTok, Reels, and Shorts (Midnight Ecosystem).",
   "bin": {
     "ava-pipeline": "./src/cli.js"
   },
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently -k -n api,web -c blue,cyan \"npm run dev -w @psu-ava/control-api\" \"npm run dev -w @psu-ava/control-web\"",
+    "start": "npm run start -w @psu-ava/control-api",
+    "control:center": "node ./tools/start-control-center.js",
+    "worker:execute": "npm run execute -w @psu-ava/mac-worker --",
+    "test:workspaces": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @psu-ava/control-web",
+    "test:live-acceptance": "AVA_LIVE_ACCEPTANCE=1 npm run test:e2e -w @psu-ava/control-web -- e2e/live-acceptance.spec.ts",
     "validate": "node ./src/cli.js validate ./examples/assembly.workflow.json",
     "dry-run": "node ./src/cli.js run ./examples/assembly.workflow.json --dry-run",
     "prototype:template": "node ./tools/create-prototype-template.js",
     "prototype:doctor": "node ./tools/prototype-doctor.js",
     "prototype:dry-run": "node ./src/cli.js run ./examples/prototype.workflow.json --dry-run",
     "prototype:verify": "node ./tools/verify-prototype.js",
-    "test": "node --test"
+    "cover:text-mogrt": "node ./tools/create-cover-text-mogrt.js",
+    "cover:text-mogrt-pool": "node ./tools/create-cover-text-mogrt-pool.js",
+    "resource:status": "node ./tools/resource-lock.js status",
+    "resource:unlock": "node ./tools/resource-lock.js unlock",
+    "adobe:reload-premiere": "node ./tools/reload-premiere-uxp.js",
+    "test": "node --test test/*.test.js && npm run test:workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "concurrently": "^9.2.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ws": "^8.21.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   }
 }

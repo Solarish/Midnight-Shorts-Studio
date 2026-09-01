@@ -3,7 +3,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export function workflowDigest(raw) {
-  return createHash("sha256").update(raw).digest("hex");
+  const content = typeof raw === "string" ? raw : JSON.stringify(raw ?? {});
+  return createHash("sha256").update(content).digest("hex");
 }
 
 export function createRunId(workflowId) {

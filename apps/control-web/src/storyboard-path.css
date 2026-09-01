@@ -1,0 +1,6 @@
+.path-field label { margin: 0; }
+.path-field label > span { display: flex; gap: 5px; margin-top: 5px; }
+.path-field button { background: #1d4ed8; border: 0; border-radius: 6px; color: #fff; padding: 0 11px; white-space: nowrap; cursor: pointer; }
+.path-field.compact label { font-size: 0; }
+.path-field.compact label > span { margin: 0; }
+.cover-preview { display: block; width: 100%; max-height: 220px; object-fit: contain; background: #020617; border-radius: 8px; margin: 0 0 12px; }

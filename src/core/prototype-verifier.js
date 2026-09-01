@@ -11,6 +11,11 @@ const EXPECTED_STEPS = [
   "premiere_assembly"
 ];
 
+const PROFILES = {
+  legacy: { workflow: (id) => id === "ava_prototype", workflowDetail: "ava_prototype", sequenceName: "AVA_PROTOTYPE" },
+  portraitStory: { workflow: (id) => /^portrait_story_[A-Za-z0-9_-]+$/.test(id), workflowDetail: "portrait_story_*", sequenceName: "PORTRAIT_STORY" }
+};
+
 export async function verifyPrototype(runDirectory) {
   const runDir = path.resolve(runDirectory);
   const checks = [];
@@ -24,7 +29,12 @@ export async function verifyPrototype(runDirectory) {
     return report(runDir, checks);
   }
 
-  add("workflow.id", state.workflowId === "ava_prototype", state.workflowId);
+  const profile = state.workflowId === "ava_prototype"
+    ? PROFILES.legacy
+    : String(state.workflowId ?? "").startsWith("portrait_story_")
+      ? PROFILES.portraitStory
+      : undefined;
+  add("workflow.id", Boolean(profile?.workflow(state.workflowId)), profile ? state.workflowId : `${state.workflowId ?? "missing"} (unsupported verification profile)`);
   add("workflow.live", state.dryRun === false, `dryRun=${state.dryRun}`);
   add("workflow.success", state.status === "success", `status=${state.status}`);
 
@@ -79,7 +89,7 @@ export async function verifyPrototype(runDirectory) {
 
   const premiere = state.steps?.premiere_assembly?.outputs;
   await verifyFile("premiere.project", premiere?.project, checks, 1_024);
-  add("premiere.sequence_name", premiere?.sequenceName === "AVA_PROTOTYPE", premiere?.sequenceName ?? "missing");
+  add("premiere.sequence_name", Boolean(profile && premiere?.sequenceName === profile.sequenceName), premiere?.sequenceName ?? "missing");
   add(
     "premiere.sequence_guid",
     typeof premiere?.sequenceGuid === "string" && premiere.sequenceGuid.length > 0,

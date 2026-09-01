@@ -129,6 +129,23 @@ async function main() {
 
   const pluginManifest = path.join(projectRoot, "adobe/premiere-uxp/manifest.json");
   record(await exists(pluginManifest) ? "pass" : "fail", "Premiere UXP plugin", pluginManifest);
+  let compatibleHeartbeat = false;
+  let heartbeatDetail = "Premiere bridge heartbeat is not active";
+  try {
+    const [manifest, heartbeat] = await Promise.all([
+      readFile(pluginManifest, "utf8").then(JSON.parse),
+      readFile("/tmp/psu-ava-premiere-bridge/plugin-heartbeat.json", "utf8").then(JSON.parse)
+    ]);
+    const ageMs = Date.now() - Date.parse(heartbeat.at);
+    compatibleHeartbeat = heartbeat.protocolVersion === 1
+      && heartbeat.pluginVersion === manifest.version
+      && heartbeat.connected === true
+      && ageMs >= -1_000
+      && ageMs <= 5_000;
+    heartbeatDetail = compatibleHeartbeat
+      ? `Compatible runtime heartbeat: plugin ${heartbeat.pluginVersion}, protocol ${heartbeat.protocolVersion}`
+      : `Heartbeat is incompatible or stale: plugin ${heartbeat.pluginVersion ?? "missing"}, protocol ${heartbeat.protocolVersion ?? "missing"}, age ${Math.round(ageMs / 1000)}s`;
+  } catch (_) {}
 
   const udtCandidates = [
     "/Applications/UXP Developer Tools.app",
@@ -146,9 +163,9 @@ async function main() {
     }
   }
   record(
-    udtPath ? "pass" : "setup",
+    udtPath || compatibleHeartbeat ? "pass" : "setup",
     "UXP Developer Tool 2.2+",
-    udtPath || "Install from Adobe Creative Cloud before loading the panel"
+    udtPath || (compatibleHeartbeat ? heartbeatDetail : "Install from Adobe Creative Cloud before loading or updating the panel")
   );
 
   const developerSettings = "/Library/Application Support/Adobe/UXP/Developer/settings.json";

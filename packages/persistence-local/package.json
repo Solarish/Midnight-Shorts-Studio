@@ -1,0 +1,12 @@
+{
+  "name": "@psu-ava/persistence-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "node --import tsx --test test/*.test.ts" },
+  "dependencies": {
+    "@psu-ava/contracts": "0.1.0",
+    "@psu-ava/node-sdk": "0.1.0"
+  }
+}

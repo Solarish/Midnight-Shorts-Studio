@@ -29,7 +29,8 @@
         "aerenderPath": "/Applications/Adobe After Effects 2026/aerender"
       },
       "premiere": {
-        "applicationName": "Adobe Premiere Pro 2025",
+        "applicationName": "Adobe Premiere Pro (Beta)",
+        "requiredVersion": "26.5.0",
         "bridgeHost": "127.0.0.1",
         "bridgePort": 47652,
         "launch": true

@@ -1,0 +1,12 @@
+$.global.AVA_MOGRT_JOB_ID = "ava-cover-pool-01-9c481d8fbdfe5427";
+$.global.AVA_MOGRT_OUTPUT_FOLDER = "/Users/louislee/Desktop/Adobe_Plugin/templates/premiere/pool";
+$.global.AVA_MOGRT_PROJECT = "/Users/louislee/Desktop/Adobe_Plugin/templates/premiere/pool/.build/psu-cover-text-slot-01-generator.aep";
+$.global.AVA_MOGRT_RECEIPT = "/Users/louislee/Desktop/Adobe_Plugin/templates/premiere/pool/.build/psu-cover-text-slot-01-project-receipt.json";
+$.global.AVA_MOGRT_TEMPLATE_NAME = "psu-cover-text-slot-01";
+$.global.AVA_MOGRT_PERSON_NAME = "ชื่อ นามสกุล";
+$.global.AVA_MOGRT_POSITION_TITLE = "ตำแหน่ง / หน่วยงาน";
+$.global.AVA_MOGRT_AWARD = "รางวัลหรือเกียรติคุณ";
+$.global.AVA_MOGRT_DEDICATED = true;
+$.global.AVA_MOGRT_RESET_AFTER_EXPORT = true;
+$.global.AVA_MOGRT_QUIT_AFTER_PROJECT = true;
+$.evalFile(File("/Users/louislee/Desktop/Adobe_Plugin/adobe/after-effects/create-cover-text-mogrt.jsx"));
