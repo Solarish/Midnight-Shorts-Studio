@@ -571,14 +571,79 @@ export function DocumentaryInspector({ nodeType, config, onChange }: Documentary
 
   if (nodeType === "timeline.broll_stack") {
     return (
-      <div className="custom-inspector-section" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div className="custom-inspector-section" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+        <div className="inspector-field">
+          <label htmlFor="broll-folder">โฟลเดอร์ B-Roll บน NAS (/Ins หรือโฟลเดอร์มีเดีย)</label>
+          <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+            <input
+              id="broll-folder"
+              type="text"
+              value={String(config.brollFolder ?? config.folder ?? "")}
+              onChange={(e) => onChange("brollFolder", e.target.value)}
+              placeholder="/Volumes/.../Ins"
+              style={{
+                flex: 1,
+                padding: "8px 10px",
+                background: "#1e293b",
+                border: "1px solid #334155",
+                borderRadius: "6px",
+                color: "#f8fafc",
+                fontSize: "13px"
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => openPicker("brollFolder", "folder", undefined, "เลือกโฟลเดอร์ B-Roll บน NAS")}
+              style={{
+                padding: "8px 12px",
+                background: "#0284c7",
+                border: "none",
+                borderRadius: "6px",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              📁 เลือกโฟลเดอร์ NAS
+            </button>
+          </div>
+          <small style={{ color: "#94a3b8", display: "block", marginTop: "4px", fontSize: "11px" }}>
+            ระบบจะสแกนไฟล์วิดีโอและรูปภาพทั้งหมดในโฟลเดอร์นี้เพื่อนำมาซ้อนเป็น B-roll อัตโนมัติ
+          </small>
+        </div>
+
+        <div className="inspector-field">
+          <label htmlFor="broll-preset">Motion Graphics Animation Preset สำหรับ B-Roll</label>
+          <select
+            id="broll-preset"
+            value={String(config.motionPreset ?? "Spring")}
+            onChange={(e) => onChange("motionPreset", e.target.value)}
+            style={{
+              padding: "8px 10px",
+              background: "#1e293b",
+              border: "1px solid #334155",
+              borderRadius: "6px",
+              color: "#f8fafc",
+              fontSize: "13px"
+            }}
+          >
+            <option value="Spring">Spring (เด้งนุ่มนวล - สไตล์ Modern Shorts)</option>
+            <option value="Bounce">Bounce (กระโดดดึงดูดสายตา - สไตล์ TikTok/Reels)</option>
+            <option value="Pop">Pop (ขยายโผล่ทันที - สไตล์ Fast Pace)</option>
+            <option value="ZoomPunch">Zoom Punch (ซูมกระแทกจังหวะสำคัญ)</option>
+            <option value="BackdropBlur">Backdrop Blur (เบลอพื้นหลังเน้นฟุตเทจ)</option>
+          </select>
+        </div>
+
         <div className="inspector-field">
           <label htmlFor="broll-duration">ความยาวสูงสุดของแต่ละคลิป B-Roll (ms)</label>
           <input
             id="broll-duration"
             type="number"
-            step="40"
-            min="40"
+            step="500"
+            min="1000"
             value={Number(config.maxDurationMs ?? 5000)}
             onChange={(e) => onChange("maxDurationMs", Number(e.target.value))}
             style={{
@@ -590,7 +655,20 @@ export function DocumentaryInspector({ nodeType, config, onChange }: Documentary
               fontSize: "13px"
             }}
           />
+          <small style={{ color: "#94a3b8", display: "block", marginTop: "4px", fontSize: "11px" }}>
+            ค่ามาตรฐาน 5,000 ms (5.0 วินาที) เหมาะสมกับจังหวะการตัดต่อสารคดีและคลิปสั้น
+          </small>
         </div>
+
+        <RemoteFilePickerModal
+          isOpen={pickerState.open}
+          onClose={() => setPickerState((prev) => ({ ...prev, open: false }))}
+          onSelect={handlePickerSelect}
+          initialPath={pickerState.initialPath}
+          mode={pickerState.mode}
+          filter={pickerState.filter}
+          title={pickerState.title}
+        />
       </div>
     );
   }
