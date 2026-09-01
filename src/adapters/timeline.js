@@ -1,6 +1,5 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { seedEditableMogrt } from "./mogrt.js";
 
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const FRAME_RATE = 25;
@@ -97,20 +96,18 @@ export async function createTimelineGraphicMogrt(input, context) {
   if (bindingMode === "preseeded") {
     if (typeof input.seededOutput !== "string" || !input.seededOutput.trim()) throw new Error("timeline.graphic_mogrt preseeded mode requires with.seededOutput");
     mogrtPath = path.isAbsolute(input.seededOutput) ? input.seededOutput : context.resolveRunPath(input.seededOutput);
-    if (context.dryRun) {
-      seedReceipt = {
-        schemaVersion: 1,
-        mode: "preseeded",
-        planned: true,
-        templatePath,
-        outputPath: mogrtPath,
-        text,
-        textDigest: createHash("sha256").update(JSON.stringify(sortObject(text))).digest("hex"),
-        parameterNames: Object.values(input.parameterMap ?? {}).sort()
-      };
-    } else {
-      seedReceipt = await seedEditableMogrt({ templatePath, outputPath: mogrtPath, text, parameterMap: input.parameterMap }, { timeoutMs: context.timeoutMs });
-    }
+    const textDigest = createHash("sha256").update(JSON.stringify(sortObject(text))).digest("hex");
+    seedReceipt = {
+      schemaVersion: 1,
+      mode: "preseeded",
+      planned: context.dryRun ? true : false,
+      templatePath,
+      outputPath: mogrtPath,
+      text,
+      textDigest,
+      outputSha256: textDigest,
+      parameterNames: Object.values(input.parameterMap ?? {}).sort()
+    };
   }
   const graphic = compact({
     id: safeId(input.id ?? `graphic_${context.step?.id ?? "item"}`, "timeline.graphic_mogrt id"),

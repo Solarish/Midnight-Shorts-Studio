@@ -14,11 +14,11 @@ const manifest = {
   backgroundBrief: "ห้องส่งข่าวร่วมสมัยบรรยากาศสงบ"
 };
 
-test("portrait story manifest compiles the fixed seven-step workflow", () => {
+test("portrait story manifest compiles the fixed Remotion-powered workflow", () => {
   const result = compilePortraitStory(manifest);
-  assert.equal(result.workflow.steps.length, 7);
+  assert.equal(result.workflow.steps.length, 5);
   assert.equal(result.workflow.steps[0]?.type, "asset.select");
-  assert.equal(result.workflow.steps[6]?.type, "premiere.assemble");
+  assert.equal(result.workflow.steps[4]?.type, "remotion.render");
   assert.match(result.raw, /no people, no words, no logos/);
   assert.equal(result.digest.length, 64);
 });

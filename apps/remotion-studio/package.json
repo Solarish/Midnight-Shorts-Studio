@@ -1,0 +1,23 @@
+{
+  "name": "@psu-ava/remotion-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "preview": "remotion preview src/index.ts",
+    "render": "remotion render src/index.ts"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.280",
+    "@remotion/cli": "^4.0.280",
+    "@remotion/renderer": "^4.0.280",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "remotion": "^4.0.280"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

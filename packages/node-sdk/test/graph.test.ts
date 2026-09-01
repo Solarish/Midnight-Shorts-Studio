@@ -4,7 +4,7 @@ import { nodeLifecycleStages } from "@psu-ava/contracts";
 import { createGraphDefinition, compileGraphToWorkflow, nodeDescriptors, validateGraphDefinition } from "../src/index.ts";
 
 test("all canonical nodes expose Thai role descriptions and lifecycle stages", () => {
-  assert.equal(nodeDescriptors.length, 87);
+  assert.equal(nodeDescriptors.length, 85);
   const allowed = new Set(nodeLifecycleStages);
   for (const descriptor of nodeDescriptors) {
     assert.equal(typeof descriptor.description, "string", `${descriptor.type} description`);
@@ -13,8 +13,7 @@ test("all canonical nodes expose Thai role descriptions and lifecycle stages", (
   }
   assert.equal(nodeDescriptors.find((item) => item.type === "asset.select")?.lifecycleStage, "assets");
   assert.equal(nodeDescriptors.find((item) => item.type === "timeline.compose")?.lifecycleStage, "timeline");
-  assert.equal(nodeDescriptors.find((item) => item.type === "premiere.build")?.lifecycleStage, "build");
-  assert.equal(nodeDescriptors.find((item) => item.type === "premiere.export")?.lifecycleStage, "export");
+  assert.equal(nodeDescriptors.find((item) => item.type === "remotion.render")?.lifecycleStage, "export");
   assert.equal(nodeDescriptors.find((item) => item.type === "media.audio_normalize")?.lifecycleStage, "export");
   assert.equal(nodeDescriptors.find((item) => item.type === "review.media_approval")?.lifecycleStage, "process");
   assert.equal(nodeDescriptors.find((item) => item.type === "graphics.cover_title")?.lifecycleStage, "process");

@@ -3,7 +3,7 @@ import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { PortraitStoryManifestV1, RunEventV1, WorkflowV1 } from "@psu-ava/contracts";
 import { validateWorkflowDocument } from "@psu-ava/contracts";
-import { acquireResourceLock, ResourceLockBusyError, loadWorkflowText, runWorkflow, workflowDigest } from "@psu-ava/core";
+import { loadWorkflowText, runWorkflow, workflowDigest } from "@psu-ava/core";
 import { createSubprocessAdapterRegistry } from "@psu-ava/adapter-sdk";
 import { compilePortraitStory } from "@psu-ava/recipes";
 import { atomicWrite, FileCheckpointStore, LocalControlStore, type ControlRunRecord } from "@psu-ava/persistence-local";
@@ -260,15 +260,9 @@ export class RunScheduler {
     this.active = item.runId;
     let record: ControlRunRecord | undefined;
     let lastStateVersion = 0;
-    let lease: { release(): Promise<boolean> } | undefined;
-    let retryForResource = false;
     let verificationFailed = false;
     let pendingSuccessEvent: Omit<RunEventV1, "schemaVersion" | "sequence" | "runId" | "occurredAt"> | undefined;
     try {
-      lease = await acquireResourceLock({
-        lockPath: this.resourceLockPath,
-        owner: { runId: item.runId, entrypoint: "control-api" }
-      });
       let loaded: ReturnType<typeof loadWorkflowText> | undefined;
       let runDir: string | undefined;
       await this.withTransitionLock(async () => {
@@ -325,7 +319,13 @@ export class RunScheduler {
           await this.publish(item.runId, {
             type: "verification.completed",
             stateVersion: Number(state.version ?? lastStateVersion),
-            data: { ok: verification.ok, ...verification.summary, verifier: verification.verifier ?? "prototype-v1" }
+            data: {
+              ok: verification.ok,
+              passed: verification.summary.passed,
+              failed: verification.summary.failed,
+              total: verification.summary.total,
+              checks: verification.checks
+            }
           });
         } catch (error: any) {
           verificationFailed = true;
@@ -389,11 +389,6 @@ export class RunScheduler {
         await this.publish(item.runId, pendingSuccessEvent);
       }
     } catch (error: any) {
-      if (error instanceof ResourceLockBusyError || error?.code === "RESOURCE_LOCK_BUSY") {
-        this.queue.unshift(item);
-        retryForResource = true;
-        return;
-      }
       if (!record) return;
       record = await this.withTransitionLock(async () => {
         const current = await this.requireRecord(item.runId);
@@ -415,10 +410,8 @@ export class RunScheduler {
       }
       await this.publish(item.runId, { type: "run.failed", stateVersion: lastStateVersion, data: { error: record.error } });
     } finally {
-      if (lease) await lease.release().catch(() => false);
       this.active = undefined;
-      if (retryForResource) this.scheduleNext();
-      else void this.startNext();
+      void this.startNext();
     }
   }
 

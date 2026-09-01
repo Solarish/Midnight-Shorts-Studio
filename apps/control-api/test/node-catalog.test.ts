@@ -6,7 +6,7 @@ import { listUiNodeDescriptors } from "../src/node-catalog.ts";
 
 test("node-types API mapping preserves canonical lifecycle metadata", () => {
   const values = listUiNodeDescriptors();
-  assert.equal(values.length, 87);
+  assert.equal(values.length, 85);
   assert.deepEqual(values.map(({ type }) => type), nodeDescriptors.map(({ type }) => type));
   for (const value of values) {
     const canonical = nodeDescriptors.find(({ type }) => type === value.type)!;

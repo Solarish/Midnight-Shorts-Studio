@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { bindAfterEffectsTemplate } from "./after-effects.js";
 
 /**
- * Executes a Parametric 3D Photo Carousel Assembly in After Effects.
+ * Executes a Parametric 3D Photo Carousel Assembly.
  * 
  * Supports:
  * - Dynamic 1..N media array input with loop, ping-pong, and shuffle cycling across 21 slots.
@@ -63,21 +62,29 @@ export async function runEffect3DCarousel(input, context) {
     }
   }
 
-  const templateProject = input.templateProject || "templates/after-effects/3d-photo-carousel.aep";
-  const outputProject = input.outputProject || "projects/3d-carousel-composite.aep";
+  const outputProject = input.outputProject
+    ? (path.isAbsolute(input.outputProject) ? input.outputProject : context.resolveRunPath(input.outputProject))
+    : context.resolveRunPath("projects/3d-carousel-composite.json");
   const composition = input.composition || "Main";
-
-  // 3. Delegate to robust After Effects runner
-  return await bindAfterEffectsTemplate({
-    templateProject,
-    outputProject,
+  const payload = {
+    schemaVersion: 1,
     composition,
+    outputProject,
     text: textMap,
     footage: slotMap,
     mediaFit,
     timing: input.timing || {},
     styling: input.styling || {}
-  }, context);
+  };
+
+  return {
+    dryRun: Boolean(context?.dryRun),
+    project: outputProject,
+    composition,
+    payload,
+    job: payload,
+    mediaCount: resolvedMedia.length
+  };
 }
 
 function flattenMediaPaths(value, result = []) {

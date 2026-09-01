@@ -67,21 +67,13 @@ const canonicalNodeMetadata = {
     lifecycleStage: "process",
     description: "ส่งเวิร์กโฟลว์ไปยัง ComfyUI เพื่อสร้างหรือปรับแต่งภาพ"
   },
-  "ae.template": {
-    lifecycleStage: "build",
-    description: "ผูกข้อความและฟุตเทจกับเทมเพลต After Effects แล้วบันทึกโปรเจกต์"
-  },
-  "ae.render": {
-    lifecycleStage: "build",
-    description: "เรนเดอร์ composition จาก After Effects เป็นไฟล์วิดีโอ"
+  "remotion.render": {
+    lifecycleStage: "export",
+    description: "เรนเดอร์และประกอบวิดีโอจาก Remotion Composition (9:16, 16:9, 1:1) เป็นไฟล์ MP4 ความละเอียดสูง"
   },
   "effect.3d_carousel": {
     lifecycleStage: "build",
-    description: "สร้างและประกอบ 3D Photo Carousel ใน After Effects พร้อมระบบ Modulo Auto-cycling และปรับแต่ง Pacing/Timing ได้ละเอียด"
-  },
-  "premiere.assemble": {
-    lifecycleStage: "build",
-    description: "ประกอบไฟล์สื่อและงานจาก After Effects เป็นโปรเจกต์ Premiere แบบเดิม"
+    description: "สร้างและประกอบ 3D Photo Carousel ใน Remotion พร้อมระบบ Modulo Auto-cycling และปรับแต่ง Pacing/Timing ได้ละเอียด"
   },
   "media.probe": {
     lifecycleStage: "assets",
@@ -416,20 +408,25 @@ export const nodeDescriptors: readonly NodeDescriptorV1[] = Object.freeze([
   descriptor("template.payload", "Template payload", "existing", [], [{ id: "payload", type: "json", outputPath: "" }]),
   descriptor("llm.chat", "LLM chat", "existing", [{ id: "prompt", type: "text", configKey: "prompt" }], [{ id: "content", type: "text", outputPath: "content" }, { id: "parsed", type: "json", outputPath: "parsed" }], { capabilities: ["llm"], sideEffect: true }),
   descriptor("comfyui.workflow", "ComfyUI workflow", "existing", [{ id: "workflow", type: "text", required: true, configKey: "workflowFile" }, { id: "image", type: "image", configKey: "uploads.0.file" }, { id: "prompt", type: "text", configKey: "prompt" }], [{ id: "image", type: "image", outputPath: "images.0.localPath" }, { id: "images", type: "json", outputPath: "images" }, { id: "workflowDigest", type: "text", outputPath: "workflowDigest" }], { capabilities: ["comfyui"], sideEffect: true }),
-  descriptor("ae.template", "After Effects template", "existing", [{ id: "template", type: "after-effects-project", required: true, configKey: "templateProject" }, { id: "footage", type: "any", configKey: "footage" }, { id: "text", type: "any", configKey: "text" }, { id: "output", type: "text", required: true, configKey: "outputProject" }], [{ id: "project", type: "after-effects-project", outputPath: "project" }], { capabilities: ["after-effects"], sideEffect: true }),
-  descriptor("ae.render", "After Effects render", "existing", [{ id: "project", type: "after-effects-project", required: true, configKey: "project" }, { id: "output", type: "text", required: true, configKey: "output" }], [{ id: "video", type: "video", outputPath: "output" }], { capabilities: ["after-effects"], sideEffect: true }),
+  descriptor("remotion.render", "Render Remotion Video Composition", "output", [
+    { id: "composition", type: "text", configKey: "composition" },
+    { id: "props", type: "json", configKey: "props" },
+    { id: "storyboard", type: "json", configKey: "storyboard" },
+    { id: "cutlist", type: "json", configKey: "cutlist" },
+    { id: "broll", type: "json", configKey: "broll" }
+  ], [
+    { id: "video", type: "video", outputPath: "output" },
+    { id: "output", type: "media", outputPath: "output" }
+  ], { capabilities: ["remotion", "ffmpeg"], sideEffect: true }),
   descriptor("effect.3d_carousel", "3D Photo Carousel Effect", "existing", [
     { id: "media", type: "media", required: true, multiple: true, configKey: "media" },
     { id: "texts", type: "json", configKey: "texts" },
     { id: "timing", type: "json", configKey: "timing" },
     { id: "styling", type: "json", configKey: "styling" },
-    { id: "templateProject", type: "after-effects-project", configKey: "templateProject" },
     { id: "outputProject", type: "text", configKey: "outputProject" }
   ], [
-    { id: "project", type: "after-effects-project", outputPath: "project" },
-    { id: "video", type: "video", outputPath: "video" }
-  ], { capabilities: ["after-effects"], sideEffect: true }),
-  descriptor("premiere.assemble", "Premiere assembly", "existing", [{ id: "media", type: "media", multiple: true, configKey: "media" }, { id: "output", type: "text", required: true, configKey: "outputProject" }], [{ id: "project", type: "premiere-project", outputPath: "project" }], { capabilities: ["premiere"], sideEffect: true }),
+    { id: "project", type: "after-effects-project", outputPath: "project" }
+  ], { capabilities: ["remotion"], sideEffect: true }),
   descriptor("media.probe", "Probe media", "media", [{ id: "path", type: "media", required: true, configKey: "path" }], [{ id: "media", type: "media", outputPath: "path" }, { id: "metadata", type: "json", outputPath: "" }], { capabilities: ["ffprobe"] }),
   descriptor("timeline.scene", "Timeline scene", "declarative", [{ id: "source", type: "media", required: true, configKey: "source" }], [{ id: "scene", type: "json", outputPath: "scene" }], { countsAsScene: true }),
   descriptor("timeline.transition", "Timeline transition", "declarative", [{ id: "after", type: "json", configKey: "after" }], [{ id: "transition", type: "json", outputPath: "transition" }]),

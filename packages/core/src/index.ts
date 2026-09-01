@@ -8,5 +8,4 @@ export { runWorkflow } from "../../../src/core/runner.js";
 export { interpolate } from "../../../src/core/interpolate.js";
 // @ts-ignore JavaScript compatibility module
 export { readState, writeState, workflowDigest, createRunId } from "../../../src/core/state.js";
-// @ts-ignore JavaScript compatibility module
-export { acquireResourceLock, acquireInstanceLock, inspectLock, releaseStaleResourceLock, ResourceLockBusyError, DEFAULT_RESOURCE_LOCK_PATH } from "../../../src/core/resource-lock.js";
+

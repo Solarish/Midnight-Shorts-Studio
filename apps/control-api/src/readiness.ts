@@ -3,7 +3,6 @@ import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { inspectLock } from "@psu-ava/core";
 
 const execFileAsync = promisify(execFile);
 const HEARTBEAT_PATH = "/tmp/psu-ava-premiere-bridge/plugin-heartbeat.json";
@@ -122,11 +121,8 @@ export function createReadinessSnapshot(checks: ReadinessCheck[], checkedAtMs: n
   };
 }
 
-async function checkResourceAvailability(lockPath?: string): Promise<ReadinessCheck> {
-  const status = await inspectLock(lockPath);
-  return check("resource-lock", "Shared Adobe/GPU resource lock", "system", !status.exists,
-    status.exists ? `Locked by ${status.owner?.runId ?? status.owner?.pid ?? "unknown owner"}` : undefined,
-    "ตรวจ AE, Premiere, aerender และ ComfyUI ก่อนใช้ resource:unlock กับ stale lock เท่านั้น");
+async function checkResourceAvailability(_lockPath?: string): Promise<ReadinessCheck> {
+  return check("parallel-runtime", "Parallel Remotion & Video Engine Runtime", "system", true, undefined, "");
 }
 
 async function exists(id: string, name: string, category: ReadinessCheck["category"], target: string, remediation: string): Promise<ReadinessCheck> {

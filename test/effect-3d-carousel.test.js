@@ -37,7 +37,7 @@ test("runEffect3DCarousel dry-run expands media into 21 slots via modulo", async
 
   assert.equal(result.dryRun, true);
   assert.equal(result.composition, "Main");
-  assert.equal(result.project, "/run/projects/3d-carousel-composite.aep");
+  assert.equal(result.project, "/run/projects/3d-carousel-composite.json");
   assert.equal(result.job.mediaFit, "contain");
   assert.deepEqual(result.job.timing, { durationSeconds: 15, frameRate: 25, pacing: "cinematic" });
   assert.deepEqual(result.job.styling, { theme: "psu_blue_gold", enableParticles: true });

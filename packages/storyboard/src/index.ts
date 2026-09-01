@@ -695,3 +695,75 @@ function sortValue(value: unknown): unknown {
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, item]) => item !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, sortValue(item)]));
   return value;
 }
+
+export interface StoryboardRemotionProps {
+  storyboardId: string;
+  title: string;
+  aspectRatio: "9:16" | "16:9" | "1:1";
+  items: Array<{
+    id: string;
+    kind: "a_roll" | "cover_card" | "title" | "logo_outro" | "note";
+    durationMs: number;
+    audioPolicy: "preserve" | "mute" | "mix";
+    params: Record<string, unknown>;
+    broll?: Array<{
+      id: string;
+      assetPath: string;
+      offsetMs: number;
+      durationMs: number;
+      audioPolicy: "mute" | "preserve";
+      fit?: "cover" | "contain";
+      preset?: string;
+    }>;
+  }>;
+  fps: 25;
+  durationInFrames: number;
+  theme?: Record<string, unknown>;
+}
+
+export function compileStoryboardToRemotionProps(
+  storyboard: StoryboardSpecV2,
+  options: {
+    aspectRatio?: "9:16" | "16:9" | "1:1";
+    theme?: Record<string, unknown>;
+  } = {}
+): StoryboardRemotionProps {
+  const totalMs = storyboard.items.reduce((acc, item) => acc + (item.durationMs || 0), 0);
+  const fps = 25;
+  const durationInFrames = Math.max(1, Math.round((totalMs / 1000) * fps));
+
+  const items = storyboard.items.map((item) => ({
+    id: item.id,
+    kind: item.kind,
+    durationMs: item.durationMs,
+    audioPolicy: item.audioPolicy,
+    params: {
+      ...item.params,
+      sourcePath: (item.params?.sourcePath as string) || "",
+      dialogue: (item.params?.dialogue as string) || "",
+      speaker: (item.params?.speaker as string) || (item.params?.sourceKey as string) || "",
+      eyebrow: (item.params?.eyebrow as string) || (item.params?.award as string) || "",
+      title: (item.params?.title as string) || (item.params?.personName as string) || "",
+      subtitle: (item.params?.subtitle as string) || (item.params?.positionTitle as string) || "",
+      sourceImage: (item.params?.sourceImage as string) || ""
+    },
+    broll: (item.broll ?? []).map((b) => ({
+      id: b.id,
+      assetPath: b.asset.path,
+      offsetMs: b.offsetMs,
+      durationMs: b.durationMs,
+      audioPolicy: b.audioPolicy,
+      fit: b.fit ?? "cover"
+    }))
+  }));
+
+  return {
+    storyboardId: storyboard.storyboardId,
+    title: storyboard.name,
+    aspectRatio: options.aspectRatio ?? "16:9",
+    items,
+    fps,
+    durationInFrames,
+    theme: options.theme
+  };
+}

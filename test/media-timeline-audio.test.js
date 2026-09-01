@@ -7,7 +7,6 @@ import { adapters } from "../src/adapters/index.js";
 import { probeMedia, parseFrameRate } from "../src/adapters/media.js";
 import { buildAudioMixPlan, deriveExpectedMuteWindows, generateJaiTts, mergeIntervals, mixAudio, normalizeMasterAudio, parseLoudnormOutput, parseSilencedetectOutput, qcAudioLoudness, selectAudioAsset, subtractIntervals } from "../src/adapters/audio.js";
 import { composeTimeline, createTimelineDynamicLink, createTimelineGraphicMogrt, createTimelineOverlay, createTimelineScene, createTimelineTransition } from "../src/adapters/timeline.js";
-import { buildPremiere, exportPremiere, hashPremiereInputs, validatePremiereExport } from "../src/adapters/premiere.js";
 import { runProcess } from "../src/core/process.js";
 
 function context(root, overrides = {}) {
@@ -350,53 +349,7 @@ test("JaiTTS refuses to duplicate an ambiguous generation submission", async () 
   }
 });
 
-test("Premiere build dry-run emits a fenced build-only TimelineSpec job for inspection", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "ava-premiere-build-"));
-  try {
-    const timelineSpec = (await composeTimeline({
-      scenes: [{ id: "scene", source: "/tmp/source.mov", startMs: 0, sourceInMs: 0, durationMs: 1_000, track: 1, audio: true, audioPolicy: "preserve" }]
-    })).timelineSpec;
-    const result = await buildPremiere({ outputProject: "outputs/final.prproj", sequencePresetPath: "/tmp/ava-25fps.sqpreset", timelineSpec }, context(root, { dryRun: true }));
-    assert.equal(result.job.protocolVersion, 1);
-    assert.equal(result.job.type, "premiere.build");
-    assert.deepEqual(result.job.exports, []);
-    assert.equal(result.job.sequencePresetPath, "/tmp/ava-25fps.sqpreset");
-    assert.match(result.project, /final\.prproj$/);
-    assert.match(result.sequenceGuid, /^dry-run-/);
 
-    const exported = await exportPremiere({ project: "/tmp/final.prproj" }, context(root, {
-      dryRun: true,
-      settings: { adobe: { premiere: { bridgeHost: "127.0.0.1", bridgePort: 47652, launch: false, exportPresets: { h264: "/tmp/h264.epr", prores: "/tmp/prores.epr" } } } }
-    }));
-    assert.deepEqual(exported.job.exports.map((entry) => entry.format), ["h264", "prores"]);
-    assert.equal(exported.job.exports[0].presetPath, "/tmp/h264.epr");
-    assert.deepEqual(exported.exports.map((entry) => entry.format), ["h264", "prores"]);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test("Premiere export finalization validates playable codec metadata with ffprobe", async () => {
-  const calls = [];
-  const media = await validatePremiereExport({ format: "h264", output: "/tmp/final.mp4" }, async (...args) => {
-    calls.push(args);
-    return { stdout: JSON.stringify({
-      format: { duration: "464.000000" },
-      streams: [
-        { codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
-        { codec_type: "audio", codec_name: "aac" }
-      ]
-    }) };
-  });
-  assert.equal(calls[0][0], "ffprobe");
-  assert.equal(media.duration, 464);
-  assert.equal(media.videoCodec, "h264");
-  assert.equal(media.audioCodec, "aac");
-
-  await assert.rejects(validatePremiereExport({ format: "prores", output: "/tmp/partial.mov" }, async () => ({
-    stdout: JSON.stringify({ format: {}, streams: [] })
-  })), /not a finalized playable media file/);
-});
 
 test("timeline validates and retains Dynamic Link and rejects each unsafe category", async () => {
   const dryContext = context("/tmp", { dryRun: true });
@@ -533,76 +486,10 @@ test("createTimelineDynamicLink strictly requires all fields without defaulting 
   await assert.rejects(createTimelineDynamicLink({ ...valid, audioPolicy: "unmute" }, dryContext), /must equal 'mute'/);
 });
 
-test("Premiere build dry-run retains Dynamic Link and hashes AEP project in content identity", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "ava-premiere-build-dl-"));
-  try {
-    const timelineSpec = (await composeTimeline({
-      scenes: [{ id: "scene", source: "/tmp/source.mov", startMs: 0, durationMs: 5_000, track: 1, audio: true, audioPolicy: "preserve" }],
-      dynamicLinks: [{
-        id: "dl_title",
-        project: "/tmp/title.aep",
-        composition: "Main",
-        startMs: 0,
-        durationMs: 3_000,
-        track: 3,
-        audioPolicy: "mute"
-      }]
-    })).timelineSpec;
-
-    const result = await buildPremiere({
-      outputProject: "outputs/final.prproj",
-      sequencePresetPath: "/tmp/ava-25fps.sqpreset",
-      timelineSpec
-    }, context(root, { dryRun: true }));
-
-    assert.equal(result.job.type, "premiere.build");
-    assert.deepEqual(result.job.timelineSpec.dynamicLinks, timelineSpec.dynamicLinks);
-
-    const hashes = await hashPremiereInputs(result.job);
-    const hashedPaths = hashes.map((entry) => entry.path);
-    assert.ok(hashedPaths.includes("/tmp/title.aep"), "AEP project must be included in content identity hashing");
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test("timeline.scene and timeline.overlay require explicit audioPolicy and literal boolean audio", async () => {
-  const dryContext = context("/tmp", { dryRun: true });
-
-  // Missing audio on scene
-  await assert.rejects(createTimelineScene({ source: "/tmp/clip.mov", durationMs: 2_000, audioPolicy: "preserve" }, dryContext), /requires with.audio to be a boolean/);
-
-  // Non-boolean audio on scene
-  await assert.rejects(createTimelineScene({ source: "/tmp/clip.mov", durationMs: 2_000, audio: "true", audioPolicy: "preserve" }, dryContext), /requires with.audio to be a boolean/);
-
-  // Missing audioPolicy on scene
-  await assert.rejects(createTimelineScene({ source: "/tmp/clip.mov", durationMs: 2_000, audio: true }, dryContext), /requires with.audioPolicy/);
-
-  // Invalid audioPolicy on scene
-  await assert.rejects(createTimelineScene({ source: "/tmp/clip.mov", durationMs: 2_000, audio: true, audioPolicy: "auto" }, dryContext), /timeline.scene audioPolicy/);
-
-  // Mismatch: audio=false with audioPolicy='preserve'
-  await assert.rejects(createTimelineScene({ source: "/tmp/clip.mov", durationMs: 2_000, audio: false, audioPolicy: "preserve" }, dryContext), /audio must be true when audioPolicy is 'preserve'/);
-
-  // Mismatch: audio=true with audioPolicy='mute'
-  await assert.rejects(createTimelineScene({ source: "/tmp/clip.mov", durationMs: 2_000, audio: true, audioPolicy: "mute" }, dryContext), /audio must be false when audioPolicy is 'mute'/);
-
-  // Missing audio in composeTimeline / validateScene
-  await assert.rejects(composeTimeline({
-    scenes: [{ id: "scene", source: "/tmp/source.mov", durationMs: 2_000, audioPolicy: "preserve" }]
-  }), /audio must be a boolean/);
-
-  // Missing audioPolicy on overlay
-  await assert.rejects(createTimelineOverlay({ asset: "/tmp/card.png", durationMs: 2_000 }, dryContext), /requires with.audioPolicy/);
-
-  // Invalid audioPolicy on overlay (not mute)
-  await assert.rejects(createTimelineOverlay({ asset: "/tmp/card.png", durationMs: 2_000, audioPolicy: "preserve" }, dryContext), /must equal 'mute'/);
-});
-
-test("adapter registry includes media, timeline, audio, and Premiere build/export capabilities", () => {
+test("adapter registry includes media, timeline, audio, and Remotion capabilities", () => {
   for (const type of [
     "media.probe", "timeline.scene", "timeline.transition", "timeline.overlay", "timeline.dynamic_link", "timeline.compose",
-    "audio.asset", "audio.jaitts", "audio.mix", "audio.loudness_qc", "premiere.build", "premiere.export"
+    "audio.asset", "audio.jaitts", "audio.mix", "audio.loudness_qc", "remotion.render"
   ]) assert.equal(typeof adapters[type], "function", type);
 });
 

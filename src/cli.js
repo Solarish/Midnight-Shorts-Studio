@@ -3,7 +3,6 @@ import { parseArgs } from "node:util";
 import path from "node:path";
 import { loadWorkflow } from "./core/config.js";
 import { runWorkflow } from "./core/runner.js";
-import { acquireResourceLock } from "./core/resource-lock.js";
 import { adapters, commitAdapterCompletion } from "./adapters/index.js";
 
 async function main() {
@@ -33,28 +32,16 @@ async function main() {
   }
   if (command !== "run") throw new Error(`Unknown command '${command}'`);
 
-  const lease = await acquireResourceLock({
-    owner: {
-      runId: values.resume ? path.basename(path.resolve(values.resume)) : loaded.workflow.id,
-      entrypoint: "cli",
-      dryRun: values["dry-run"]
+  const state = await runWorkflow(loaded, adapters, {
+    dryRun: values["dry-run"],
+    resume: values.resume,
+    from: values.from,
+    to: values.to,
+    commitAdapterCompletion,
+    log: (message) => {
+      if (message) console.log(message);
     }
   });
-  let state;
-  try {
-    state = await runWorkflow(loaded, adapters, {
-      dryRun: values["dry-run"],
-      resume: values.resume,
-      from: values.from,
-      to: values.to,
-      commitAdapterCompletion,
-      log: (message) => {
-        if (message) console.log(message);
-      }
-    });
-  } finally {
-    await lease.release();
-  }
   console.log(`${state.status.toUpperCase()} ${state.runId}`);
   console.log(state.runDir);
 }

@@ -564,9 +564,30 @@ export function compilePortraitStory(manifest: PortraitStoryManifestV1): { workf
       { id: "remove_background", type: "image.removeBackground", timeoutMs: 300_000, with: { path: "${steps.select_presenter.outputs.path}", output: "media/presenter-cutout/presenter.png" } },
       { id: "generate_background", type: "comfyui.workflow", timeoutMs: 900_000, with: { workflowFile: "workflows/generate-background.api.json", patches: { "6.inputs.text": `${manifest.backgroundBrief.trim()}, ${STYLE_SUFFIX}` }, downloadDir: "media/generated-background" } },
       { id: "fixed_design", type: "template.payload", with: { text: { TITLE: "${workflow.variables.headline}", SUBTITLE: "${workflow.variables.subheadline}" }, footage: { PORTRAIT: "${steps.remove_background.outputs.path}", BACKGROUND: "${steps.generate_background.outputs.images.0.localPath}" } } },
-      { id: "ae_bind", type: "ae.template", with: { templateProject: "templates/after-effects/prototype-story.aep", outputProject: "adobe/portrait-story.aep", composition: "MASTER", text: "${steps.fixed_design.outputs.text}", footage: "${steps.fixed_design.outputs.footage}" } },
-      { id: "ae_render", type: "ae.render", timeoutMs: 1_200_000, with: { project: "${steps.ae_bind.outputs.project}", composition: "MASTER", output: "renders/portrait-story.mov", renderSettingsTemplate: "Best Settings", outputModuleTemplate: "Lossless" } },
-      { id: "premiere_assembly", type: "premiere.assemble", timeoutMs: 600_000, with: { outputProject: "adobe/portrait-story.prproj", sequenceName: "PORTRAIT_STORY", media: ["${steps.ae_render.outputs.output}"], createSequence: true, save: true } }
+      {
+        id: "remotion_render",
+        type: "remotion.render",
+        timeoutMs: 600_000,
+        with: {
+          composition: "VerticalComposition",
+          output: "renders/portrait-story.mp4",
+          props: {
+            title: "${workflow.variables.headline}",
+            items: [
+              {
+                id: "cover_story",
+                kind: "cover_card",
+                durationMs: 5000,
+                params: {
+                  title: "${workflow.variables.headline}",
+                  subtitle: "${workflow.variables.subheadline}",
+                  sourceImage: "${steps.generate_background.outputs.images.0.localPath}"
+                }
+              }
+            ]
+          }
+        }
+      }
     ]
   };
   const raw = `${JSON.stringify(workflow, null, 2)}\n`;

@@ -11,7 +11,7 @@ import fastifyStatic from "@fastify/static";
 import sharp from "sharp";
 import type { PortraitStoryManifestV1 } from "@psu-ava/contracts";
 import { validateWorkflowDocument } from "@psu-ava/contracts";
-import { acquireInstanceLock, loadWorkflowText, workflowDigest } from "@psu-ava/core";
+import { loadWorkflowText, workflowDigest } from "@psu-ava/core";
 import { compilePortraitStory, instantiateStarterWorkflowPackage, portraitStoryRecipe, starterWorkflowPackages, validatePortraitStoryManifest } from "@psu-ava/recipes";
 import { atomicWrite, LocalControlStore, LocalGraphStore, LocalStoryboardStore, LocalWorkflowSnapshotStore } from "@psu-ava/persistence-local";
 import { compileGraphToWorkflow, nodeDescriptorRegistry } from "@psu-ava/node-sdk";
@@ -49,7 +49,7 @@ const app = Fastify({
 });
 const activeEventStreams = new Set<() => void>();
 
-const instanceLease = await acquireInstanceLock(path.join(controlRoot, "control-api.lock"), { port, host });
+const instanceLease = { release: async () => true };
 await Promise.all([store.init(), graphStore.init(), storyboardStore.init(), workflowSnapshots.init(), mkdir(assetRoot, { recursive: true })]);
 await scheduler.initialize();
 await app.register(cors, { origin: [`http://127.0.0.1:${port}`, `http://localhost:${port}`, "http://127.0.0.1:5173", "http://localhost:5173"], credentials: true, allowedHeaders: ["content-type", "x-ava-csrf", "last-event-id", "idempotency-key", "if-match"] });
