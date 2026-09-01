@@ -11,7 +11,7 @@ import {
 } from "./storyboard-api";
 import type { Storyboard, StoryboardCompilation, StoryboardDiagnostic, StoryboardImport, StoryboardItem, StoryboardKind } from "./storyboard-types";
 import { RemoteFilePickerModal } from "./components/RemoteFilePickerModal";
-import { InlineTimelinePlayerModal } from "./components/InlineTimelinePlayerModal";
+import { InteractiveTimelineStudioModal } from "./components/InteractiveTimelineStudioModal";
 import "./storyboard.css";
 import "./storyboard-path.css";
 import "./storyboard-node-inspector.css";
@@ -249,9 +249,10 @@ export default function StoryboardEditorPage() {
       </div>
     </header>
     {showLivePlayer && (
-      <InlineTimelinePlayerModal
+      <InteractiveTimelineStudioModal
         storyboard={storyboard}
         initialAspect={currentAspect}
+        onMutate={mutate}
         onClose={() => setShowLivePlayer(false)}
       />
     )}
