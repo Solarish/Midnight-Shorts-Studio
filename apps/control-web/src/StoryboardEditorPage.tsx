@@ -306,7 +306,84 @@ function ARollFields({ item, selectedBrollId, onSelectBroll, onParams, onItem }:
 function TitleFields({ item, onParams }: { item: StoryboardItem; onParams: (value: Record<string, unknown>) => void }) {
   const texts = typeof item.params.texts === "object" && item.params.texts ? item.params.texts as Record<string, unknown> : {};
   const media = Array.isArray(item.params.media) ? item.params.media.map(String) : [];
-  return <><CarouselMediaField value={media} onChange={(next) => onParams({ media: next })}/><div className="field-grid"><label>Composition<input value={String(item.params.composition ?? "Main")} onChange={(event) => onParams({ composition: event.target.value })}/></label><label>Title text<input value={String(texts.title ?? "")} onChange={(event) => onParams({ texts: { ...texts, title: event.target.value } })}/></label></div></>;
+  const rotationSpeed = Number(item.params.rotationSpeed ?? 1.0);
+  const cameraTilt = Number(item.params.cameraTilt ?? 8);
+  const enableReflection = item.params.enableReflection !== false;
+  const title = String(item.params.title ?? texts.title ?? texts["Text 3"] ?? "");
+  const subtitle = String(item.params.subtitle ?? texts.subtitle ?? texts["Text 4"] ?? "");
+  const eyebrow = String(item.params.eyebrow ?? texts.eyebrow ?? texts["Text 5"] ?? "");
+
+  return (
+    <>
+      <section className="inspector-section">
+        <header>
+          <div>
+            <h3>🎡 3D Photo Carousel Showcase</h3>
+            <small>Remotion 3D Cylindrical Geometry &amp; Shimmer Title</small>
+          </div>
+        </header>
+        <div className="field-grid">
+          <label>
+            หัวข้อหลัก (Title) *
+            <input
+              value={title}
+              placeholder="อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙"
+              onChange={(event) => onParams({ title: event.target.value, texts: { ...texts, title: event.target.value } })}
+            />
+          </label>
+          <label>
+            สังกัด / คำขยาย (Subtitle)
+            <input
+              value={subtitle}
+              placeholder="คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์"
+              onChange={(event) => onParams({ subtitle: event.target.value, texts: { ...texts, subtitle: event.target.value } })}
+            />
+          </label>
+        </div>
+        <label>
+          ป้ายหัวเรื่อง (Eyebrow Badge)
+          <input
+            value={eyebrow}
+            placeholder="PSU BROADCAST SPECIAL REPORT"
+            onChange={(event) => onParams({ eyebrow: event.target.value, texts: { ...texts, eyebrow: event.target.value } })}
+          />
+        </label>
+        <div className="field-grid" style={{ marginTop: "12px" }}>
+          <label>
+            ความเร็วการหมุนรอบ: <strong>{rotationSpeed.toFixed(1)}x</strong>
+            <input
+              type="range"
+              min="0.2"
+              max="3.0"
+              step="0.1"
+              value={rotationSpeed}
+              onChange={(event) => onParams({ rotationSpeed: Number(event.target.value) })}
+            />
+          </label>
+          <label>
+            มุมเอียงกล้อง (Tilt): <strong>{cameraTilt}°</strong>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="1"
+              value={cameraTilt}
+              onChange={(event) => onParams({ cameraTilt: Number(event.target.value) })}
+            />
+          </label>
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={enableReflection}
+            onChange={(event) => onParams({ enableReflection: event.target.checked })}
+          />
+          <span>เปิดเงาสะท้อนพื้น (Floor Reflection)</span>
+        </label>
+      </section>
+      <CarouselMediaField value={media} onChange={(next) => onParams({ media: next })} />
+    </>
+  );
 }
 
 function CarouselMediaField({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {

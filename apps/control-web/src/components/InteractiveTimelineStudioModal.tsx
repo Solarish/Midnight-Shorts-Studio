@@ -602,6 +602,86 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                   </div>
                 </div>
               )}
+
+              {/* Title 3D Carousel Showcase Fields */}
+              {selectedScene.item.kind === "title" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ padding: "10px 14px", backgroundColor: "#1E293B", borderRadius: "8px", border: "1px solid #E5A93C55" }}>
+                    <strong style={{ fontSize: "13px", color: "#E5A93C", display: "block" }}>🎡 3D Photo Carousel Showcase</strong>
+                    <small style={{ color: "#94A3B8", fontSize: "11px" }}>วงแหวนภาพ 3 มิติ พร้อมข้อความเกียรติยศสีทอง</small>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
+                      หัวข้อหลัก (Main Title):
+                    </label>
+                    <input
+                      type="text"
+                      value={(selectedScene.item.params.title as string) || ""}
+                      placeholder="อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙"
+                      onChange={(e) => updateSelectedSceneParams("title", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
+                      สังกัด / หน่วยงาน (Subtitle):
+                    </label>
+                    <input
+                      type="text"
+                      value={(selectedScene.item.params.subtitle as string) || ""}
+                      placeholder="คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์"
+                      onChange={(e) => updateSelectedSceneParams("subtitle", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
+                      ป้ายหัวเรื่อง (Eyebrow Badge):
+                    </label>
+                    <input
+                      type="text"
+                      value={(selectedScene.item.params.eyebrow as string) || ""}
+                      placeholder="PSU BROADCAST SPECIAL REPORT"
+                      onChange={(e) => updateSelectedSceneParams("eyebrow", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
+                        ความเร็วการหมุน: {Number(selectedScene.item.params.rotationSpeed ?? 1.0).toFixed(1)}x
+                      </label>
+                      <input
+                        type="range"
+                        min="0.2"
+                        max="3.0"
+                        step="0.1"
+                        value={Number(selectedScene.item.params.rotationSpeed ?? 1.0)}
+                        onChange={(e) => updateSelectedSceneParams("rotationSpeed", Number(e.target.value))}
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
+                        มุมเอียงกล้อง (Tilt): {Number(selectedScene.item.params.cameraTilt ?? 8)}°
+                      </label>
+                      <input
+                        type="range"
+                        min="-20"
+                        max="20"
+                        step="1"
+                        value={Number(selectedScene.item.params.cameraTilt ?? 8)}
+                        onChange={(e) => updateSelectedSceneParams("cameraTilt", Number(e.target.value))}
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div style={{ textAlign: "center", color: "#64748B", marginTop: "40px" }}>

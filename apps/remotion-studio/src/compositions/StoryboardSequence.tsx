@@ -239,10 +239,15 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
               <TitleCard
                 title={item.params?.title}
                 subtitle={item.params?.subtitle}
+                eyebrow={item.params?.eyebrow}
                 texts={item.params?.texts}
                 media={item.params?.media}
                 aspectRatio={aspectRatio}
+                presetId={item.presetId || (item.params as any)?.presetId}
                 motionPreset={item.params?.motionPreset ?? "ZoomPunch"}
+                rotationSpeed={(item.params as any)?.rotationSpeed}
+                cameraTilt={(item.params as any)?.cameraTilt}
+                enableReflection={(item.params as any)?.enableReflection}
                 theme={theme}
               />
             ) : item.kind === "logo_outro" ? (
