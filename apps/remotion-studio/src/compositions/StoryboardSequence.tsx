@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, Video, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Img, Sequence, Video, useVideoConfig } from "remotion";
 import { CoverCard } from "../components/CoverCard";
 import { DynamicThaiSubtitles } from "../components/DynamicThaiSubtitles";
 import { LogoOutro } from "../components/LogoOutro";
@@ -189,9 +189,12 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                 {/* Nested B-roll Overlays on this A-roll segment */}
                 {Array.isArray(item.broll)
                   ? item.broll.map((b: BrollItemProps, bIdx: number) => {
-                      const bOffsetFrames = Math.round((b.offsetMs / 1000) * fps);
-                      const bDurationFrames = Math.round((b.durationMs / 1000) * fps);
-                      const isBrollVideo = /\.(mp4|mov|webm)$/i.test(b.assetPath);
+                      const offsetMs = b.offsetMs ?? b.startMs ?? 0;
+                      const durationMs = b.durationMs ?? 3000;
+                      const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
+                      const bDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
+                      const isBrollVideo = typeof b.assetPath === "string" && /\.(mp4|mov|webm)$/i.test(b.assetPath);
+                      const isBrollImage = typeof b.assetPath === "string" && /\.(png|jpe?g|webp|gif|svg)$/i.test(b.assetPath);
 
                       return (
                         <Sequence
@@ -209,7 +212,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                           >
                             {isBrollVideo ? (
                               <Video
-                                src={b.assetPath}
+                                src={b.assetPath!}
                                 style={{
                                   width: "100%",
                                   height: "100%",
@@ -217,15 +220,53 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                                 }}
                                 volume={b.audioPolicy === "preserve" ? 1 : 0}
                               />
-                            ) : (
+                            ) : isBrollImage ? (
                               <Img
-                                src={b.assetPath}
+                                src={b.assetPath!}
                                 style={{
                                   width: "100%",
                                   height: "100%",
                                   objectFit: b.fit ?? "cover"
                                 }}
                               />
+                            ) : (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: aspectRatio === "9:16" ? "65%" : "70%",
+                                  left: "8%",
+                                  right: "8%",
+                                  padding: "16px 24px",
+                                  borderRadius: 16,
+                                  backgroundColor: "rgba(11, 18, 32, 0.88)",
+                                  backdropFilter: "blur(12px)",
+                                  border: `1px solid ${theme?.accentColor ?? "#00E5FF"}`,
+                                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)"
+                                }}
+                              >
+                                {b.title ? (
+                                  <div
+                                    style={{
+                                      fontSize: aspectRatio === "9:16" ? 28 : 24,
+                                      fontWeight: 800,
+                                      color: theme?.primaryColor ?? "#E5A93C",
+                                      marginBottom: 4
+                                    }}
+                                  >
+                                    {b.title}
+                                  </div>
+                                ) : null}
+                                {b.description ? (
+                                  <div
+                                    style={{
+                                      fontSize: aspectRatio === "9:16" ? 22 : 18,
+                                      color: theme?.textColor ?? "#FFFFFF"
+                                    }}
+                                  >
+                                    {b.description}
+                                  </div>
+                                ) : null}
+                              </div>
                             )}
                           </PresetWrapper>
                         </Sequence>
@@ -251,9 +292,12 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
 
       {/* 2. Global B-Roll Stack Overlays */}
       {brollStack.map((b, bIdx) => {
-        const bOffsetFrames = Math.round((b.offsetMs / 1000) * fps);
-        const bDurationFrames = Math.round((b.durationMs / 1000) * fps);
-        const isBrollVideo = /\.(mp4|mov|webm)$/i.test(b.assetPath);
+        const offsetMs = b.offsetMs ?? b.startMs ?? 0;
+        const durationMs = b.durationMs ?? 3000;
+        const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
+        const bDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
+        const isBrollVideo = typeof b.assetPath === "string" && /\.(mp4|mov|webm)$/i.test(b.assetPath);
+        const isBrollImage = typeof b.assetPath === "string" && /\.(png|jpe?g|webp|gif|svg)$/i.test(b.assetPath);
 
         return (
           <Sequence
@@ -271,7 +315,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
             >
               {isBrollVideo ? (
                 <Video
-                  src={b.assetPath}
+                  src={b.assetPath!}
                   style={{
                     width: "100%",
                     height: "100%",
@@ -279,15 +323,53 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                   }}
                   volume={b.audioPolicy === "preserve" ? 1 : 0}
                 />
-              ) : (
+              ) : isBrollImage ? (
                 <Img
-                  src={b.assetPath}
+                  src={b.assetPath!}
                   style={{
                     width: "100%",
                     height: "100%",
                     objectFit: b.fit ?? "cover"
                   }}
                 />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: aspectRatio === "9:16" ? "65%" : "70%",
+                    left: "8%",
+                    right: "8%",
+                    padding: "16px 24px",
+                    borderRadius: 16,
+                    backgroundColor: "rgba(11, 18, 32, 0.88)",
+                    backdropFilter: "blur(12px)",
+                    border: `1px solid ${theme?.accentColor ?? "#00E5FF"}`,
+                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)"
+                  }}
+                >
+                  {b.title ? (
+                    <div
+                      style={{
+                        fontSize: aspectRatio === "9:16" ? 28 : 24,
+                        fontWeight: 800,
+                        color: theme?.primaryColor ?? "#E5A93C",
+                        marginBottom: 4
+                      }}
+                    >
+                      {b.title}
+                    </div>
+                  ) : null}
+                  {b.description ? (
+                    <div
+                      style={{
+                        fontSize: aspectRatio === "9:16" ? 22 : 18,
+                        color: theme?.textColor ?? "#FFFFFF"
+                      }}
+                    >
+                      {b.description}
+                    </div>
+                  ) : null}
+                </div>
               )}
             </PresetWrapper>
           </Sequence>
@@ -296,8 +378,11 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
 
       {/* 3. Global Subtitle Tracks */}
       {subtitles.map((sub, sIdx) => {
-        const sOffsetFrames = Math.round((sub.startMs / 1000) * fps);
-        const sDurationFrames = Math.round((sub.durationMs / 1000) * fps);
+        const startMs = sub.startMs ?? 0;
+        const durationMs =
+          sub.durationMs ?? (sub.endMs != null ? Math.max(500, sub.endMs - startMs) : 3000);
+        const sOffsetFrames = Math.max(0, Math.round((startMs / 1000) * fps));
+        const sDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
 
         return (
           <Sequence

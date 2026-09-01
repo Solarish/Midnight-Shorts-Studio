@@ -18,17 +18,21 @@ export interface WordTimestamp {
 export interface SubtitleTrack {
   id?: string;
   text?: string;
-  startMs: number;
-  durationMs: number;
+  startMs?: number;
+  endMs?: number;
+  durationMs?: number;
   words?: WordTimestamp[];
   speaker?: string;
 }
 
 export interface BrollItemProps {
   id: string;
-  assetPath: string;
-  offsetMs: number;
-  durationMs: number;
+  assetPath?: string;
+  title?: string;
+  description?: string;
+  startMs?: number;
+  offsetMs?: number;
+  durationMs?: number;
   audioPolicy?: "mute" | "preserve";
   fit?: "cover" | "contain";
   preset?: MotionPresetType;
