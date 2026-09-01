@@ -101,6 +101,7 @@ export interface StudioThemeProps {
 }
 
 export interface StoryboardAssemblyProps {
+  [key: string]: unknown;
   storyboardId?: string;
   title?: string;
   aspectRatio?: AspectRatioMode;
