@@ -5,49 +5,9 @@ import { HorizontalComposition } from "./compositions/HorizontalComposition";
 import { SquareComposition } from "./compositions/SquareComposition";
 import type { StoryboardAssemblyProps, StoryboardItemProps } from "./types";
 
-const DEFAULT_PROPS: StoryboardAssemblyProps = {
-  storyboardId: "default-storyboard",
-  title: "PSU Broadcast Storyboard",
-  fps: 25,
-  durationInFrames: 25 * 13,
-  items: [
-    {
-      id: "intro_cover",
-      kind: "cover_card",
-      durationMs: 4000,
-      params: {
-        eyebrow: "PSU BROADCAST SPECIAL",
-        title: "อาจารย์ตัวอย่างดีเด่น ประจำปี 2569",
-        subtitle: "มหาวิทยาลัยสงขลานครินทร์",
-        motionPreset: "Spring"
-      }
-    },
-    {
-      id: "interview_main",
-      kind: "a_roll",
-      durationMs: 6000,
-      params: {
-        speaker: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
-        dialogue: "ทำหน้าที่ของตัวเองให้ดีที่สุด ทำด้วยความรักและความสุข",
-        subtitles: [
-          { word: "ทำหน้าที่", startMs: 200, endMs: 1200 },
-          { word: "ของตัวเอง", startMs: 1250, endMs: 2200 },
-          { word: "ให้ดีที่สุด", startMs: 2250, endMs: 3400 },
-          { word: "ทำด้วยความรัก", startMs: 3450, endMs: 4600 },
-          { word: "และความสุข", startMs: 4650, endMs: 5800 }
-        ]
-      }
-    },
-    {
-      id: "outro_logo",
-      kind: "logo_outro",
-      durationMs: 3000,
-      params: {
-        note: "PSU BROADCAST"
-      }
-    }
-  ]
-};
+import activeStoryboardData from "./active-storyboard.json";
+
+const DEFAULT_PROPS: StoryboardAssemblyProps = activeStoryboardData as StoryboardAssemblyProps;
 
 function convertApiItemsToRemotion(apiItems: any[]): StoryboardItemProps[] {
   if (!Array.isArray(apiItems)) return [];

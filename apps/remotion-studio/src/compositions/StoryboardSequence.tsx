@@ -5,6 +5,7 @@ import { DynamicThaiSubtitles } from "../components/DynamicThaiSubtitles";
 import { LogoOutro } from "../components/LogoOutro";
 import { TitleCard } from "../components/TitleCard";
 import { PresetWrapper } from "../presets";
+import activeStoryboardData from "../active-storyboard.json";
 import type { AspectRatioMode, BrollItemProps, StoryboardAssemblyProps, StoryboardItemProps } from "../types";
 
 interface StoryboardSequenceProps extends StoryboardAssemblyProps {
@@ -39,41 +40,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
             subtitles: c.subtitles
           }
         }))
-      : [
-          {
-            id: "default_cover",
-            kind: "cover_card" as const,
-            durationMs: 4000,
-            params: {
-              title: "PSU Broadcast Storyboard",
-              subtitle: "Remotion Automated Video Assembly",
-              eyebrow: "Midnight Scholar"
-            }
-          },
-          {
-            id: "default_aroll",
-            kind: "a_roll" as const,
-            durationMs: 6000,
-            params: {
-              dialogue: "ยินดีต้อนรับสู่ระบบ Remotion Video Assembly ยุคใหม่แห่งการตัดต่ออัตโนมัติ",
-              speaker: "PSU Studio",
-              subtitles: [
-                { word: "ยินดีต้อนรับ", startMs: 200, endMs: 1200 },
-                { word: "สู่ระบบ", startMs: 1250, endMs: 1800 },
-                { word: "Remotion", startMs: 1850, endMs: 2600 },
-                { word: "Video", startMs: 2650, endMs: 3100 },
-                { word: "Assembly", startMs: 3150, endMs: 3800 },
-                { word: "ตัดต่ออัตโนมัติ", startMs: 3850, endMs: 5500 }
-              ]
-            }
-          },
-          {
-            id: "default_outro",
-            kind: "logo_outro" as const,
-            durationMs: 3000,
-            params: { note: "PSU BROADCAST" }
-          }
-        ];
+      : (activeStoryboardData.items as StoryboardItemProps[]);
 
   let currentFrameOffset = 0;
 
