@@ -68,6 +68,8 @@ const ARollMediaView: React.FC<{
           objectFit: "cover"
         }}
         volume={audioPolicy === "mute" ? 0 : 1}
+        delayRenderTimeoutInMilliseconds={90000}
+        delayRenderRetries={2}
         onError={() => setHasError(true)}
       />
     );
@@ -148,6 +150,8 @@ const BrollMediaView: React.FC<{
           objectFit: broll.fit ?? "cover"
         }}
         volume={broll.audioPolicy === "preserve" ? 1 : 0}
+        delayRenderTimeoutInMilliseconds={90000}
+        delayRenderRetries={2}
         onError={() => setHasError(true)}
       />
     );
@@ -209,9 +213,12 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         const fromFrame = currentFrameOffset;
         currentFrameOffset += itemDurationFrames;
 
+        const sceneLabel = item.params?.title || item.params?.speaker || item.id;
+
         return (
           <Sequence
             key={`${item.id}_${index}`}
+            name={`Scene ${index + 1}: [${item.kind.toUpperCase()}] ${sceneLabel}`}
             from={fromFrame}
             durationInFrames={itemDurationFrames}
           >
@@ -268,6 +275,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                       return (
                         <Sequence
                           key={`${b.id}_${bIdx}`}
+                          name={`↳ B-Roll ${bIdx + 1}: ${b.title || b.id} (${b.preset ?? "Pop"})`}
                           from={bOffsetFrames}
                           durationInFrames={bDurationFrames}
                         >
@@ -316,6 +324,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         return (
           <Sequence
             key={`global_broll_${b.id}_${bIdx}`}
+            name={`🎬 Global B-Roll: ${b.title || b.id} (${b.preset ?? "Spring"})`}
             from={bOffsetFrames}
             durationInFrames={bDurationFrames}
           >
@@ -348,6 +357,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         return (
           <Sequence
             key={`global_sub_${sIdx}`}
+            name={`💬 Subtitle Track: ${sub.speaker || `Track ${sIdx + 1}`}`}
             from={sOffsetFrames}
             durationInFrames={sDurationFrames}
           >
@@ -368,18 +378,16 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
         const durationFrames = track.durationMs
           ? Math.round((track.durationMs / 1000) * fps)
           : undefined;
-        const resolvedAudio = resolveMediaUrl(track.path);
-
-        if (!resolvedAudio) return null;
 
         return (
           <Sequence
             key={`audio_${aIdx}`}
+            name={`🎵 Audio: ${track.role || "BGM"} (${track.path.split(/[\\/]/).pop()})`}
             from={fromFrame}
             durationInFrames={durationFrames}
           >
             <Audio
-              src={resolvedAudio}
+              src={resolveMediaUrl(track.path) ?? track.path}
               volume={track.volume ?? 1}
             />
           </Sequence>

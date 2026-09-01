@@ -170,9 +170,59 @@ export default function StoryboardEditorPage() {
   const totalMs = storyboard.items.reduce((sum, item) => sum + (item.kind === "note" ? 0 : item.durationMs), 0);
   const canMerge = selected?.kind === "a_roll" && selectedIndex > 0 && storyboard.items[selectedIndex - 1]?.kind === "a_roll" && storyboard.items[selectedIndex - 1]?.params.sourceKey === selected.params.sourceKey && Number(storyboard.items[selectedIndex - 1]?.params.sourceOutMs) === Number(selected.params.sourceInMs);
 
+  const currentAspect: "9:16" | "16:9" | "1:1" =
+    storyboard.profile?.width === 1080 && storyboard.profile?.height === 1920
+      ? "9:16"
+      : storyboard.profile?.width === 1080 && storyboard.profile?.height === 1080
+      ? "1:1"
+      : "16:9";
+
+  function changeAspect(aspect: "9:16" | "16:9" | "1:1") {
+    const profileMap = {
+      "9:16": { width: 1080, height: 1920, frameRate: 25 as const },
+      "16:9": { width: 1920, height: 1080, frameRate: 25 as const },
+      "1:1": { width: 1080, height: 1080, frameRate: 25 as const }
+    };
+    mutate((value) => ({
+      ...value,
+      profile: profileMap[aspect],
+      status: value.status === "approved" ? "stale" : value.status
+    }));
+  }
+
   return <GraphShell><main className="storyboard-page">
     <header className="storyboard-header">
-      <div><p className="eyebrow">GUIDED STORYBOARD · SOURCE OF TRUTH</p><input className="storyboard-name" value={storyboard.name} onChange={(event) => mutate((value) => ({ ...value, name: event.target.value }))}/><p>1920×1080 · 25fps · {formatMs(totalMs)} · rev {storyboard.revision}</p></div>
+      <div>
+        <p className="eyebrow">GUIDED STORYBOARD · SOURCE OF TRUTH</p>
+        <input className="storyboard-name" value={storyboard.name} onChange={(event) => mutate((value) => ({ ...value, name: event.target.value }))}/>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px", flexWrap: "wrap" }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#94a3b8" }}>
+            <span>ขนาดวิดีโอ:</span>
+            <select
+              value={currentAspect}
+              onChange={(e) => changeAspect(e.target.value as "9:16" | "16:9" | "1:1")}
+              style={{
+                background: "#1e293b",
+                border: "1px solid #3b82f6",
+                borderRadius: "6px",
+                color: "#60a5fa",
+                padding: "4px 8px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <option value="9:16">📱 แนวตั้ง 9:16 (1080×1920) · TikTok / Shorts</option>
+              <option value="16:9">🖥️ แนวนอน 16:9 (1920×1080) · YouTube / Broadcast</option>
+              <option value="1:1">⏹️ สี่เหลี่ยม 1:1 (1080×1080) · Post / Feed</option>
+            </select>
+          </label>
+          <span style={{ color: "#475569" }}>|</span>
+          <p style={{ margin: 0, color: "#94a3b8", fontSize: "12px" }}>
+            {storyboard.profile?.width ?? 1920}×{storyboard.profile?.height ?? 1080} · 25fps · {formatMs(totalMs)} · rev {storyboard.revision}
+          </p>
+        </div>
+      </div>
       <div className="storyboard-actions">
         <a
           href="http://127.0.0.1:47661"

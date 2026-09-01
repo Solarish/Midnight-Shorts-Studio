@@ -27,7 +27,7 @@ export type Storyboard = {
   storyboardId: string;
   name: string;
   revision: number;
-  profile: { width: 1920; height: 1080; frameRate: 25 };
+  profile: { width: number; height: number; frameRate: 25 };
   sourceImport: { importId: string; docxPath: string; sourceDigest: string; importedAt: string };
   items: StoryboardItem[];
   status: "draft" | "approved" | "stale";
