@@ -6,7 +6,6 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
-    "preview": "remotion preview src/index.ts",
     "render": "remotion render src/index.ts"
   },
   "dependencies": {
