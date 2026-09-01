@@ -173,7 +173,28 @@ export default function StoryboardEditorPage() {
   return <GraphShell><main className="storyboard-page">
     <header className="storyboard-header">
       <div><p className="eyebrow">GUIDED STORYBOARD · SOURCE OF TRUTH</p><input className="storyboard-name" value={storyboard.name} onChange={(event) => mutate((value) => ({ ...value, name: event.target.value }))}/><p>1920×1080 · 25fps · {formatMs(totalMs)} · rev {storyboard.revision}</p></div>
-      <div className="storyboard-actions"><span className={`storyboard-status ${dirty ? "dirty" : storyboard.status}`}>{dirty ? "unsaved" : storyboard.status}</span><button className="button secondary" onClick={() => void validate()}>Validate</button><button className="button primary" onClick={() => void approve()} disabled={saveState === "saving"}>Approve Storyboard &amp; Compile Graph</button></div>
+      <div className="storyboard-actions">
+        <a
+          href="http://127.0.0.1:47661"
+          target="_blank"
+          rel="noreferrer"
+          className="button secondary"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(30, 58, 138, 0.3))",
+            borderColor: "#3b82f6",
+            color: "#60a5fa",
+            fontWeight: 600
+          }}
+        >
+          📺 Live Timeline Preview (Remotion)
+        </a>
+        <span className={`storyboard-status ${dirty ? "dirty" : storyboard.status}`}>{dirty ? "unsaved" : storyboard.status}</span>
+        <button className="button secondary" onClick={() => void validate()}>Validate</button>
+        <button className="button primary" onClick={() => void approve()} disabled={saveState === "saving"}>Approve Storyboard &amp; Compile Graph</button>
+      </div>
     </header>
     {(message || saveState === "saving" || saveState === "conflict") && <div className={`storyboard-message ${saveState}`} role="status">{saveState === "saving" ? "Saving…" : message}{saveState === "conflict" && <button className="button secondary" onClick={() => void load()}>Reload server revision</button>}</div>}
     <section className="storyboard-sourcebar"><div><strong>DOCX seed</strong><code>{storyboard.sourceImport.docxPath}</code></div><button className="button secondary" onClick={() => setShowImport((value) => !value)}>{showImport ? "Hide import" : "Compare DOCX import"}</button></section>
