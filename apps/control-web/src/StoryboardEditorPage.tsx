@@ -11,6 +11,7 @@ import {
 } from "./storyboard-api";
 import type { Storyboard, StoryboardCompilation, StoryboardDiagnostic, StoryboardImport, StoryboardItem, StoryboardKind } from "./storyboard-types";
 import { RemoteFilePickerModal } from "./components/RemoteFilePickerModal";
+import { InlineTimelinePlayerModal } from "./components/InlineTimelinePlayerModal";
 import "./storyboard.css";
 import "./storyboard-path.css";
 import "./storyboard-node-inspector.css";
@@ -18,6 +19,7 @@ import "./storyboard-node-inspector.css";
 export default function StoryboardEditorPage() {
   const { storyboardId = "" } = useParams();
   const [storyboard, setStoryboard] = useState<Storyboard>();
+  const [showLivePlayer, setShowLivePlayer] = useState(false);
   const [sourceImport, setSourceImport] = useState<StoryboardImport>();
   const [compilation, setCompilation] = useState<StoryboardCompilation>();
   const [selectedId, setSelectedId] = useState("");
@@ -224,28 +226,35 @@ export default function StoryboardEditorPage() {
         </div>
       </div>
       <div className="storyboard-actions">
-        <a
-          href="http://127.0.0.1:47661"
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
           className="button secondary"
+          onClick={() => setShowLivePlayer(true)}
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
-            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(30, 58, 138, 0.3))",
+            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(30, 58, 138, 0.4))",
             borderColor: "#3b82f6",
             color: "#60a5fa",
-            fontWeight: 600
+            fontWeight: 700,
+            cursor: "pointer"
           }}
         >
-          📺 Live Timeline Preview (Remotion)
-        </a>
+          📺 Timeline Player
+        </button>
         <span className={`storyboard-status ${dirty ? "dirty" : storyboard.status}`}>{dirty ? "unsaved" : storyboard.status}</span>
         <button className="button secondary" onClick={() => void validate()}>Validate</button>
         <button className="button primary" onClick={() => void approve()} disabled={saveState === "saving"}>Approve Storyboard &amp; Compile Graph</button>
       </div>
     </header>
+    {showLivePlayer && (
+      <InlineTimelinePlayerModal
+        storyboard={storyboard}
+        initialAspect={currentAspect}
+        onClose={() => setShowLivePlayer(false)}
+      />
+    )}
     {(message || saveState === "saving" || saveState === "conflict") && <div className={`storyboard-message ${saveState}`} role="status">{saveState === "saving" ? "Saving…" : message}{saveState === "conflict" && <button className="button secondary" onClick={() => void load()}>Reload server revision</button>}</div>}
     <section className="storyboard-sourcebar"><div><strong>DOCX seed</strong><code>{storyboard.sourceImport.docxPath}</code></div><button className="button secondary" onClick={() => setShowImport((value) => !value)}>{showImport ? "Hide import" : "Compare DOCX import"}</button></section>
     {showImport && sourceImport && <section className="storyboard-import"><h2>Raw DOCX rows and proposals</h2><div className="import-grid">{sourceImport.rawRows.map((row) => <article key={row.rowNumber}><strong>Row {row.rowNumber}</strong><p>{row.picture || "—"}</p><small>{row.sound || "—"}</small></article>)}</div></section>}

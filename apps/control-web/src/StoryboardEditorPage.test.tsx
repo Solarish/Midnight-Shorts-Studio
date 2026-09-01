@@ -87,7 +87,7 @@ test("uses a typed preset selector and Finder media picker for A-roll", async ()
   renderPage();
   fireEvent.click(await screen.findByText("2. A-roll"));
   expect(screen.getByLabelText("Preset")).toHaveValue("a-roll-segment-v1");
-  expect(screen.getByRole("button", { name: "Open Finder…" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /เลือกจาก NAS|Open Finder/ })).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Duration (s)"), { target: { value: "6.2" } });
   await waitFor(() => expect(screen.getByLabelText("Source out (s)")).toHaveValue(6.2));
 });

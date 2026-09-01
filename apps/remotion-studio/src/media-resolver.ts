@@ -69,5 +69,7 @@ export function resolveMediaUrl(rawPath: string | undefined | null): string | un
 
   // Local filesystem path (Unix absolute or Windows drive)
   const port = getActiveApiPort();
-  return `http://127.0.0.1:${port}/api/v1/media/stream?path=${encodeURIComponent(trimmed)}`;
+  const host = typeof window !== "undefined" && window.location?.hostname ? window.location.hostname : "127.0.0.1";
+  const protocol = typeof window !== "undefined" && window.location?.protocol ? window.location.protocol : "http:";
+  return `${protocol}//${host}:${port}/api/v1/media/stream?path=${encodeURIComponent(trimmed)}`;
 }
