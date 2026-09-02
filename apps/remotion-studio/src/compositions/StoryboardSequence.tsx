@@ -3,6 +3,7 @@ import { AbsoluteFill, Img, Sequence, Video, interpolate, useCurrentFrame, useVi
 import { CoverCard } from "../components/CoverCard";
 import { DynamicThaiSubtitles } from "../components/DynamicThaiSubtitles";
 import { LogoOutro } from "../components/LogoOutro";
+import { LowerThird } from "../components/LowerThird";
 import { TitleCard } from "../components/TitleCard";
 import { isImageFile, isVideoFile, resolveMediaUrl } from "../media-resolver";
 import { PresetWrapper } from "../presets";
@@ -433,6 +434,32 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
                     theme={theme}
                   />
                 ) : null}
+
+                {/* Lower Third Overlay for this segment (Default: OFF, rendered when enabled) */}
+                {Boolean(item.params?.lowerThird?.enabled || (item.params as any)?.enableLowerThird) ? (() => {
+                  const lt = item.params?.lowerThird ?? {};
+                  const ltOffsetMs = Number(lt.offsetMs ?? (item.params as any)?.lowerThirdOffsetMs ?? 500);
+                  const ltDurationMs = Number(lt.durationMs ?? (item.params as any)?.lowerThirdDurationMs ?? 4000);
+                  const ltOffsetFrames = Math.max(0, Math.round((ltOffsetMs / 1000) * fps));
+                  const ltDurationFrames = Math.max(1, Math.round((ltDurationMs / 1000) * fps));
+
+                  return (
+                    <Sequence
+                      name={`🏷️ Lower Third: ${lt.name || (item.params as any)?.lowerThirdName || "Speaker"}`}
+                      from={ltOffsetFrames}
+                      durationInFrames={ltDurationFrames}
+                    >
+                      <LowerThird
+                        name={lt.name || (item.params as any)?.lowerThirdName || item.params?.speaker || "ชื่อวิทยากร"}
+                        title={lt.title || (item.params as any)?.lowerThirdTitle || ""}
+                        department={lt.department || (item.params as any)?.lowerThirdDepartment || ""}
+                        presetId={lt.presetId || (item.params as any)?.lowerThirdPresetId || "lowerthird-glass-gold-v1"}
+                        aspectRatio={aspectRatio}
+                        theme={theme}
+                      />
+                    </Sequence>
+                  );
+                })() : null}
               </AbsoluteFill>
             ) : null}
           </Sequence>

@@ -9,6 +9,12 @@ export const aRollPresetOptions = [
   { value: "a-roll-pip-v1", label: "🖼️ Picture-in-Picture Presentation · v1" }
 ];
 
+export const lowerThirdPresetOptions = [
+  { value: "lowerthird-glass-gold-v1", label: "🏆 PSU Royal Gold & Midnight Glassmorphism (Signature)" },
+  { value: "lowerthird-minimal-navy-v1", label: "🟦 Modern Clean Navy Bar" },
+  { value: "lowerthird-gradient-ribbon-v1", label: "🎗️ Cyan & Gold Gradient Ribbon" }
+];
+
 export interface ARollInspectorProps {
   item: StoryboardItem;
   selectedBrollId?: string;
@@ -48,6 +54,16 @@ export function ARollInspector({
   const speaker = String(item.params.speaker ?? "");
   const dialogue = String(item.params.dialogue ?? "");
   const enableSubtitles = Boolean((item.params as any)?.enableSubtitles ?? false);
+
+  // Lower Third Parameters
+  const lowerThird = (item.params as any)?.lowerThird ?? {};
+  const enableLowerThird = Boolean(lowerThird.enabled ?? (item.params as any)?.enableLowerThird ?? false);
+  const ltPresetId = String(lowerThird.presetId ?? (item.params as any)?.lowerThirdPresetId ?? "lowerthird-glass-gold-v1");
+  const ltName = String(lowerThird.name ?? (item.params as any)?.lowerThirdName ?? speaker ?? "");
+  const ltTitle = String(lowerThird.title ?? (item.params as any)?.lowerThirdTitle ?? "");
+  const ltDepartment = String(lowerThird.department ?? (item.params as any)?.lowerThirdDepartment ?? "");
+  const ltOffsetMs = Number(lowerThird.offsetMs ?? (item.params as any)?.lowerThirdOffsetMs ?? 500);
+  const ltDurationMs = Number(lowerThird.durationMs ?? (item.params as any)?.lowerThirdDurationMs ?? 4000);
 
   // J-Cut & L-Cut Split Edit Parameters
   const jCutMs = Number((item.params as any)?.jCutMs ?? 0);
@@ -130,6 +146,30 @@ export function ARollInspector({
     }
     onParams({
       presetId: nextPreset
+    });
+  };
+
+  const updateLowerThird = (patch: Record<string, unknown>) => {
+    const nextLt = {
+      ...lowerThird,
+      enabled: enableLowerThird,
+      presetId: ltPresetId,
+      name: ltName,
+      title: ltTitle,
+      department: ltDepartment,
+      offsetMs: ltOffsetMs,
+      durationMs: ltDurationMs,
+      ...patch
+    };
+    onParams({
+      lowerThird: nextLt,
+      enableLowerThird: nextLt.enabled,
+      lowerThirdPresetId: nextLt.presetId,
+      lowerThirdName: nextLt.name,
+      lowerThirdTitle: nextLt.title,
+      lowerThirdDepartment: nextLt.department,
+      lowerThirdOffsetMs: nextLt.offsetMs,
+      lowerThirdDurationMs: nextLt.durationMs
     });
   };
 
@@ -275,9 +315,153 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 3. Editorial & Speaker Dialogue Card (On-Screen Text Toggleable) */}
+      {/* 3. 🏷️ Lower Third (ป้ายชื่อ & ตำแหน่งวิทยากร) */}
       <div className="inspector-card accent-gold">
         <details open>
+          <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>🏷️ Lower Third (ป้ายชื่อ &amp; ตำแหน่ง)</span>
+            <span style={{ fontSize: "11px", color: enableLowerThird ? "#10B981" : "#94A3B8", fontWeight: 600 }}>
+              {enableLowerThird ? "● Lower Third ON" : "○ Lower Third OFF (Default)"}
+            </span>
+          </summary>
+          <div className="inspector-card-body">
+            {/* Lower Third Master Toggle */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 12px",
+                background: "#1E293B",
+                borderRadius: "8px",
+                border: "1px solid #334155",
+                marginBottom: "10px"
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: "12px", color: "#F8FAFC", display: "block" }}>
+                  แสดง Lower Third บนวิดีโอ (Overlay)
+                </strong>
+                <small style={{ fontSize: "10px", color: "#94A3B8" }}>
+                  กราฟิกป้ายชื่อหรูหราสำหรับเปิดตัววิทยากร / ผู้ให้สัมภาษณ์
+                </small>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", color: enableLowerThird ? "#10B981" : "#94A3B8" }}>
+                <input
+                  type="checkbox"
+                  checked={enableLowerThird}
+                  onChange={(e) => updateLowerThird({ enabled: e.target.checked })}
+                />
+                <strong>{enableLowerThird ? "เปิด (ON)" : "ปิด (OFF)"}</strong>
+              </label>
+            </div>
+
+            {enableLowerThird && (
+              <>
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    Preset สไตล์กราฟิก (Design Preset)
+                    <select
+                      className="inspector-select"
+                      value={ltPresetId}
+                      onChange={(e) => updateLowerThird({ presetId: e.target.value })}
+                    >
+                      {lowerThirdPresetOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    ชื่อ-สกุล (Name)
+                    <input
+                      className="inspector-input"
+                      value={ltName}
+                      onChange={(e) => updateLowerThird({ name: e.target.value })}
+                      placeholder="เช่น ผศ.ดร. นิวัติ แก้วประดับ"
+                    />
+                  </label>
+                </div>
+
+                <div className="inspector-grid-2">
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      ตำแหน่งทางวิชาการ / หน้าที่ (Title)
+                      <input
+                        className="inspector-input"
+                        value={ltTitle}
+                        onChange={(e) => updateLowerThird({ title: e.target.value })}
+                        placeholder="เช่น อธิการบดี"
+                      />
+                    </label>
+                  </div>
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      สังกัด / หน่วยงาน (Department)
+                      <input
+                        className="inspector-input"
+                        value={ltDepartment}
+                        onChange={(e) => updateLowerThird({ department: e.target.value })}
+                        placeholder="เช่น มหาวิทยาลัยสงขลานครินทร์"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="inspector-grid-2" style={{ marginTop: "4px" }}>
+                  <SecondsField
+                    compact
+                    label="เริ่มแสดงที่ (Offset)"
+                    valueMs={ltOffsetMs}
+                    minMs={0}
+                    onChange={(offsetMs) => updateLowerThird({ offsetMs })}
+                  />
+                  <SecondsField
+                    compact
+                    label="แสดงนาน (Duration)"
+                    valueMs={ltDurationMs}
+                    minMs={1000}
+                    onChange={(durationMs) => updateLowerThird({ durationMs })}
+                  />
+                </div>
+
+                {/* Live Mini Preview of Lower Third */}
+                <div
+                  style={{
+                    marginTop: "10px",
+                    padding: "12px 16px",
+                    background: "rgba(11, 18, 32, 0.95)",
+                    border: "1.5px solid rgba(229, 169, 60, 0.4)",
+                    borderRadius: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
+                  }}
+                >
+                  <div style={{ width: "4px", height: "36px", background: "#E5A93C", borderRadius: "2px" }} />
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
+                      {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
+                    </div>
+                    <div style={{ fontSize: "11px", fontWeight: 600, color: "#E5A93C", marginTop: "2px" }}>
+                      {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? `· ${ltDepartment}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </details>
+      </div>
+
+      {/* 4. Editorial & Speaker Dialogue Card (On-Screen Text Toggleable) */}
+      <div className="inspector-card accent-gold">
+        <details>
           <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>✍️ Editorial, Speaker &amp; Dialogue</span>
             <span style={{ fontSize: "11px", color: enableSubtitles ? "#10B981" : "#94A3B8", fontWeight: 600 }}>
@@ -348,7 +532,7 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 4. 🎧 J-Cut / L-Cut Split Edit & Audio Transitions Card */}
+      {/* 5. 🎧 J-Cut / L-Cut Split Edit & Audio Transitions Card */}
       <div className="inspector-card accent-cyan">
         <details open>
           <summary style={{ color: "#22D3EE" }}>🎧 Split Edit &amp; Audio Transitions (J-Cut / L-Cut)</summary>
@@ -454,7 +638,7 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 5. PiP Controls (for a-roll-pip-v1) */}
+      {/* 6. PiP Controls (for a-roll-pip-v1) */}
       {isPip && (
         <div className="inspector-card accent-slate">
           <details open>
@@ -510,7 +694,7 @@ export function ARollInspector({
         </div>
       )}
 
-      {/* 6. B-Roll Overlays Card with Sequential Cascade & Auto-Chain */}
+      {/* 7. B-Roll Overlays Card with Sequential Cascade & Auto-Chain */}
       <div className="inspector-card accent-blue">
         <details open>
           <summary style={{ color: "#60A5FA" }}>

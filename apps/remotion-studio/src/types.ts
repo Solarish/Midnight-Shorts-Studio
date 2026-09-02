@@ -199,6 +199,15 @@ export interface StoryboardItemProps {
     fadeInMs?: number;
     fadeOutMs?: number;
     presetId?: string;
+    lowerThird?: {
+      enabled?: boolean;
+      presetId?: string;
+      name?: string;
+      title?: string;
+      department?: string;
+      offsetMs?: number;
+      durationMs?: number;
+    };
   };
   broll?: BrollItemProps[];
 }
