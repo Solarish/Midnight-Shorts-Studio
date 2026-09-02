@@ -10,9 +10,12 @@ export const aRollPresetOptions = [
 ];
 
 export const lowerThirdPresetOptions = [
-  { value: "lowerthird-glass-gold-v1", label: "🏆 PSU Royal Gold & Midnight Glassmorphism (Signature)" },
-  { value: "lowerthird-minimal-navy-v1", label: "🟦 Modern Clean Navy Bar" },
-  { value: "lowerthird-gradient-ribbon-v1", label: "🎗️ Cyan & Gold Gradient Ribbon" }
+  { value: "lowerthird-glass-beacon-v1", label: "🏆 PSU Royal Gold Glass Beacon · v1 (Signature)" },
+  { value: "lowerthird-kinetic-ribbon-v1", label: "🎗️ Editorial Kinetic Ribbon · v1 (Cyan/Gold)" },
+  { value: "lowerthird-tech-hud-v1", label: "⚡ Cyber / Modern Tech HUD · v1 (Neon Grid)" },
+  { value: "lowerthird-glass-gold-v1", label: "✨ PSU Royal Gold Glass · Classic" },
+  { value: "lowerthird-gradient-ribbon-v1", label: "🎀 Cyan & Gold Gradient · Classic" },
+  { value: "lowerthird-minimal-navy-v1", label: "🟦 Modern Clean Navy Bar · Legacy" }
 ];
 
 export interface ARollInspectorProps {
@@ -58,7 +61,7 @@ export function ARollInspector({
   // Lower Third Parameters
   const lowerThird = (item.params as any)?.lowerThird ?? {};
   const enableLowerThird = Boolean(lowerThird.enabled ?? (item.params as any)?.enableLowerThird ?? false);
-  const ltPresetId = String(lowerThird.presetId ?? (item.params as any)?.lowerThirdPresetId ?? "lowerthird-glass-gold-v1");
+  const ltPresetId = String(lowerThird.presetId ?? (item.params as any)?.lowerThirdPresetId ?? "lowerthird-glass-beacon-v1");
   const ltName = String(lowerThird.name ?? (item.params as any)?.lowerThirdName ?? speaker ?? "");
   const ltTitle = String(lowerThird.title ?? (item.params as any)?.lowerThirdTitle ?? "");
   const ltDepartment = String(lowerThird.department ?? (item.params as any)?.lowerThirdDepartment ?? "");
@@ -430,28 +433,134 @@ export function ARollInspector({
                 </div>
 
                 {/* Live Mini Preview of Lower Third */}
-                <div
-                  style={{
-                    marginTop: "10px",
-                    padding: "12px 16px",
-                    background: "rgba(11, 18, 32, 0.95)",
-                    border: "1.5px solid rgba(229, 169, 60, 0.4)",
-                    borderRadius: "12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
-                  }}
-                >
-                  <div style={{ width: "4px", height: "36px", background: "#E5A93C", borderRadius: "2px" }} />
-                  <div>
-                    <div style={{ fontSize: "13px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
-                      {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
-                    </div>
-                    <div style={{ fontSize: "11px", fontWeight: 600, color: "#E5A93C", marginTop: "2px" }}>
-                      {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? `· ${ltDepartment}` : ""}
-                    </div>
+                <div style={{ marginTop: "10px" }}>
+                  <div style={{ fontSize: "11px", color: "#94A3B8", marginBottom: "4px", fontWeight: 600 }}>
+                    Live Design Preview:
                   </div>
+
+                  {/* Preset 1: PSU Royal Gold Glass Beacon */}
+                  {(ltPresetId === "lowerthird-glass-beacon-v1" || ltPresetId === "lowerthird-glass-gold-v1") && (
+                    <div
+                      style={{
+                        padding: "12px 16px",
+                        background: "rgba(11, 18, 32, 0.95)",
+                        border: "1.5px solid rgba(229, 169, 60, 0.45)",
+                        borderRadius: "0 12px 12px 0",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.6), 0 0 16px rgba(229, 169, 60, 0.2)",
+                        position: "relative",
+                        overflow: "hidden"
+                      }}
+                    >
+                      <div style={{ width: "4px", height: "36px", background: "#E5A93C", borderRadius: "2px", boxShadow: "0 0 10px #E5A93C", flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: "13px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
+                          {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
+                        </div>
+                        <div style={{ fontSize: "11px", fontWeight: 600, color: "#E5A93C", marginTop: "2px" }}>
+                          {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? `· ${ltDepartment}` : ""}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: "2px",
+                          background: "linear-gradient(90deg, transparent 0%, #E5A93C 50%, transparent 100%)"
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Preset 2: Editorial Kinetic Ribbon */}
+                  {(ltPresetId === "lowerthird-kinetic-ribbon-v1" || ltPresetId === "lowerthird-gradient-ribbon-v1") && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <div
+                        style={{
+                          padding: "8px 16px",
+                          background: "linear-gradient(135deg, rgba(16, 27, 46, 0.96) 0%, rgba(11, 18, 32, 0.98) 100%)",
+                          borderLeft: "4px solid #E5A93C",
+                          borderBottom: "1.5px solid #E5A93C",
+                          borderRadius: "0 8px 0 0",
+                          transform: "skewX(-10deg)",
+                          boxShadow: "0 8px 20px rgba(0,0,0,0.6)"
+                        }}
+                      >
+                        <div style={{ transform: "skewX(10deg)" }}>
+                          <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "#E5A93C" }}>
+                            ◆ PSU BROADCAST OFFICIAL
+                          </div>
+                          <div style={{ fontSize: "13px", fontWeight: 900, color: "#FFFFFF", lineHeight: 1.15 }}>
+                            {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          marginLeft: "12px",
+                          padding: "6px 14px",
+                          background: "linear-gradient(135deg, rgba(8, 38, 62, 0.94) 0%, rgba(11, 24, 40, 0.96) 100%)",
+                          borderLeft: "3px solid #00E5FF",
+                          borderRadius: "0 0 8px 0",
+                          transform: "skewX(-10deg)",
+                          display: "inline-block"
+                        }}
+                      >
+                        <div style={{ transform: "skewX(10deg)", fontSize: "11px", color: "#FFFFFF", fontWeight: 600 }}>
+                          {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? <span style={{ color: "#00E5FF" }}>· {ltDepartment}</span> : ""}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preset 3: Cyber / Modern Tech HUD */}
+                  {ltPresetId === "lowerthird-tech-hud-v1" && (
+                    <div
+                      style={{
+                        padding: "10px 14px",
+                        background: "rgba(9, 14, 26, 0.94)",
+                        border: "1px solid rgba(0, 229, 255, 0.6)",
+                        borderRadius: "4px",
+                        boxShadow: "0 0 14px rgba(0, 229, 255, 0.35)",
+                        position: "relative"
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", fontFamily: "monospace", color: "#00E5FF", marginBottom: "3px" }}>
+                        <span>● SYS://NODE.LIVE</span>
+                        <span style={{ color: "#E5A93C" }}>// PSU.AV.01</span>
+                      </div>
+                      <div style={{ fontSize: "13px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
+                        {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#E5A93C", fontWeight: 600, marginTop: "2px" }}>
+                        {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? <span style={{ color: "#94A3B8" }}>[ {ltDepartment} ]</span> : ""}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preset 4: Minimal Navy Bar */}
+                  {ltPresetId === "lowerthird-minimal-navy-v1" && (
+                    <div
+                      style={{
+                        padding: "10px 14px",
+                        background: "rgba(11, 18, 32, 0.95)",
+                        borderLeft: "5px solid #00E5FF",
+                        borderRadius: "0 8px 8px 0",
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.5)"
+                      }}
+                    >
+                      <div style={{ fontSize: "13px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
+                        {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
+                      </div>
+                      <div style={{ fontSize: "11px", fontWeight: 600, color: "#00E5FF", marginTop: "2px" }}>
+                        {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? `· ${ltDepartment}` : ""}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}

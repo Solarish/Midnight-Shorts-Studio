@@ -5,9 +5,23 @@ import { Spring } from "./Spring";
 import { ZoomPunch } from "./ZoomPunch";
 import { BackdropBlur } from "./BackdropBlur";
 import { ThreeDCarouselPreset, ThreeDCarouselManifest } from "./ThreeDCarouselPreset";
+import { ParallaxCinemaPreset, ParallaxCinemaManifest } from "./ParallaxCinemaPreset";
+import { SplitDynamicPreset, SplitDynamicManifest } from "./SplitDynamicPreset";
 import type { MotionPresetType } from "../types";
 
-export { Bounce, Pop, Spring, ZoomPunch, BackdropBlur, ThreeDCarouselPreset, ThreeDCarouselManifest };
+export {
+  Bounce,
+  Pop,
+  Spring,
+  ZoomPunch,
+  BackdropBlur,
+  ThreeDCarouselPreset,
+  ThreeDCarouselManifest,
+  ParallaxCinemaPreset,
+  ParallaxCinemaManifest,
+  SplitDynamicPreset,
+  SplitDynamicManifest
+};
 
 interface PresetWrapperProps {
   preset?: MotionPresetType;

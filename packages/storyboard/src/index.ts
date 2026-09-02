@@ -294,8 +294,14 @@ export function validateStoryboardSpec(storyboard: StoryboardSpecV2): Storyboard
     }
     if (item.kind === "title") {
       const is3DCarousel = item.presetId === "3d-carousel-title-v1" || !item.presetId;
+      const isParallax = item.presetId === "title-parallax-cinema-v1";
+      const isSplit = item.presetId === "title-split-dynamic-v1";
       if (is3DCarousel && !asStrings(item.params.media).length) {
         diagnostics.push({ code: "missing_media", severity: "blocker", message: "3D title ต้องมี media อย่างน้อยหนึ่งรายการ", itemId: item.id });
+      } else if (isParallax && !asStrings(item.params.media).length) {
+        diagnostics.push({ code: "missing_media", severity: "blocker", message: "Cinematic Parallax title ต้องมี media อย่างน้อยหนึ่งรายการ", itemId: item.id });
+      } else if (isSplit && !asStrings(item.params.media).length) {
+        diagnostics.push({ code: "missing_media", severity: "blocker", message: "Split Screen title ต้องมี media อย่างน้อยหนึ่งรายการ", itemId: item.id });
       }
     }
     if (item.kind !== "a_roll" && (item.broll?.length ?? 0) > 0) diagnostics.push({ code: "invalid_broll_parent", severity: "blocker", message: "B-roll ต้องอยู่ภายใน A-roll เท่านั้น", itemId: item.id });
@@ -758,6 +764,7 @@ export interface StoryboardRemotionProps {
   items: Array<{
     id: string;
     kind: "a_roll" | "cover_card" | "title" | "logo_outro" | "note";
+    presetId?: string;
     durationMs: number;
     audioPolicy: "preserve" | "mute" | "mix";
     params: Record<string, unknown>;
@@ -790,10 +797,12 @@ export function compileStoryboardToRemotionProps(
   const items = storyboard.items.map((item) => ({
     id: item.id,
     kind: item.kind,
+    presetId: item.presetId,
     durationMs: item.durationMs,
     audioPolicy: item.audioPolicy,
     params: {
       ...item.params,
+      presetId: item.presetId,
       sourcePath: (item.params?.sourcePath as string) || "",
       dialogue: (item.params?.dialogue as string) || "",
       speaker: (item.params?.speaker as string) || (item.params?.sourceKey as string) || "",

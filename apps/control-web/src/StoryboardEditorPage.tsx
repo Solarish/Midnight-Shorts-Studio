@@ -706,7 +706,9 @@ const presetOptions: Record<Exclude<StoryboardKind, "note">, Array<{ value: stri
     { value: "a-roll-pip-v1", label: "🖼️ Picture-in-Picture Presentation · v1" }
   ],
   title: [
-    { value: "3d-carousel-title-v1", label: "🎡 3D Photo Carousel Showcase · v1" },
+    { value: "3d-carousel-title-v1", label: "🎡 3D Photo Carousel Showcase · v1 (Gold Standard)" },
+    { value: "title-parallax-cinema-v1", label: "🎥 Cinematic Parallax Multi-Layer · v1" },
+    { value: "title-split-dynamic-v1", label: "⚡ High-Energy Dynamic Split Screen · v1" },
     { value: "title-classic-flat-v1", label: "🎬 Classic Cinematic Title · v1" },
     { value: "title-minimal-badge-v1", label: "🏛️ Modern Minimal Title · v1" }
   ],
@@ -715,7 +717,8 @@ const presetOptions: Record<Exclude<StoryboardKind, "note">, Array<{ value: stri
     { value: "comfy-cover-card-v1", label: "Legacy Flattened Cover · v1" }
   ],
   logo_outro: [
-    { value: "logo-outro-v1", label: "🌟 PSU Golden Pulse Glow · v1" },
+    { value: "logo-outro-v1", label: "🌟 PSU Golden Light Streak Ident · v1" },
+    { value: "logo-outro-particle-burst-v1", label: "✨ Celestial Particle Burst Ident · v1" },
     { value: "logo-outro-video-v1", label: "🎥 Fullscreen Video Sting · v1" },
     { value: "logo-outro-minimal-v1", label: "🏛️ Modern Minimal Emblem · v1" }
   ],

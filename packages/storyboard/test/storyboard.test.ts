@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { StoryboardSpecV2 } from "@psu-ava/contracts";
 import { compileGraphToWorkflow, validateGraphDefinition } from "@psu-ava/node-sdk";
-import { buildCoverGenerationPrompt, compileApprovedStoryboard, COVER_VISUAL_DIRECTION, createApprovedStoryboard, createStoryboardExecutionGraph, parseStoryboardXmlV2, validateStoryboardMedia, validateStoryboardSpec } from "../src/index.ts";
+import { buildCoverGenerationPrompt, compileApprovedStoryboard, compileStoryboardToRemotionProps, COVER_VISUAL_DIRECTION, createApprovedStoryboard, createStoryboardExecutionGraph, parseStoryboardXmlV2, validateStoryboardMedia, validateStoryboardSpec } from "../src/index.ts";
 
 test("DOCX proposal parser keeps cover rows 3/5 separate from logo row 7", () => {
   const xml = documentXml([
@@ -473,6 +473,60 @@ test("audio policies and off-frame timing are blocking", () => {
   assert.ok(codes.includes("off_frame_duration"));
   assert.ok(codes.includes("invalid_audio_policy"));
   assert.ok(codes.includes("missing_media"));
+});
+
+test("validates and compiles cinematic title presets (parallax and split dynamic)", () => {
+  const validParallax: StoryboardSpecV2 = {
+    schemaVersion: 2,
+    storyboardId: "parallax_doc",
+    name: "Parallax Documentary",
+    revision: 1,
+    profile: { width: 1920, height: 1080, frameRate: 25 },
+    sourceImport: { importId: "imp_1", docxPath: "/tmp/story.docx", sourceDigest: "d1", importedAt: "2026-09-02T00:00:00.000Z" },
+    items: [
+      {
+        id: "title_parallax",
+        kind: "title",
+        durationMs: 8000,
+        audioPolicy: "mute",
+        presetId: "title-parallax-cinema-v1",
+        params: {
+          media: ["/tmp/hero.jpg", "/tmp/bg.jpg"],
+          title: "Cinematic Parallax",
+          subtitle: "Prince of Songkla University"
+        }
+      }
+    ]
+  };
+
+  const diagnostics = validateStoryboardSpec(validParallax);
+  assert.deepEqual(diagnostics, []);
+
+  const remotionProps = compileStoryboardToRemotionProps(validParallax, { aspectRatio: "16:9" });
+  assert.equal(remotionProps.items[0]?.presetId, "title-parallax-cinema-v1");
+  assert.equal(remotionProps.items[0]?.params?.title, "Cinematic Parallax");
+  assert.equal(remotionProps.durationInFrames, 200);
+
+  // Missing media blocker check for split dynamic
+  const invalidSplit: StoryboardSpecV2 = {
+    ...validParallax,
+    items: [
+      {
+        id: "title_split",
+        kind: "title",
+        durationMs: 6000,
+        audioPolicy: "mute",
+        presetId: "title-split-dynamic-v1",
+        params: {
+          media: [],
+          title: "High Energy Split"
+        }
+      }
+    ]
+  };
+
+  const splitDiagnostics = validateStoryboardSpec(invalidSplit);
+  assert.ok(splitDiagnostics.some((d) => d.code === "missing_media" && d.itemId === "title_split"));
 });
 
 function documentXml(rows: string[][]) {

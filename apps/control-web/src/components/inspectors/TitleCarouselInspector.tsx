@@ -6,7 +6,9 @@ import { directoryForPath, PathField } from "./CommonFields";
 import "./inspectors.css";
 
 export const introPresetOptions = [
-  { value: "3d-carousel-title-v1", label: "🎡 3D Photo Carousel Showcase · v1" },
+  { value: "3d-carousel-title-v1", label: "🎡 3D Photo Carousel Showcase · v1 (Gold Standard)" },
+  { value: "title-parallax-cinema-v1", label: "🎥 Cinematic Parallax Multi-Layer · v1" },
+  { value: "title-split-dynamic-v1", label: "⚡ High-Energy Dynamic Split Screen · v1" },
   { value: "title-classic-flat-v1", label: "🎬 Classic Cinematic Title · v1" },
   { value: "title-minimal-badge-v1", label: "🏛️ Modern Minimal Title · v1" }
 ];
@@ -35,10 +37,14 @@ export function getCgBlocksFromParams(params: Record<string, unknown>): CgBlock[
 
 export function CarouselMediaField({
   value,
-  onChange
+  onChange,
+  title = "🎡 Carousel Media",
+  description = "ลำดับบนลงล่างคือลำดับที่ปรากฏบน 3D Cylindrical Carousel"
 }: {
   value: string[];
   onChange: (value: string[]) => void;
+  title?: string;
+  description?: string;
 }) {
   const [open, setOpen] = useState(false);
   const move = (index: number, direction: -1 | 1) => {
@@ -54,7 +60,7 @@ export function CarouselMediaField({
     <div className="inspector-card accent-gold carousel-media-field">
       <details open>
         <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>🎡 Carousel Media ({value.length} files)</span>
+          <span>{title} ({value.length} files)</span>
           <button
             type="button"
             className="inspector-btn inspector-btn-gold inspector-btn-sm"
@@ -69,7 +75,7 @@ export function CarouselMediaField({
         </summary>
         <div className="inspector-card-body">
           <small style={{ color: "#94A3B8", fontSize: "11px" }}>
-            ลำดับบนลงล่างคือลำดับที่ปรากฏบน 3D Cylindrical Carousel
+            {description}
           </small>
           {value.length ? (
             <ol>
@@ -130,7 +136,7 @@ export function CarouselMediaField({
         mode="file"
         multiple
         filter=".png,.jpg,.jpeg,.webp,.tif,.tiff"
-        title="เลือกภาพสำหรับ 3D Carousel"
+        title="เลือกภาพสำหรับ Showcase"
       />
     </div>
   );
@@ -148,10 +154,20 @@ export function TitleCarouselInspector({
   onItem
 }: TitleCarouselInspectorProps) {
   const rawPreset = String(item.presetId ?? (item.params as any)?.presetId ?? "3d-carousel-title-v1");
+  const isParallax = rawPreset === "title-parallax-cinema-v1" || rawPreset.includes("parallax");
+  const isSplit = rawPreset === "title-split-dynamic-v1" || rawPreset.includes("split");
   const isClassicFlat = rawPreset === "title-classic-flat-v1" || rawPreset.includes("flat") || rawPreset.includes("classic");
   const isMinimal = rawPreset === "title-minimal-badge-v1" || rawPreset.includes("minimal");
-  const is3DCarousel = !isClassicFlat && !isMinimal;
-  const currentPresetValue = isClassicFlat ? "title-classic-flat-v1" : isMinimal ? "title-minimal-badge-v1" : "3d-carousel-title-v1";
+  const is3DCarousel = !isParallax && !isSplit && !isClassicFlat && !isMinimal;
+  const currentPresetValue = isParallax
+    ? "title-parallax-cinema-v1"
+    : isSplit
+    ? "title-split-dynamic-v1"
+    : isClassicFlat
+    ? "title-classic-flat-v1"
+    : isMinimal
+    ? "title-minimal-badge-v1"
+    : "3d-carousel-title-v1";
 
   const texts =
     typeof item.params.texts === "object" && item.params.texts
@@ -164,10 +180,11 @@ export function TitleCarouselInspector({
   const eyebrow = String(item.params.eyebrow ?? texts.eyebrow ?? texts["Text 5"] ?? "");
   const cgBlocks = getCgBlocksFromParams(item.params);
 
-  // 3D Controls
+  // 3D / Preset Controls
   const rotationSpeed = Number((item.params as any)?.rotationSpeed ?? 1.0);
   const cameraTilt = Number((item.params as any)?.cameraTilt ?? 8);
   const enableReflection = Boolean((item.params as any)?.enableReflection ?? true);
+  const splitAngle = Number((item.params as any)?.splitAngle ?? -6);
   const motionPreset = String(item.params.motionPreset ?? "ZoomPunch");
   const heroImage = media[0] ?? "";
 
@@ -390,7 +407,183 @@ export function TitleCarouselInspector({
         </>
       )}
 
-      {/* 3. AUTO UI: Mode B - Classic Cinematic Title */}
+      {/* 2. AUTO UI: Mode B - Cinematic Multi-Layer Parallax */}
+      {isParallax && (
+        <>
+          <div className="inspector-card accent-gold">
+            <details open>
+              <summary style={{ color: "#E5A93C" }}>
+                🎥 Cinematic Parallax Typography
+              </summary>
+              <div className="inspector-card-body">
+                <div className="inspector-grid-2">
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      ข้อความมาตรฐาน (Text)
+                      <input
+                        aria-label="Text"
+                        className="inspector-input"
+                        value={text}
+                        placeholder="ข้อความสำรอง / Text"
+                        onChange={(e) => updateText("text", e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      หัวข้อหลัก (Main Title) *
+                      <input
+                        aria-label="Title"
+                        className="inspector-input"
+                        value={title || text}
+                        placeholder="PSU BROADCAST SPECIAL"
+                        onChange={(e) => {
+                          updateText("title", e.target.value);
+                          if (!text) updateText("text", e.target.value);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    ข้อความรอง (Subtitle / Faculty)
+                    <input
+                      aria-label="Subtitle"
+                      className="inspector-input"
+                      value={subtitle}
+                      placeholder="PRINCE OF SONGKLA UNIVERSITY"
+                      onChange={(e) => updateText("subtitle", e.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    ป้ายหัวเรื่อง (Eyebrow Badge)
+                    <input
+                      aria-label="Eyebrow"
+                      className="inspector-input"
+                      value={eyebrow}
+                      placeholder="SPECIAL REPORT"
+                      onChange={(e) => updateText("eyebrow", e.target.value)}
+                    />
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <CarouselMediaField
+            value={media}
+            onChange={(nextMedia) => onParams({ media: nextMedia })}
+            title="🖼️ Parallax Hero & Atmospheric Media"
+            description="ภาพแรกคือ Hero Image ตรงกลาง (3D Z-Depth), ภาพที่สองคือ Background Atmosphere"
+          />
+        </>
+      )}
+
+      {/* 3. AUTO UI: Mode C - High-Energy Dynamic Split Screen */}
+      {isSplit && (
+        <>
+          <div className="inspector-card accent-cyan">
+            <details open>
+              <summary style={{ color: "#00E5FF" }}>
+                ⚡ High-Energy Split Typography
+              </summary>
+              <div className="inspector-card-body">
+                <div className="inspector-grid-2">
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      ข้อความมาตรฐาน (Text)
+                      <input
+                        aria-label="Text"
+                        className="inspector-input"
+                        value={text}
+                        placeholder="ข้อความสำรอง / Text"
+                        onChange={(e) => updateText("text", e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <div className="inspector-field">
+                    <label className="inspector-label">
+                      หัวข้อหลัก (Main Title) *
+                      <input
+                        aria-label="Title"
+                        className="inspector-input"
+                        value={title || text}
+                        placeholder="PSU BROADCAST LIVE"
+                        onChange={(e) => {
+                          updateText("title", e.target.value);
+                          if (!text) updateText("text", e.target.value);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    ข้อความรอง (Subtitle Telemetry)
+                    <input
+                      aria-label="Subtitle"
+                      className="inspector-input"
+                      value={subtitle}
+                      placeholder="SPECIAL INVESTIGATION"
+                      onChange={(e) => updateText("subtitle", e.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    ป้ายหัวเรื่อง (Eyebrow Badge)
+                    <input
+                      aria-label="Eyebrow"
+                      className="inspector-input"
+                      value={eyebrow}
+                      placeholder="EXCLUSIVE"
+                      onChange={(e) => updateText("eyebrow", e.target.value)}
+                    />
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div className="inspector-card accent-gold">
+            <details open>
+              <summary style={{ color: "#E5A93C" }}>📐 Split Screen Geometry</summary>
+              <div className="inspector-card-body">
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    มุมเอียงเส้นแบ่ง Split ({splitAngle}°)
+                    <input
+                      className="inspector-input"
+                      type="range"
+                      min="-15"
+                      max="15"
+                      step="1"
+                      value={splitAngle}
+                      onChange={(e) => onParams({ splitAngle: Number(e.target.value) })}
+                    />
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <CarouselMediaField
+            value={media}
+            onChange={(nextMedia) => onParams({ media: nextMedia })}
+            title="⚡ Split Screen Panels Media (2-4 Files)"
+            description="ลำดับภาพตามลำดับช่อง Split Screen (ช่อง 1, 2, 3, 4)"
+          />
+        </>
+      )}
+
+      {/* 4. AUTO UI: Mode D - Classic Cinematic Title */}
       {isClassicFlat && (
         <>
           <div className="inspector-card accent-gold">

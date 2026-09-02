@@ -148,6 +148,14 @@ export interface CgBlock {
   };
 }
 
+export type LowerThirdPresetId =
+  | "lowerthird-glass-beacon-v1"
+  | "lowerthird-kinetic-ribbon-v1"
+  | "lowerthird-tech-hud-v1"
+  | "lowerthird-glass-gold-v1"
+  | "lowerthird-minimal-navy-v1"
+  | "lowerthird-gradient-ribbon-v1";
+
 export interface StoryboardItemProps {
   id: string;
   kind: "a_roll" | "cover_card" | "title" | "logo_outro" | "note";
@@ -201,7 +209,7 @@ export interface StoryboardItemProps {
     presetId?: string;
     lowerThird?: {
       enabled?: boolean;
-      presetId?: string;
+      presetId?: LowerThirdPresetId | string;
       name?: string;
       title?: string;
       department?: string;

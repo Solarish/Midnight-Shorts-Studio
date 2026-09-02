@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Pop } from "../presets/Pop";
-import { PresetWrapper, ThreeDCarouselPreset } from "../presets";
+import { PresetWrapper, ThreeDCarouselPreset, ParallaxCinemaPreset, SplitDynamicPreset } from "../presets";
 import type { ShowcaseShot } from "../presets/ThreeDCarouselPreset";
 import { resolveMediaUrl } from "../media-resolver";
 import type { AspectRatioMode, CgBlock, MotionPresetType, StudioThemeProps } from "../types";
@@ -21,6 +21,7 @@ export interface TitleCardProps {
   rotationSpeed?: number;
   cameraTilt?: number;
   enableReflection?: boolean;
+  splitAngle?: number;
   theme?: StudioThemeProps;
 }
 
@@ -39,6 +40,7 @@ export const TitleCard: React.FC<TitleCardProps> = ({
   rotationSpeed = 1.0,
   cameraTilt = 8,
   enableReflection = true,
+  splitAngle = -6,
   theme
 }) => {
   const frame = useCurrentFrame();
@@ -56,7 +58,40 @@ export const TitleCard: React.FC<TitleCardProps> = ({
   const subTitle = subtitle || texts?.["Text 2"] || texts?.subtitle || "Prince of Songkla University";
   const eyebrowText = eyebrow || texts?.eyebrow || texts?.["Text 5"] || "";
 
-  // 1. Modern Minimal Title Preset (title-minimal-badge-v1)
+  // 1. Cinematic Multi-Layer Parallax Showcase (title-parallax-cinema-v1)
+  if (presetId === "title-parallax-cinema-v1") {
+    return (
+      <ParallaxCinemaPreset
+        media={media}
+        title={mainTitle}
+        subtitle={subTitle}
+        eyebrow={eyebrowText}
+        text={text}
+        texts={texts}
+        aspectRatio={aspectRatio}
+        theme={theme}
+      />
+    );
+  }
+
+  // 2. High-Energy Broadcast Split Screen (title-split-dynamic-v1)
+  if (presetId === "title-split-dynamic-v1") {
+    return (
+      <SplitDynamicPreset
+        media={media}
+        title={mainTitle}
+        subtitle={subTitle}
+        eyebrow={eyebrowText}
+        text={text}
+        texts={texts}
+        aspectRatio={aspectRatio}
+        splitAngle={splitAngle}
+        theme={theme}
+      />
+    );
+  }
+
+  // 3. Modern Minimal Title Preset (title-minimal-badge-v1)
   if (presetId === "title-minimal-badge-v1") {
     return (
       <AbsoluteFill
