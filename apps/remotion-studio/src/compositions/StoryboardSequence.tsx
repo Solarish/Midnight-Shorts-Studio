@@ -400,12 +400,12 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
                       return (
                         <Sequence
                           key={`${b.id}_${bIdx}`}
-                          name={`↳ B-Roll ${bIdx + 1}: ${b.title || b.id} (${b.preset ?? "Pop"})`}
+                          name={`↳ B-Roll ${bIdx + 1}: ${b.title || b.id} (${b.preset ?? "none"})`}
                           from={bOffsetFrames}
                           durationInFrames={bDurationFrames}
                         >
                           <PresetWrapper
-                            preset={b.preset ?? "Pop"}
+                            preset={b.preset ?? "none"}
                             style={{
                               position: "absolute",
                               inset: 0,

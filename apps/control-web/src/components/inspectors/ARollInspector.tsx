@@ -78,7 +78,7 @@ export function ARollInspector({
       durationMs: nextDuration,
       audioPolicy: "mute" as const,
       fit: "cover" as const,
-      preset: "Pop"
+      preset: "none"
     };
     onItem({ ...item, broll: [...broll, next] });
     onSelectBroll?.(next.id);
@@ -274,9 +274,9 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 3. Editorial & Speaker Dialogue Card */}
+      {/* 3. Editorial & Speaker Dialogue Card (Default: Off / Collapsed) */}
       <div className="inspector-card accent-gold">
-        <details open>
+        <details>
           <summary style={{ color: "#E5A93C" }}>✍️ Editorial, Speaker &amp; Dialogue</summary>
           <div className="inspector-card-body">
             <div className="inspector-field">
@@ -624,9 +624,10 @@ export function ARollInspector({
                       <select
                         className="inspector-select"
                         style={{ fontSize: "11px", padding: "4px 8px" }}
-                        value={(value as any).preset ?? "Pop"}
+                        value={(value as any).preset ?? "none"}
                         onChange={(e) => updateBroll(index, { preset: e.target.value } as any)}
                       >
+                        <option value="none">Cut (ตัดตรง / No Animation - ค่าเริ่มต้น)</option>
                         <option value="Pop">Pop (Punch In)</option>
                         <option value="Spring">Spring (Smooth Damped)</option>
                         <option value="ZoomPunch">ZoomPunch</option>
