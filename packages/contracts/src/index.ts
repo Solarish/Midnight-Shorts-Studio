@@ -27,6 +27,7 @@ export const stepTypes = [
   "timeline.scene",
   "timeline.transition",
   "timeline.overlay",
+  "timeline.graphic_overlay",
   "timeline.graphic_mogrt",
   "timeline.dynamic_link",
   "timeline.compose",
@@ -305,6 +306,9 @@ export const STORYBOARD_FRAME_MS = 40 as const;
 export type StoryboardItemKindV2 = "title" | "a_roll" | "cover_card" | "logo_outro" | "note";
 export type StoryboardAudioPolicyV2 = "preserve" | "mute" | "mix";
 export type StoryboardDiagnosticSeverityV2 = "blocker" | "warning" | "info";
+
+export { coverCardMissingFields } from "./cover-card.js";
+export type { CoverCardStage, CoverCardField } from "./cover-card.js";
 
 export interface StoryboardAssetRefV2 {
   path: string;

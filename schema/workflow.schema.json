@@ -54,6 +54,7 @@
             "timeline.scene",
             "timeline.transition",
             "timeline.overlay",
+            "timeline.graphic_overlay",
             "timeline.graphic_mogrt",
             "timeline.dynamic_link",
             "timeline.compose",

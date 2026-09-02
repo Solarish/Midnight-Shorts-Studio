@@ -4,7 +4,7 @@ import { nodeLifecycleStages } from "@psu-ava/contracts";
 import { createGraphDefinition, compileGraphToWorkflow, nodeDescriptors, validateGraphDefinition } from "../src/index.ts";
 
 test("all canonical nodes expose Thai role descriptions and lifecycle stages", () => {
-  assert.equal(nodeDescriptors.length, 85);
+  assert.equal(nodeDescriptors.length, 86);
   const allowed = new Set(nodeLifecycleStages);
   for (const descriptor of nodeDescriptors) {
     assert.equal(typeof descriptor.description, "string", `${descriptor.type} description`);

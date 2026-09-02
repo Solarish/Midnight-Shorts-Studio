@@ -73,7 +73,7 @@ const canonicalNodeMetadata = {
   },
   "effect.3d_carousel": {
     lifecycleStage: "build",
-    description: "สร้างและประกอบ 3D Photo Carousel ใน Remotion พร้อมระบบ Modulo Auto-cycling และปรับแต่ง Pacing/Timing ได้ละเอียด"
+    description: "สร้างและประกอบ 3D Photo Carousel พร้อมระบบ Modulo Auto-cycling และปรับแต่ง Pacing/Timing ได้ละเอียด"
   },
   "media.probe": {
     lifecycleStage: "assets",
@@ -90,6 +90,10 @@ const canonicalNodeMetadata = {
   "timeline.overlay": {
     lifecycleStage: "timeline",
     description: "วางภาพหรือข้อความซ้อนตามตำแหน่ง เวลา และแทร็กที่กำหนด"
+  },
+  "timeline.graphic_overlay": {
+    lifecycleStage: "timeline",
+    description: "วางกราฟิกจากโหนดเอฟเฟกต์ลงบนไทม์ไลน์ตามเวลาและแทร็กที่กำหนด"
   },
   "timeline.graphic_mogrt": {
     lifecycleStage: "timeline",
@@ -425,12 +429,14 @@ export const nodeDescriptors: readonly NodeDescriptorV1[] = Object.freeze([
     { id: "styling", type: "json", configKey: "styling" },
     { id: "outputProject", type: "text", configKey: "outputProject" }
   ], [
-    { id: "project", type: "after-effects-project", outputPath: "project" }
+    { id: "project", type: "after-effects-project", outputPath: "project" },
+    { id: "graphic", type: "json", outputPath: "graphic" }
   ], { capabilities: ["remotion"], sideEffect: true }),
   descriptor("media.probe", "Probe media", "media", [{ id: "path", type: "media", required: true, configKey: "path" }], [{ id: "media", type: "media", outputPath: "path" }, { id: "metadata", type: "json", outputPath: "" }], { capabilities: ["ffprobe"] }),
   descriptor("timeline.scene", "Timeline scene", "declarative", [{ id: "source", type: "media", required: true, configKey: "source" }], [{ id: "scene", type: "json", outputPath: "scene" }], { countsAsScene: true }),
   descriptor("timeline.transition", "Timeline transition", "declarative", [{ id: "after", type: "json", configKey: "after" }], [{ id: "transition", type: "json", outputPath: "transition" }]),
   descriptor("timeline.overlay", "Timeline overlay", "declarative", [{ id: "asset", type: "media", configKey: "asset" }], [{ id: "overlay", type: "json", outputPath: "overlay" }]),
+  descriptor("timeline.graphic_overlay", "Graphic timeline overlay", "declarative", [{ id: "graphic", type: "json", required: true, configKey: "graphic" }], [{ id: "overlay", type: "json", outputPath: "overlay" }]),
   descriptor("timeline.graphic_mogrt", "Editable Premiere MOGRT", "declarative", [], [{ id: "graphic", type: "json", outputPath: "graphic" }]),
   descriptor("timeline.dynamic_link", "Timeline dynamic link", "declarative", [
     { id: "project", type: "after-effects-project", required: true, configKey: "project" }
@@ -1208,6 +1214,19 @@ function validateNodeConfig(node: GraphNodeV1, graph: Partial<GraphDefinitionV1>
     if (value.storyboardItemId !== undefined && (typeof value.storyboardItemId !== "string" || !validId(value.storyboardItemId))) {
       add("storyboardItemId", "storyboardItemId must be a valid safe id");
     }
+  }
+  if (node.type === "timeline.graphic_overlay") {
+    const id = value.id;
+    if (typeof id !== "string" || !validId(id)) add("id", "id is required and must be a valid safe id");
+    string("composition", true);
+    if (value.startMs === undefined) add("startMs", "startMs is required");
+    else number("startMs", { minimum: 0, frameAligned: true });
+    if (value.durationMs === undefined) add("durationMs", "durationMs is required");
+    else number("durationMs", { minimum: 40, frameAligned: true });
+    if (value.track === undefined) add("track", "track is required");
+    else number("track", { minimum: 1, integer: true });
+    if (value.audioPolicy !== "mute") add("audioPolicy", "audioPolicy must equal 'mute'");
+    if (value.editorialKind !== undefined && !["title", "cover_card"].includes(value.editorialKind as string)) add("editorialKind", "editorialKind must equal 'title' or 'cover_card'");
   }
   if (node.type === "timeline.dynamic_link") {
     const id = value.id;

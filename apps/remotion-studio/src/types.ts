@@ -7,6 +7,85 @@ export type MotionPresetType =
   | "ZoomPunch"
   | "BackdropBlur"
   | "none";
+export type DoodlePresetId = "academic" | "science" | "psychic" | "engineering" | "celebration" | "vlog" | "none";
+
+/** Reusable, node-agnostic controls for one text layer. Coordinates are canvas percentages. */
+export interface TextLayerStyle {
+  fontFamily?: "system" | "psu-stidti";
+  positionX?: number;
+  positionY?: number;
+  size?: number;
+  color?: string;
+}
+
+/** Independent text styling shared by Cover Card and future graphic nodes. */
+export interface CoverTextStyles {
+  eyebrow?: TextLayerStyle;
+  title?: TextLayerStyle;
+  subtitle?: TextLayerStyle;
+}
+
+/** Reusable, schema-driven positive prompt controls for generative visual nodes. */
+export interface CoverPromptParts {
+  place?: string;
+  time?: string;
+  color?: string;
+  lighting?: string;
+  composition?: string;
+  style?: string;
+  detail?: string;
+}
+
+/** Reusable illustration prompt controls for generated decorative overlays. */
+export interface DoodlePromptParts {
+  subject?: string;
+  treatment?: string;
+  placement?: string;
+  density?: string;
+  color?: string;
+  style?: string;
+  detail?: string;
+  scale?: string;
+  safeArea?: string;
+}
+export interface DoodlePoint {
+  x: number;
+  y: number;
+}
+export interface DoodlePath {
+  id: string;
+  points: DoodlePoint[];
+  /** Explicit reusable placements; each placement points to one path point. */
+  doodles?: Array<{ id: string; assetId: string; pointIndex: number; offsetX?: number; offsetY?: number }>;
+  assetSet?: string[];
+  distribution?: "along-path" | "start-end" | "repeated";
+  frequency?: number;
+  spacing?: number;
+  size?: number;
+  sizeJitter?: number;
+  rotation?: "fixed" | "random" | "follow-path";
+  rotationJitter?: number;
+  offsetJitter?: number;
+  opacity?: number;
+  color?: string;
+  seed?: number;
+}
+/** Stable reusable doodle registry record. `key` is the human-safe lookup key. */
+export interface DoodleAsset {
+  id: string;
+  key: string;
+  imagePath?: string;
+  label?: string;
+  kind?: "system" | "custom";
+  enabled?: boolean;
+}
+export interface CoverOutputHistoryEntry {
+  runId: string;
+  createdAt: string;
+  backgroundImage?: string;
+  doodleImage?: string;
+  personImage?: string;
+}
 
 export interface WordTimestamp {
   word: string;
@@ -40,6 +119,35 @@ export interface BrollItemProps {
   position?: { x?: number; y?: number };
 }
 
+/**
+ * A single authored shot in a CG sequence. Content and appearance are optional
+ * so persisted storyboards created before per-shot overrides remain valid.
+ */
+export interface CgBlock {
+  id: string;
+  type: string;
+  durationMs: number;
+  enabled: boolean;
+  mediaOrder?: number[];
+  visibleCount?: number;
+  motion?: { enter?: string; exit?: string; staggerMs?: number; blurPx?: number };
+  content?: {
+    text?: string;
+    subtitle?: string;
+    /** Explicitly controls this shot's copy layer; omitted keeps the preset default. */
+    showText?: boolean;
+  };
+  appearance?: {
+    backgroundColor?: string;
+    textColor?: string;
+    cardScale?: number;
+    textPositionX?: number;
+    textPositionY?: number;
+    fontFamily?: "system" | "psu-stidti";
+    fontSizePx?: number;
+  };
+}
+
 export interface StoryboardItemProps {
   id: string;
   kind: "a_roll" | "cover_card" | "title" | "logo_outro" | "note";
@@ -56,6 +164,18 @@ export interface StoryboardItemProps {
     subtitles?: WordTimestamp[];
     speaker?: string;
     sourceImage?: string;
+    backgroundImage?: string;
+    personImage?: string;
+    doodleImage?: string;
+    doodleEnabled?: boolean;
+    doodleOpacity?: number;
+    doodleScale?: number;
+    doodlePreset?: DoodlePresetId;
+    doodlePaths?: DoodlePath[];
+    personX?: number;
+    personY?: number;
+    personScale?: number;
+    text?: string;
     title?: string;
     eyebrow?: string;
     subtitle?: string;
@@ -65,8 +185,20 @@ export interface StoryboardItemProps {
     note?: string;
     theme?: string;
     media?: string[];
+    layoutSequence?: Array<{ layout: "layered-stack" | "scattered-collage" | "text-hold" | "hero-strip" | "portrait-grid" | "image-sweep"; durationMs: number; mediaOrder?: number[]; visibleCount?: number }>;
+    cgBlocks?: CgBlock[];
     texts?: Record<string, string>;
     motionPreset?: MotionPresetType;
+    textStyles?: CoverTextStyles;
+    promptParts?: CoverPromptParts;
+    doodlePromptParts?: DoodlePromptParts;
+    outputHistory?: CoverOutputHistoryEntry[];
+    logoScale?: number;
+    glowIntensity?: number;
+    videoFit?: "cover" | "contain";
+    fadeInMs?: number;
+    fadeOutMs?: number;
+    presetId?: string;
   };
   broll?: BrollItemProps[];
 }

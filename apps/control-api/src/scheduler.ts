@@ -469,5 +469,7 @@ export class RunScheduler {
 }
 
 function makeRunId(workflowId: string) {
-  return `${workflowId}-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
+  // Keep monitor URLs below the router's parameter limit. The workflow id is
+  // already persisted as recipeId; it does not need to be duplicated here.
+  return `run_${Date.now().toString(36)}_${randomUUID().slice(0, 12)}`;
 }

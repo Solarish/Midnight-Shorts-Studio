@@ -4,7 +4,8 @@ export type Manifest = { manifestVersion: 1; recipeId: "portrait-story-v1"; id: 
 export type RunStep = { id: string; label: string; type: string; status: string; attempts: number; startedAt?: string; finishedAt?: string; error?: string; outputs?: Record<string, unknown> };
 export type TrialPreset = { presetId: string; presenterAsset: Asset; form: { projectName: string; headline: string; subheadline: string; backgroundBrief: string } };
 export type Verification = { status: "passed" | "failed" | "error"; passed: number; failed: number; total: number; verifiedAt: string; error?: string };
-export type Run = { runId: string; projectName: string; recipeId: string; status: string; dryRun: boolean; workflowDigest: string; createdAt: string; updatedAt: string; startedAt?: string; finishedAt?: string; error?: string; errorCode?: string; unsafeToResume?: boolean; artifactError?: string; eventError?: string; dataError?: string; verification?: Verification; resumable: boolean; approval?: any; stoppedAtStep?: string; steps: RunStep[] };
+export type RunProgress = { completed: number; total: number; percent: number };
+export type Run = { runId: string; projectName: string; recipeId: string; status: string; dryRun: boolean; workflowDigest: string; createdAt: string; updatedAt: string; startedAt?: string; finishedAt?: string; error?: string; errorCode?: string; unsafeToResume?: boolean; artifactError?: string; eventError?: string; dataError?: string; verification?: Verification; resumable: boolean; approval?: any; stoppedAtStep?: string; progress: RunProgress; steps: RunStep[] };
 export type Artifact = { artifactId: string; name: string; relativePath: string; size: number; mediaType: string; kind: string };
 
 let csrfToken = "";
@@ -62,6 +63,11 @@ export async function browseDirectory(targetPath?: string, filter?: string): Pro
   return api<FsBrowseResult>(`/api/v1/fs/browse${qs ? `?${qs}` : ""}`);
 }
 
+export function mediaStreamUrl(filePath: string | undefined | null): string | undefined {
+  if (!filePath?.trim()) return undefined;
+  return `/api/v1/media/stream?path=${encodeURIComponent(filePath)}`;
+}
+
 export async function validateFsPath(targetPath: string): Promise<FsValidateResult> {
   return api<FsValidateResult>("/api/v1/fs/validate-path", {
     method: "POST",
@@ -75,4 +81,3 @@ export async function previewDocx(targetPath: string): Promise<DocxPreviewResult
     body: JSON.stringify({ path: targetPath })
   });
 }
-

@@ -3,6 +3,27 @@ import { Player, PlayerRef } from "@remotion/player";
 import { StoryboardSequence, type StoryboardAssemblyProps, type StoryboardItemProps } from "@psu-ava/remotion-studio";
 import type { Storyboard, StoryboardItem, StoryboardKind } from "../storyboard-types";
 import { RemoteFilePickerModal } from "./RemoteFilePickerModal";
+import { CgBlockEditor, normalizeCgBlocksForMasterDuration, type CgBlock } from "./CgBlockEditor";
+import { runStoryboardNode } from "../storyboard-api";
+import { api, mediaStreamUrl } from "../api";
+import { TextLayerStyleEditor } from "./TextLayerStyleEditor";
+import "./text-layer-style-editor.css";
+import type { CoverTextStyles } from "@psu-ava/remotion-studio";
+import { CoverCardOutputPreview } from "./CoverCardOutputPreview";
+import "./cover-card-output-preview.css";
+import { DoodleAssetLibrary, SYSTEM_DOODLES } from "./DoodleAssetLibrary";
+import { CoverPromptPartsEditor } from "./CoverPromptPartsEditor";
+import "./cover-prompt-parts.css";
+import { ProceduralDoodleCanvas } from "./ProceduralDoodleCanvas";
+import { calculatePathPlacementCount, randomizeDoodlePlacements, rebalanceDoodlePlacements } from "./path-geometry";
+import { coverCardMissingFields, type CoverCardStage } from "@psu-ava/contracts/cover-card";
+import {
+  ARollInspector,
+  CoverCardInspector,
+  LogoOutroInspector,
+  NoteInspector,
+  TitleCarouselInspector
+} from "./inspectors";
 
 interface InteractiveTimelineStudioModalProps {
   storyboard: Storyboard;
@@ -23,6 +44,29 @@ function formatSeconds(ms: number): string {
   return (ms / 1000).toFixed(1);
 }
 
+function coverRunMissing(params: Record<string, unknown>, stage: CoverCardStage) {
+  const labels: Record<string, string> = { sourceImage: "ภาพบุคคลต้นฉบับ", prompt: "prompt ภาพพื้นหลัง", personName: "ชื่อบุคคล", positionTitle: "ตำแหน่ง", award: "รางวัล/คำโปรย" };
+  return coverCardMissingFields(params, stage).map((field) => labels[field]);
+}
+
+const getCgBlocks = (item: StoryboardItem): CgBlock[] => Array.isArray(item.params?.cgBlocks)
+  ? item.params.cgBlocks as CgBlock[]
+  : [];
+
+const enabledCgDuration = (blocks: CgBlock[]) => blocks
+  .filter((block) => block.enabled)
+  .reduce((total, block) => total + block.durationMs, 0);
+
+function DoodlePathAdvancedFields({ path, onChange }: { path: any; onChange: (patch: Record<string, unknown>) => void }) {
+  if (!path) return null;
+  return <div className="field-grid" aria-label="All doodle path properties">
+    <label>Distribution<select value={String(path.distribution ?? "along-path")} onChange={(e) => onChange({ distribution: e.target.value })}><option value="along-path">Along path</option><option value="repeated">Repeated</option><option value="start-end">Start / end</option></select></label>
+    <label>Size jitter<input type="number" min="0" max="1" step="0.01" value={Number(path.sizeJitter ?? 0)} onChange={(e) => onChange({ sizeJitter: Number(e.target.value) })} /></label>
+    <label>Path color<input type="color" value={String(path.color ?? "#FFFFFF")} onChange={(e) => onChange({ color: e.target.value })} /></label>
+    <label>Path geometry<input value="Polyline · double-click segment to add bends" readOnly /></label>
+  </div>;
+}
+
 export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioModalProps> = ({
   storyboard,
   onMutate,
@@ -35,10 +79,65 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1); // 1 = normal, 2 = zoomed in, 0.5 = compact
-  const [filePickerField, setFilePickerField] = useState<{ open: boolean; target: "sourcePath" | "sourceImage" | "broll"; brollId?: string }>({ open: false, target: "sourcePath" });
+  const [filePickerField, setFilePickerField] = useState<{ open: boolean; target: "sourcePath" | "sourceImage" | "backgroundImage" | "personImage" | "broll"; brollId?: string }>({ open: false, target: "sourcePath" });
+  const [nodeRun, setNodeRun] = useState<{ runId: string; itemId: string; stage: "background" | "doodle" | "person" | "assets"; status: string; dryRun: boolean; health?: "starting" | "active" | "stalled" | "connection_lost" | "terminal"; lastHeartbeatAt?: string; systemStatus?: { reachable: boolean; checkedAt?: string; data?: { cpu?: { load?: string }; memory?: { percentage?: string } }; error?: string }; comfyStatus?: { reachable: boolean; checkedAt?: string; queue?: { running?: unknown[]; pending?: unknown[] }; error?: string }; error?: string; progress?: { completed: number; total: number; percent: number }; steps?: Array<{ id: string; label?: string; status: string }> }>();
+  const [nodeRunBusy, setNodeRunBusy] = useState(false);
+  const [nodeRunError, setNodeRunError] = useState<string>();
+  const [drawingDoodlePath, setDrawingDoodlePath] = useState(false);
+  const [pathEditMode, setPathEditMode] = useState<"inspect" | "draw" | "edit">("inspect");
+  const [selectedDoodlePath, setSelectedDoodlePath] = useState(0);
+  const [selectedDoodlePathId, setSelectedDoodlePathId] = useState<string>();
+  const [selectedDoodlePointIndex, setSelectedDoodlePointIndex] = useState<number>();
 
   const playerRef = useRef<PlayerRef>(null);
   const timelineRulerRef = useRef<HTMLDivElement>(null);
+  const nodeRunProgressAt = useRef(0);
+
+  useEffect(() => {
+    if (!nodeRun?.runId) return;
+    let active = true;
+    nodeRunProgressAt.current = Date.now();
+    const poll = async () => {
+      try {
+        const current = await api<any>(`/api/v1/runs/${encodeURIComponent(nodeRun.runId)}`);
+        let systemStatus: any;
+        try { systemStatus = await api<any>("/api/v1/system/status"); } catch (error) { systemStatus = { reachable: false, error: error instanceof Error ? error.message : "Debian system status unavailable" }; }
+        let comfyStatus: any;
+        try { comfyStatus = await api<any>("/api/v1/comfyui/status"); } catch (error) { comfyStatus = { reachable: false, error: error instanceof Error ? error.message : "ComfyUI status unavailable" }; }
+        if (!active) return;
+        const terminal = ["success", "failed", "partial", "cancelled", "needs_attention"].includes(current.status);
+        const health = terminal ? "terminal" : "active";
+        setNodeRun((previous) => previous ? { ...previous, status: current.status, dryRun: current.dryRun, progress: current.progress, steps: current.steps, health, lastHeartbeatAt: current.updatedAt ?? new Date().toISOString(), systemStatus, comfyStatus, error: current.error } : previous);
+        if (current.steps) {
+          const outputFor = (suffix: string) => {
+            const step = current.steps.find((value: any) => value.id.endsWith(suffix));
+            const output = step?.outputs ?? {};
+            return step?.status === "success" ? output.images?.[0]?.localPath ?? output.image ?? output.path : undefined;
+          };
+          const generated = nodeRun.stage === "background" ? { backgroundImage: outputFor("__generate_bg") } : nodeRun.stage === "person" ? { personImage: outputFor("__cutout") } : nodeRun.stage === "doodle" ? { doodleImage: outputFor("__doodle_alpha") } : { backgroundImage: outputFor("__generate_bg"), personImage: outputFor("__cutout"), doodleImage: outputFor("__doodle_alpha") };
+          const changed = Object.fromEntries(Object.entries(generated).filter(([, value]) => typeof value === "string" && value));
+          if (Object.keys(changed).length) onMutate((previous) => ({ ...previous, items: previous.items.map((item) => {
+            if (item.id !== nodeRun.itemId) return item;
+            const createdAt = new Date().toISOString();
+            const customWord = String(item.params.customDoodleWord ?? "").trim().split(/\s+/)[0] ?? "";
+            const existingDoodleAssets = Array.isArray(item.params.customDoodleAssets) ? item.params.customDoodleAssets as Array<{ slot?: number }> : [];
+            const usedSlots = new Set(existingDoodleAssets.map((asset, index) => Number(asset.slot ?? index + 1)));
+            const nextSlot = Array.from({ length: 25 }, (_, index) => index + 1).find((slot) => !usedSlots.has(slot)) ?? 25;
+            const customDoodleAssets = customWord && changed.doodleImage
+              ? [{ id: `custom_${nodeRun.runId}`, word: customWord, image: changed.doodleImage, slot: nextSlot, createdAt }, ...(Array.isArray(item.params.customDoodleAssets) ? item.params.customDoodleAssets : [])].slice(0, 25)
+              : item.params.customDoodleAssets;
+            const customRegistry = customWord && changed.doodleImage ? { id: `custom_${nodeRun.runId}`, key: customWord, imagePath: changed.doodleImage, label: customWord, kind: "custom", enabled: true, createdAt } : undefined;
+            const doodleAssets = customRegistry ? [customRegistry, ...(Array.isArray(item.params.doodleAssets) ? item.params.doodleAssets : [])].slice(0, 100) : item.params.doodleAssets;
+            return { ...item, params: { ...item.params, ...changed, ...(customDoodleAssets ? { customDoodleAssets } : {}), ...(doodleAssets ? { doodleAssets } : {}), outputHistory: [{ runId: nodeRun.runId, createdAt, ...changed }, ...(Array.isArray(item.params.outputHistory) ? item.params.outputHistory : [])].slice(0, 12) } };
+          }) }));
+        }
+        if (terminal) return;
+        window.setTimeout(() => void poll(), 1200);
+      } catch (error) { if (active) { setNodeRun((previous) => previous ? { ...previous, health: "connection_lost", error: error instanceof Error ? error.message : "ไม่สามารถอ่านสถานะ run ได้" } : previous); window.setTimeout(() => void poll(), 1800); } }
+    };
+    void poll();
+    return () => { active = false; };
+  }, [nodeRun?.runId]);
 
   // Sync player time to currentFrame state
   useEffect(() => {
@@ -105,6 +204,55 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
   const selectedScene = useMemo(() => {
     return schedule.find((s) => s.item.id === selectedItemId) || schedule[0];
   }, [schedule, selectedItemId]);
+
+  const selectedDoodlePaths = selectedScene?.item.kind === "cover_card" && Array.isArray(selectedScene.item.params.doodlePaths)
+    ? selectedScene.item.params.doodlePaths as any[] : [];
+  const activeDoodlePathId = selectedDoodlePathId ?? selectedDoodlePaths[selectedDoodlePath]?.id;
+  const activeDoodlePathIndex = Math.max(0, selectedDoodlePaths.findIndex((path) => path.id === activeDoodlePathId));
+  useEffect(() => {
+    if (!selectedDoodlePaths.length) { setSelectedDoodlePath(0); setSelectedDoodlePathId(undefined); setSelectedDoodlePointIndex(undefined); return; }
+    const nextIndex = selectedDoodlePathId ? selectedDoodlePaths.findIndex((path) => path.id === selectedDoodlePathId) : selectedDoodlePath;
+    if (nextIndex < 0 || nextIndex >= selectedDoodlePaths.length) {
+      setSelectedDoodlePath(0); setSelectedDoodlePathId(selectedDoodlePaths[0]?.id); setSelectedDoodlePointIndex(undefined);
+    } else if (!selectedDoodlePathId) setSelectedDoodlePathId(selectedDoodlePaths[nextIndex]?.id);
+  }, [selectedScene?.item.id, selectedDoodlePaths.length, selectedDoodlePathId]);
+
+  const runSelectedGenAiNode = useCallback(async (stage: "background" | "doodle" | "person" | "assets" = "assets") => {
+    if (!selectedScene || selectedScene.item.kind !== "cover_card") return;
+    const missing = coverRunMissing(selectedScene.item.params, stage);
+    if (missing.length) {
+      setNodeRunError(`กรอกข้อมูลก่อน Run: ${missing.join(", ")}`);
+      return;
+    }
+    setNodeRunBusy(true);
+    setNodeRunError(undefined);
+    try {
+      const runItem = { ...selectedScene.item, params: { ...selectedScene.item.params, randomSeed: true, ...(stage === "background" || stage === "assets" ? { backgroundImage: "" } : {}) } };
+      const result = await runStoryboardNode(storyboard.storyboardId, selectedScene.item.id, "live", runItem, stage);
+      setNodeRun({ ...result, itemId: selectedScene.item.id, stage, health: "starting", progress: { completed: 0, total: 5, percent: 0 } }); setSelectedItemId(selectedScene.item.id);
+    } catch (error) {
+      setNodeRunError(error instanceof Error ? error.message : "ไม่สามารถเริ่มงานได้");
+    } finally {
+      setNodeRunBusy(false);
+    }
+  }, [selectedScene, storyboard.storyboardId]);
+
+  const runCustomDoodle = useCallback(async () => {
+    if (!selectedScene || selectedScene.item.kind !== "cover_card") return;
+    const word = String(selectedScene.item.params.customDoodleWord ?? "").trim().split(/\s+/)[0] ?? "";
+    if (!word) return;
+    setNodeRunBusy(true);
+    setNodeRunError(undefined);
+    try {
+      const runItem = { ...selectedScene.item, params: { ...selectedScene.item.params, customDoodleWord: word, doodleEnabled: true, doodlePreset: "none", randomSeed: true } };
+      const result = await runStoryboardNode(storyboard.storyboardId, selectedScene.item.id, "live", runItem, "doodle");
+      setNodeRun({ ...result, itemId: selectedScene.item.id, stage: "doodle", health: "starting", progress: { completed: 0, total: 5, percent: 0 } });
+    } catch (error) {
+      setNodeRunError(error instanceof Error ? error.message : "ไม่สามารถเริ่มงานได้");
+    } finally {
+      setNodeRunBusy(false);
+    }
+  }, [selectedScene, storyboard.storyboardId]);
 
   // Convert active storyboard to Remotion Assembly Props
   const remotionProps: StoryboardAssemblyProps & { aspectRatio: "9:16" | "16:9" | "1:1" } = useMemo(() => {
@@ -196,18 +344,77 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
     const newDuration = Math.max(1000, (selectedScene.item.durationMs || 4000) + deltaMs);
     onMutate((prev) => ({
       ...prev,
-      items: prev.items.map((it) => it.id === selectedScene.item.id ? { ...it, durationMs: newDuration } : it)
+      items: prev.items.map((it) => {
+        if (it.id !== selectedScene.item.id) return it;
+        if (it.kind !== "title") return { ...it, durationMs: newDuration };
+        return {
+          ...it,
+          durationMs: newDuration,
+          params: { ...it.params, cgBlocks: normalizeCgBlocksForMasterDuration(getCgBlocks(it), newDuration) }
+        };
+      })
     }));
   };
 
   const updateSelectedSceneParams = (key: string, value: any) => {
     if (!selectedScene) return;
+    setNodeRunError(undefined);
     onMutate((prev) => ({
       ...prev,
       items: prev.items.map((it) => it.id === selectedScene.item.id ? {
         ...it,
         params: { ...it.params, [key]: value }
       } : it)
+    }));
+  };
+
+  const toggleDoodleAsset = (id: string) => {
+    if (!selectedScene || selectedScene.item.kind !== "cover_card") return;
+    onMutate((previous) => ({ ...previous, items: previous.items.map((item) => {
+      if (item.id !== selectedScene.item.id) return item;
+      const normalizeSystemId = (value: string) => /^doodle-\d+$/.test(value) ? `doodle-${String(((Number(value.slice(7)) - 1) % SYSTEM_DOODLES.length) + 1).padStart(2, "0")}` : value;
+      const rawCurrent = Array.isArray(item.params.doodleAssetSet) ? item.params.doodleAssetSet as string[] : SYSTEM_DOODLES;
+      const current = [...new Set(rawCurrent.map(normalizeSystemId))];
+      const next = current.includes(id) ? current.filter((value) => value !== id) : [...current, id];
+      const paths = Array.isArray(item.params.doodlePaths) ? item.params.doodlePaths as any[] : [];
+      const added = next.filter((value) => !current.includes(value));
+      return { ...item, params: { ...item.params, doodleAssetSet: next, doodlePaths: paths.map((path) => ({ ...path, assetSet: next, doodles: rebalanceDoodlePlacements(path.doodles, next, added) })) } };
+    }) }));
+  };
+
+  const updateSelectedDoodlePath = (patch: Record<string, unknown>) => {
+    if (!selectedScene || selectedScene.item.kind !== "cover_card") return;
+    onMutate((previous) => ({ ...previous, items: previous.items.map((item) => item.id === selectedScene.item.id ? { ...item, params: { ...item.params, doodlePaths: (Array.isArray(item.params.doodlePaths) ? item.params.doodlePaths : []).map((path: any, index) => index === activeDoodlePathIndex ? { ...path, ...patch } : path) } } : item) }));
+  };
+
+  const randomizeSelectedDoodlePath = () => {
+    if (!selectedScene || selectedScene.item.kind !== "cover_card") return;
+    const activeIds = Array.isArray(selectedScene.item.params.doodleAssetSet) ? selectedScene.item.params.doodleAssetSet as string[] : SYSTEM_DOODLES;
+    onMutate((previous) => ({ ...previous, items: previous.items.map((item) => item.id !== selectedScene.item.id ? item : {
+      ...item,
+      params: { ...item.params, doodlePaths: (Array.isArray(item.params.doodlePaths) ? item.params.doodlePaths : []).map((path: any, index) => index === activeDoodlePathIndex ? randomizeDoodlePlacements(path, activeIds) : path) }
+    }) }));
+  };
+  const stageProgress = (stage: "background" | "doodle" | "person" | "assets") => nodeRun?.stage === stage ? nodeRun.progress?.percent ?? 0 : undefined;
+
+  const updateSelectedTitleBlocks = (blocks: CgBlock[]) => {
+    if (!selectedScene || selectedScene.item.kind !== "title") return;
+    const durationMs = Math.max(40, enabledCgDuration(blocks));
+    onMutate((prev) => ({
+      ...prev,
+      items: prev.items.map((it) => it.id === selectedScene.item.id
+        ? { ...it, durationMs, params: { ...it.params, cgBlocks: blocks } }
+        : it)
+    }));
+  };
+
+  const updateSelectedTitleText = (key: "text" | "title", value: string) => {
+    if (!selectedScene || selectedScene.item.kind !== "title") return;
+    onMutate((prev) => ({
+      ...prev,
+      items: prev.items.map((it) => it.id === selectedScene.item.id
+        ? { ...it, params: { ...it.params, [key]: value, texts: { ...(it.params.texts as Record<string, unknown> | undefined), [key]: value } } }
+        : it)
     }));
   };
 
@@ -238,7 +445,12 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
           padding: "12px 24px",
           backgroundColor: "#0B1220",
           borderBottom: "1px solid rgba(59, 130, 246, 0.3)",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.6)"
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.6)",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+          flexWrap: "wrap",
+          gap: "8px"
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -322,15 +534,18 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
           {/* Aspect bounded frame */}
           <div
             style={{
-              width: aspect === "9:16" ? "280px" : aspect === "1:1" ? "420px" : "640px",
-              height: aspect === "9:16" ? "498px" : aspect === "1:1" ? "420px" : "360px",
+              width: "100%",
+              height: "auto",
+              aspectRatio: aspect === "9:16" ? "9 / 16" : aspect === "1:1" ? "1 / 1" : "16 / 9",
               maxWidth: "100%",
-              maxHeight: "100%",
+              maxHeight: "calc(100% - 32px)",
               borderRadius: "14px",
               overflow: "hidden",
               border: "2px solid rgba(229, 169, 60, 0.45)",
               boxShadow: "0 16px 48px rgba(0, 0, 0, 0.95)",
-              backgroundColor: "#0B1220"
+              backgroundColor: "#0B1220",
+              flex: "0 1 auto",
+              position: "relative"
             }}
           >
             <Player
@@ -349,6 +564,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
               autoPlay={false}
               loop
             />
+            {selectedScene?.item.kind === "cover_card" && <ProceduralDoodleCanvas paths={Array.isArray(selectedScene.item.params.doodlePaths) ? selectedScene.item.params.doodlePaths as any : []} mode={pathEditMode} drawing={drawingDoodlePath} selectedPathId={activeDoodlePathId} selectedPointIndex={selectedDoodlePointIndex} showGuide={selectedScene.item.params.doodlePathGuideVisible !== false} assetSet={Array.isArray(selectedScene.item.params.doodleAssetSet) ? selectedScene.item.params.doodleAssetSet as string[] : SYSTEM_DOODLES} onSelectPath={(id) => { setSelectedDoodlePathId(id); setSelectedDoodlePath(selectedDoodlePaths.findIndex((path) => path.id === id)); setPathEditMode("edit"); }} onSelectPoint={(id, index) => { setSelectedDoodlePathId(id); setSelectedDoodlePointIndex(index); }} onChange={(paths) => onMutate((previous) => ({ ...previous, items: previous.items.map((item) => item.id === selectedScene.item.id ? { ...item, params: { ...item.params, doodlePaths: paths, doodleEnabled: true, doodlePreset: "none" } } : item) }))} />}
           </div>
 
           {/* Quick HUD badge */}
@@ -427,260 +643,101 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                 </div>
               </div>
 
-              {/* A-Roll Editing Fields */}
               {selectedScene.item.kind === "a_roll" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      📁 วิดีโอหลัก (A-Roll Footage):
-                    </label>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <input
-                        type="text"
-                        value={(selectedScene.item.params.sourcePath as string) || ""}
-                        onChange={(e) => updateSelectedSceneParams("sourcePath", e.target.value)}
-                        placeholder="/Volumes/.../C7724.MP4"
-                        style={{ flex: 1, padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setFilePickerField({ open: true, target: "sourcePath" })}
-                        style={{ padding: "8px 14px", background: "linear-gradient(135deg, #2563EB, #1D4ED8)", border: "none", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
-                      >
-                        🔍 เลือกจาก NAS
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Speaker & Dialogue Subtitles */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px" }}>
-                    <div>
-                      <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                        ผู้พูด (Speaker):
-                      </label>
-                      <input
-                        type="text"
-                        value={(selectedScene.item.params.speaker as string) || ""}
-                        onChange={(e) => updateSelectedSceneParams("speaker", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                        บทพูด / คำบรรยาย (Dialogue Subtitle):
-                      </label>
-                      <input
-                        type="text"
-                        value={(selectedScene.item.params.dialogue as string) || ""}
-                        onChange={(e) => updateSelectedSceneParams("dialogue", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Nested B-roll List on this A-Roll */}
-                  <div style={{ marginTop: "8px", padding: "12px", background: "#0F172A", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <strong style={{ fontSize: "13px", color: "#60A5FA" }}>🎬 B-Roll Overlays ({selectedScene.item.broll?.length || 0})</strong>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newBrollId = `broll_${Date.now()}`;
-                          onMutate((prev) => ({
-                            ...prev,
-                            items: prev.items.map((it) => it.id === selectedScene.item.id ? {
-                              ...it,
-                              broll: [...(it.broll || []), {
-                                id: newBrollId,
-                                asset: { path: "" },
-                                offsetMs: 1000,
-                                durationMs: 3000,
-                                audioPolicy: "mute",
-                                fit: "cover",
-                                note: "B-Roll Cut"
-                              }]
-                            } : it)
-                          }));
-                        }}
-                        style={{ padding: "4px 10px", background: "#1E293B", border: "1px solid #3B82F6", borderRadius: "6px", color: "#60A5FA", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
-                      >
-                        ＋ เพิ่ม B-Roll
-                      </button>
-                    </div>
-
-                    {(selectedScene.item.broll || []).map((b, bIdx) => (
-                      <div
-                        key={b.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          padding: "8px 10px",
-                          backgroundColor: "#1E293B",
-                          borderRadius: "8px",
-                          marginBottom: "6px",
-                          fontSize: "12px"
-                        }}
-                      >
-                        <span style={{ color: "#E5A93C", fontWeight: 700 }}>#{bIdx + 1}</span>
-                        <input
-                          type="text"
-                          value={b.asset.path}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            onMutate((prev) => ({
-                              ...prev,
-                              items: prev.items.map((it) => it.id === selectedScene.item.id ? {
-                                ...it,
-                                broll: (it.broll || []).map((br) => br.id === b.id ? { ...br, asset: { ...br.asset, path: val } } : br)
-                              } : it)
-                            }));
-                          }}
-                          placeholder="เลือกไฟล์ B-Roll จาก NAS..."
-                          style={{ flex: 1, padding: "4px 8px", background: "#0F172A", border: "1px solid #334155", borderRadius: "6px", color: "#FFFFFF", fontSize: "11px" }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFilePickerField({ open: true, target: "broll", brollId: b.id })}
-                          style={{ padding: "4px 8px", background: "#3B82F6", border: "none", borderRadius: "6px", color: "#FFFFFF", fontSize: "11px", cursor: "pointer" }}
-                        >
-                          NAS
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <ARollInspector
+                  item={selectedScene.item}
+                  selectedBrollId={selectedBrollId}
+                  onSelectBroll={setSelectedBrollId}
+                  onParams={(patch) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) =>
+                        it.id === selectedScene.item.id ? { ...it, params: { ...it.params, ...patch } } : it
+                      )
+                    }))
+                  }
+                  onItem={(updatedItem) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) => (it.id === updatedItem.id ? updatedItem : it))
+                    }))
+                  }
+                />
               )}
 
-              {/* Cover Card Fields */}
-              {selectedScene.item.kind === "cover_card" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      ภาพพื้นหลัง / ภาพบุคคล (Source Image):
-                    </label>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <input
-                        type="text"
-                        value={(selectedScene.item.params.sourceImage as string) || ""}
-                        onChange={(e) => updateSelectedSceneParams("sourceImage", e.target.value)}
-                        placeholder="/Volumes/.../DSC02129.JPG"
-                        style={{ flex: 1, padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setFilePickerField({ open: true, target: "sourceImage" })}
-                        style={{ padding: "8px 14px", background: "linear-gradient(135deg, #2563EB, #1D4ED8)", border: "none", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
-                      >
-                        🔍 เลือกจาก NAS
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      หัวข้อหลัก (Title / Person Name):
-                    </label>
-                    <input
-                      type="text"
-                      value={(selectedScene.item.params.title as string) || (selectedScene.item.params.personName as string) || ""}
-                      onChange={(e) => updateSelectedSceneParams("title", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      ตำแหน่ง / สังกัด (Subtitle / Position):
-                    </label>
-                    <input
-                      type="text"
-                      value={(selectedScene.item.params.subtitle as string) || (selectedScene.item.params.positionTitle as string) || ""}
-                      onChange={(e) => updateSelectedSceneParams("subtitle", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Title 3D Carousel Showcase Fields */}
               {selectedScene.item.kind === "title" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div style={{ padding: "10px 14px", backgroundColor: "#1E293B", borderRadius: "8px", border: "1px solid #E5A93C55" }}>
-                    <strong style={{ fontSize: "13px", color: "#E5A93C", display: "block" }}>🎡 3D Photo Carousel Showcase</strong>
-                    <small style={{ color: "#94A3B8", fontSize: "11px" }}>วงแหวนภาพ 3 มิติ พร้อมข้อความเกียรติยศสีทอง</small>
-                  </div>
+                <TitleCarouselInspector
+                  item={selectedScene.item}
+                  onParams={(patch) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) =>
+                        it.id === selectedScene.item.id ? { ...it, params: { ...it.params, ...patch } } : it
+                      )
+                    }))
+                  }
+                  onItem={(updatedItem) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) => (it.id === updatedItem.id ? updatedItem : it))
+                    }))
+                  }
+                />
+              )}
 
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      หัวข้อหลัก (Main Title):
-                    </label>
-                    <input
-                      type="text"
-                      value={(selectedScene.item.params.title as string) || ""}
-                      placeholder="อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙"
-                      onChange={(e) => updateSelectedSceneParams("title", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                    />
-                  </div>
+              {selectedScene.item.kind === "cover_card" && (
+                <CoverCardInspector
+                  item={selectedScene.item}
+                  onParams={(patch) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) =>
+                        it.id === selectedScene.item.id ? { ...it, params: { ...it.params, ...patch } } : it
+                      )
+                    }))
+                  }
+                  onRun={runSelectedGenAiNode}
+                  nodeRun={nodeRun as any}
+                  nodeRunBusy={nodeRunBusy}
+                  pathEditMode={pathEditMode}
+                  onSetPathEditMode={setPathEditMode}
+                  drawingDoodlePath={drawingDoodlePath}
+                  onSetDrawingDoodlePath={setDrawingDoodlePath}
+                />
+              )}
 
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      สังกัด / หน่วยงาน (Subtitle):
-                    </label>
-                    <input
-                      type="text"
-                      value={(selectedScene.item.params.subtitle as string) || ""}
-                      placeholder="คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์"
-                      onChange={(e) => updateSelectedSceneParams("subtitle", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                    />
-                  </div>
+              {selectedScene.item.kind === "logo_outro" && (
+                <LogoOutroInspector
+                  item={selectedScene.item}
+                  onParams={(patch) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) =>
+                        it.id === selectedScene.item.id ? { ...it, params: { ...it.params, ...patch } } : it
+                      )
+                    }))
+                  }
+                  onItem={(updated) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) => (it.id === updated.id ? updated : it))
+                    }))
+                  }
+                />
+              )}
 
-                  <div>
-                    <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                      ป้ายหัวเรื่อง (Eyebrow Badge):
-                    </label>
-                    <input
-                      type="text"
-                      value={(selectedScene.item.params.eyebrow as string) || ""}
-                      placeholder="PSU BROADCAST SPECIAL REPORT"
-                      onChange={(e) => updateSelectedSceneParams("eyebrow", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", background: "#1E293B", border: "1px solid #334155", borderRadius: "8px", color: "#FFFFFF", fontSize: "12px" }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    <div>
-                      <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                        ความเร็วการหมุน: {Number(selectedScene.item.params.rotationSpeed ?? 1.0).toFixed(1)}x
-                      </label>
-                      <input
-                        type="range"
-                        min="0.2"
-                        max="3.0"
-                        step="0.1"
-                        value={Number(selectedScene.item.params.rotationSpeed ?? 1.0)}
-                        onChange={(e) => updateSelectedSceneParams("rotationSpeed", Number(e.target.value))}
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600, display: "block", marginBottom: "4px" }}>
-                        มุมเอียงกล้อง (Tilt): {Number(selectedScene.item.params.cameraTilt ?? 8)}°
-                      </label>
-                      <input
-                        type="range"
-                        min="-20"
-                        max="20"
-                        step="1"
-                        value={Number(selectedScene.item.params.cameraTilt ?? 8)}
-                        onChange={(e) => updateSelectedSceneParams("cameraTilt", Number(e.target.value))}
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                  </div>
-                </div>
+              {selectedScene.item.kind === "note" && (
+                <NoteInspector
+                  item={selectedScene.item}
+                  onParams={(patch) =>
+                    onMutate((prev) => ({
+                      ...prev,
+                      items: prev.items.map((it) =>
+                        it.id === selectedScene.item.id ? { ...it, params: { ...it.params, ...patch } } : it
+                      )
+                    }))
+                  }
+                />
               )}
             </>
           ) : (
@@ -950,12 +1007,14 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
           isOpen={filePickerField.open}
           initialPath=""
           mode="file"
-          filter={filePickerField.target === "sourceImage" ? "image" : "video"}
+          filter={filePickerField.target === "sourcePath" || filePickerField.target === "broll" ? "video" : ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff"}
           onSelect={(selectedPath) => {
             if (filePickerField.target === "sourcePath") {
               updateSelectedSceneParams("sourcePath", selectedPath);
             } else if (filePickerField.target === "sourceImage") {
               updateSelectedSceneParams("sourceImage", selectedPath);
+            } else if (filePickerField.target === "backgroundImage") {
+              updateSelectedSceneParams("backgroundImage", selectedPath);
             } else if (filePickerField.target === "broll" && filePickerField.brollId && selectedScene) {
               onMutate((prev) => ({
                 ...prev,

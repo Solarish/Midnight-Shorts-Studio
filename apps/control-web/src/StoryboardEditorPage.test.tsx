@@ -30,7 +30,7 @@ const storyboard = {
   items: [
     { id: "title_1", kind: "title" as const, durationMs: 10000, audioPolicy: "mute" as const, presetId: "ae-3d-carousel-title-v1", params: { composition: "Main", media: ["/tmp/title.jpg"], texts: { title: "PSU" } } },
     { id: "interview_1", kind: "a_roll" as const, durationMs: 4000, audioPolicy: "preserve" as const, presetId: "a-roll-segment-v1", params: { sourceKey: "C7724", sourcePath: "/tmp/interview.mov", sourceInMs: 0, sourceOutMs: 4000, dialogue: "Hello" }, broll: [] },
-    { id: "cover_1", kind: "cover_card" as const, durationMs: 6000, audioPolicy: "mute" as const, presetId: "comfy-cover-card-v2", params: { sourceImage: "/tmp/person.jpg", prompt: "ฉากมหาวิทยาลัย", title: "ชื่อเดิม", subtitle: "ตำแหน่งเดิม", eyebrow: "รางวัลเดิม", seed: 1, mogrtPath: "/tmp/cover.mogrt" } }
+    { id: "cover_1", kind: "cover_card" as const, durationMs: 6000, audioPolicy: "mute" as const, presetId: "comfy-cover-card-v2", params: { sourceImage: "/tmp/person.jpg", prompt: "ฉากมหาวิทยาลัย", title: "ชื่อเดิม", subtitle: "ตำแหน่งเดิม", eyebrow: "รางวัลเดิม", seed: 1 } }
   ]
 };
 const imported = { schemaVersion: 2, importId: "import-1", docxPath: "/Volumes/story.docx", sourceDigest: "digest", importedAt: "now", rawRows: [{ rowIndex: 2, rowNumber: 3, cells: ["ภาพปก", ""], picture: "ภาพปก", sound: "" }], proposals: [], diagnostics: [] };
@@ -83,6 +83,17 @@ test("saves an edit before validation and preserves revision locking", async () 
   await waitFor(() => expect(storyboardApi.validateStoryboard).toHaveBeenCalledWith("story-1"));
 });
 
+test("keeps global Text and Title independent through a persisted title edit", async () => {
+  renderPage();
+  const text = await screen.findByLabelText("Text");
+  const title = screen.getByLabelText("Title");
+  fireEvent.change(text, { target: { value: "Global message" } });
+  fireEvent.change(title, { target: { value: "Editorial title" } });
+  await waitFor(() => expect(storyboardApi.patchStoryboard).toHaveBeenCalled());
+  const savedTitle = storyboardApi.patchStoryboard.mock.calls.at(-1)?.[0].items.find((item: any) => item.id === "title_1");
+  expect(savedTitle.params).toMatchObject({ text: "Global message", title: "Editorial title", texts: { text: "Global message", title: "Editorial title" } });
+});
+
 test("uses a typed preset selector and Finder media picker for A-roll", async () => {
   renderPage();
   fireEvent.click(await screen.findByText("2. A-roll"));
@@ -112,15 +123,15 @@ test("adds multiple carousel images from Finder and keeps an ordered media list"
   expect(screen.getByRole("button", { name: "Move 1 up" })).toBeDisabled();
 });
 
-test("Cover Card exposes required editorial text inputs and an explicit Thai-to-English generation gate", async () => {
+test("Cover Card exposes required editorial text inputs and an explicit English-only ComfyUI prompt", async () => {
   renderPage();
   fireEvent.click(await screen.findByText("3. Cover card"));
   expect(screen.getByLabelText("Cover person name")).toHaveValue("ชื่อเดิม");
   expect(screen.getByLabelText("Cover position title")).toHaveValue("ตำแหน่งเดิม");
   expect(screen.getByLabelText("Cover award")).toHaveValue("รางวัลเดิม");
   expect(screen.getByLabelText("Cover background direction")).toHaveValue("ฉากมหาวิทยาลัย");
-  expect(screen.getByText("English output")).toBeInTheDocument();
-  expect(screen.getByText(/ComfyUI\/Z-Image รับภาษาอังกฤษเท่านั้น/)).toBeInTheDocument();
+  expect(screen.getByText("English prompt")).toBeInTheDocument();
+  expect(screen.getByText(/รับ prompt ภาษาอังกฤษโดยตรง/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "เติมจากข้อมูลเดิม" }));
   fireEvent.change(screen.getByLabelText("Cover person name"), { target: { value: "ชื่อใหม่" } });
   await waitFor(() => expect(storyboardApi.patchStoryboard).toHaveBeenCalled());

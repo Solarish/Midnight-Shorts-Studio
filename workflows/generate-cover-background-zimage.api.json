@@ -1,11 +1,12 @@
 {
   "1": {"inputs":{"unet_name":"z_image_turbo_bf16.safetensors","weight_dtype":"default"},"class_type":"UNETLoader","_meta":{"title":"Load Z-Image Turbo"}},
   "2": {"inputs":{"clip_name":"qwen_3_4b.safetensors","type":"lumina2"},"class_type":"CLIPLoader","_meta":{"title":"Load Qwen text encoder"}},
-  "3": {"inputs":{"seed":20260829,"steps":8,"cfg":1.5,"sampler_name":"euler_ancestral","scheduler":"karras","denoise":1.0,"model":["1",0],"positive":["6",0],"negative":["7",0],"latent_image":["5",0]},"class_type":"KSampler","_meta":{"title":"Synthesize background only"}},
+  "3": {"inputs":{"seed":42,"steps":8,"cfg":1.5,"sampler_name":"euler","scheduler":"simple","denoise":1.0,"model":["1",0],"positive":["6",0],"negative":["7",0],"latent_image":["5",0]},"class_type":"KSampler","_meta":{"title":"Synthesize background only · Euler Simple"}},
   "4": {"inputs":{"vae_name":"ae.safetensors"},"class_type":"VAELoader","_meta":{"title":"Load VAE"}},
-  "5": {"inputs":{"width":1920,"height":1080,"batch_size":1},"class_type":"EmptyLatentImage","_meta":{"title":"Empty 1920x1080 latent"}},
-  "6": {"inputs":{"text":"elegant cinematic university documentary environment, deep navy, warm gold and subtle teal lighting, no people, no text","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"English-only background prompt"}},
-  "7": {"inputs":{"text":"people, person, human, face, body, silhouette, text, logo, watermark, signature, blurry, low quality","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"Negative prompt"}},
+  "5": {"inputs":{"width":1344,"height":768,"batch_size":1},"class_type":"EmptyLatentImage","_meta":{"title":"Empty Z-Image 16:9 latent · 1344x768"}},
+  "6": {"inputs":{"text":"professional university broadcast studio environment, quiet daytime interior with warm natural ambient light, deep navy warm gold and subtle teal color palette, controlled cinematic lighting with soft warm practical highlights, wide architectural perspective with clean negative space on the left for title overlay and visual detail on the right, realistic editorial documentary photography, sharp focus across the full scene crisp fine details high resolution","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"Grouped positive background prompt"}},
+  "7": {"inputs":{"text":"","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"Empty conditioning"}},
   "8": {"inputs":{"samples":["3",0],"vae":["4",0]},"class_type":"VAEDecode","_meta":{"title":"Decode background"}},
-  "9": {"inputs":{"filename_prefix":"ava_storyboard/cover_background","images":["8",0]},"class_type":"SaveImage","_meta":{"title":"Save background only"}}
+  "9": {"inputs":{"filename_prefix":"ava_storyboard/cover_background","images":["8",0]},"class_type":"SaveImage","_meta":{"title":"Save background only"}},
+  "10": {"inputs":{"image":"placeholder.png","upload":"image"},"class_type":"LoadImage","_meta":{"title":"Receive source upload for graph binding (unused by background conditioning)"}}
 }

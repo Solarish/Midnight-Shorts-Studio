@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { access, readFile, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { coverCardMissingFields } from "@psu-ava/contracts";
 import type {
   ApprovedStoryboardVersionV2,
   GraphDefinitionV1,
@@ -15,25 +16,71 @@ import type {
   StoryboardRawRowV2,
   StoryboardSpecV2
 } from "@psu-ava/contracts";
+type CoverPromptParts = { place?: string; time?: string; color?: string; lighting?: string; composition?: string; style?: string; detail?: string };
+type DoodlePromptParts = { subject?: string; treatment?: string; placement?: string; density?: string; color?: string; style?: string; detail?: string; scale?: string; safeArea?: string };
+
 
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 const FRAME_MS = 40;
 
-export const COVER_VISUAL_DIRECTION =
-  "Empty realistic elegant university and dental-science documentary environment; " +
-  "PSU-inspired deep navy, warm gold, and subtle teal ambient documentary lighting; " +
-  "natural photographic bokeh; clean cinematic empty negative space on the left for title overlay; " +
-  "high resolution professional cinematography, absolutely no people, no human silhouettes, no rendered text.";
+export const COVER_PROMPT_DEFAULTS: Required<CoverPromptParts> = {
+  place: "professional university broadcast studio environment",
+  time: "quiet daytime interior with warm natural ambient light",
+  color: "deep navy, warm gold and subtle teal color palette",
+  lighting: "controlled cinematic lighting with soft warm practical highlights",
+  composition: "wide architectural perspective with clean negative space on the left for title overlay and visual detail on the right",
+  style: "realistic editorial documentary photography",
+  detail: "sharp focus across the full scene, crisp fine details, high resolution"
+};
+/** Backward-compatible export for graph consumers; content is now neutral and grouped. */
+export const COVER_VISUAL_DIRECTION = Object.values(COVER_PROMPT_DEFAULTS).join(". ") + ".";
 
 /**
  * Cover background generation prompt:
- * Intentionally returns ONLY the clean COVER_VISUAL_DIRECTION for background synthesis with no people.
- * Raw storyboard editorial prompt, URLs, timecodes, and titles are strictly excluded to prevent
- * diffusion models from rendering unwanted humans/subjects into the background.
- * Full editorial provenance is preserved in review.media_approval.config.prompt and storyboard digests.
+ * The user prompt is a short style/subject direction. The invariant template
+ * keeps the output a clean background with negative space and no people/text.
  */
-export function buildCoverGenerationPrompt(_rawStoryboardPrompt?: string): string {
-  return COVER_VISUAL_DIRECTION;
+export function buildCoverGenerationPrompt(userPrompt?: string | CoverPromptParts): string {
+  const parts = typeof userPrompt === "object" && userPrompt ? { ...COVER_PROMPT_DEFAULTS, ...userPrompt } : COVER_PROMPT_DEFAULTS;
+  const direction = typeof userPrompt === "string" ? sanitizeCoverDirection(userPrompt) : "";
+  return Object.values(parts).concat(direction ? [direction] : []).filter(Boolean).join(". ") + ".";
+}
+
+function sanitizeCoverDirection(value: string): string {
+  return value.split(/[.;,]/).map((part) => part.trim()).filter((part) => part && !/\b(psu|z[- ]?image|no|without|not|never|avoid)\b/i.test(part)).join(", ");
+}
+
+export function buildCoverDoodlePrompt(userPrompt?: string): string {
+  const direction = String(userPrompt ?? "").trim();
+  return `Crisp thin white hand-drawn line art on a pure black background, full 1920x1080 canvas, sparse clean strokes, high contrast, no filled white shapes, no gray haze, no people, no faces, no photographic content, no rendered text. User style direction: ${direction || "academic scientific sketch accents"}.`;
+}
+
+export function buildDoodleGenerationPrompt(parts?: DoodlePromptParts, customDirection = ""): string {
+  const defaults: Required<DoodlePromptParts> = {
+    subject: "tiny academic sticker icons, tiny books, stars, pencils and sparkles",
+    treatment: "clear filled shapes with crisp hand-drawn marker texture",
+    placement: "a balanced ring around the outer edges and corners",
+    density: "a handful of small isolated accents with generous spacing",
+    color: "white artwork on a pure black matte",
+    style: "playful editorial broadcast illustration",
+    detail: "recognizable objects, clean silhouettes, high contrast, crisp details",
+    scale: "thumbnail-sized accents with varied small scale",
+    safeArea: "a large calm open center field reserved for compositing"
+  };
+  return Object.values({ ...defaults, ...(parts ?? {}) }).concat(customDirection.trim() ? [customDirection.trim()] : []).filter(Boolean).join(". ") + ".";
+}
+
+/** Fixed 1:1 custom-doodle recipe. The operator supplies one short subject word only. */
+export function buildCustomDoodlePrompt(value: string): string {
+  const word = String(value).trim().split(/\s+/)[0]?.replace(/[^a-z0-9-]/gi, "") || "star";
+  return `one small recognizable ${word} doodle icon, bold black and white marker illustration, clean filled silhouette, isolated centered subject, pure black background, high contrast, crisp edges, transparent-ready matte, simple single-object composition`;
+}
+
+/** Generate a fresh ComfyUI seed per run unless the operator explicitly locks one. */
+export function resolveCoverSeed(params: Record<string, unknown>, fallback = 42): number {
+  if (params.randomSeed === true || params.seedMode === "random") return Math.floor(Math.random() * 2147483646) + 1;
+  const seed = Number(params.seed ?? fallback);
+  return Number.isFinite(seed) && seed >= 0 ? Math.floor(seed) : fallback;
 }
 
 export function canonicalStoryboardJson(value: unknown): string {
@@ -139,7 +186,7 @@ export function parseStoryboardXmlV2(xml: string): Pick<StoryboardDocxImportV2, 
     } else if (isLogo) {
       proposals.push(proposal(rowNumber, 0.94, ["logo/outro phrase"], baseEditorialItem(`logo_${rowNumber}`, "logo_outro", 4000, "logo-outro-v1", row, { sourcePath: "", note: joined }, rowNumber)));
     } else if (isTitle) {
-      proposals.push(proposal(rowNumber, 0.86, ["explicit title/carousel instruction"], baseEditorialItem(`title_${rowNumber}`, "title", 10000, "ae-3d-carousel-title-v1", row, { composition: "Main", media: [], texts: { title: sound || picture } }, rowNumber)));
+      proposals.push(proposal(rowNumber, 0.86, ["explicit title/carousel instruction"], baseEditorialItem(`title_${rowNumber}`, "title", 10000, "3d-carousel-title-v1", row, { composition: "Main", media: [], texts: { title: sound || picture } }, rowNumber)));
     } else if (!ranges.length) {
       proposals.push(proposal(rowNumber, 0.5, ["unclassified editorial row"], {
         id: `note_${rowNumber}`,
@@ -231,14 +278,20 @@ export function validateStoryboardSpec(storyboard: StoryboardSpecV2): Storyboard
     }
     if (item.kind === "cover_card") {
       const layeredCover = item.presetId === "comfy-cover-card-v2";
-      if (!String(item.params.sourceImage ?? "").trim()) diagnostics.push({ code: "missing_media", severity: "blocker", message: "Cover card ยังไม่ได้เลือกภาพปก", itemId: item.id });
-      if (!String(item.params.prompt ?? "").trim()) diagnostics.push({ code: "missing_prompt", severity: "blocker", message: "Cover card ต้องมี prompt", itemId: item.id });
-      if (!String(item.params.personName ?? item.params.title ?? "").trim()) diagnostics.push({ code: "missing_cover_title", severity: "blocker", message: layeredCover ? "Cover card ต้องมีชื่อบุคคลสำหรับ editable text" : "Cover card ต้องมีข้อความหัวข้อที่จะคอมโพสิตลงภาพ", itemId: item.id });
-      if (layeredCover && !String(item.params.positionTitle ?? "").trim()) diagnostics.push({ code: "missing_cover_position", severity: "blocker", message: "Cover card ต้องมีตำแหน่งหรือหน่วยงานสำหรับ editable text", itemId: item.id });
-      if (layeredCover && !String(item.params.award ?? "").trim()) diagnostics.push({ code: "missing_cover_award", severity: "blocker", message: "Cover card ต้องมีรางวัลหรือเกียรติคุณสำหรับ editable text", itemId: item.id });
-      if (layeredCover && !String(item.params.mogrtPath ?? "").trim()) diagnostics.push({ code: "missing_cover_mogrt", severity: "blocker", message: "Cover card ต้องเลือก MOGRT สำหรับ editable Premiere text", itemId: item.id });
+      const missing = coverCardMissingFields(item.params, "assets");
+      if (missing.includes("sourceImage")) diagnostics.push({ code: "missing_media", severity: "blocker", message: "Cover card ยังไม่ได้เลือกภาพบุคคลต้นฉบับ", itemId: item.id });
+      if (missing.includes("prompt")) diagnostics.push({ code: "missing_prompt", severity: "blocker", message: "Cover card ต้องมี prompt หรือ prompt parts", itemId: item.id });
+      if (missing.includes("personName")) diagnostics.push({ code: "missing_cover_title", severity: "blocker", message: layeredCover ? "Cover card ต้องมีชื่อบุคคลสำหรับ editable text" : "Cover card ต้องมีข้อความหัวข้อที่จะคอมโพสิตลงภาพ", itemId: item.id });
+      if (layeredCover && missing.includes("positionTitle")) diagnostics.push({ code: "missing_cover_position", severity: "blocker", message: "Cover card ต้องมีตำแหน่งหรือหน่วยงานสำหรับ editable text", itemId: item.id });
+      if (layeredCover && missing.includes("award")) diagnostics.push({ code: "missing_cover_award", severity: "blocker", message: "Cover card ต้องมีรางวัลหรือเกียรติคุณสำหรับ editable text", itemId: item.id });
     }
-    if (item.kind === "logo_outro" && !String(item.params.sourcePath ?? "").trim()) diagnostics.push({ code: "missing_media", severity: "blocker", message: "Logo/outro ยังไม่ได้เลือก asset", itemId: item.id });
+    if (item.kind === "logo_outro") {
+      const isVideoPreset = item.presetId === "logo-outro-video-v1";
+      const source = String(item.params.sourcePath ?? "").trim();
+      if (isVideoPreset && !source) {
+        diagnostics.push({ code: "missing_media", severity: "blocker", message: "Outro video ยังไม่ได้เลือกไฟล์วิดีโอ", itemId: item.id });
+      }
+    }
     if (item.kind === "title" && !asStrings(item.params.media).length) diagnostics.push({ code: "missing_media", severity: "blocker", message: "3D title ต้องมี media อย่างน้อยหนึ่งรายการ", itemId: item.id });
     if (item.kind !== "a_roll" && (item.broll?.length ?? 0) > 0) diagnostics.push({ code: "invalid_broll_parent", severity: "blocker", message: "B-roll ต้องอยู่ภายใน A-roll เท่านั้น", itemId: item.id });
     for (const [brollIndex, broll] of (item.broll ?? []).entries()) {
@@ -267,12 +320,6 @@ export async function validateStoryboardMedia(storyboard: StoryboardSpecV2): Pro
     try { await access(value); const valueStat = await stat(value); if (!valueStat.isFile()) throw new Error("not a file"); }
     catch { diagnostics.push({ code: "media_not_found", severity: "blocker", message: `ไม่พบไฟล์ ${value}`, itemId }); }
   }));
-  await Promise.all(storyboard.items.filter((item) => item.kind === "cover_card" && item.presetId === "comfy-cover-card-v2").map(async (item) => {
-    const mogrtPath = String(item.params.mogrtPath ?? "");
-    if (!mogrtPath) return;
-    try { await access(mogrtPath); const valueStat = await stat(mogrtPath); if (!valueStat.isFile()) throw new Error("not a file"); }
-    catch { diagnostics.push({ code: "missing_cover_mogrt", severity: "blocker", message: `ไม่พบ Premiere text MOGRT: ${mogrtPath} — ต้องสร้าง/เลือก template ก่อนประกอบ V4`, itemId: item.id }); }
-  }));
   return diagnostics;
 }
 
@@ -290,8 +337,8 @@ export function createApprovedStoryboard(storyboard: StoryboardSpecV2, version: 
   };
 }
 
-export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2): StoryboardCompilationV2 {
-  if (validateStoryboardSpec(approved.storyboard).some((value) => value.severity === "blocker")) throw new Error("Cannot compile an invalid storyboard");
+export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2, options: { skipValidation?: boolean } = {}): StoryboardCompilationV2 {
+  if (!options.skipValidation && validateStoryboardSpec(approved.storyboard).some((value) => value.severity === "blocker")) throw new Error("Cannot compile an invalid storyboard");
   const nodes: GraphNodeV1[] = [];
   const edges: GraphEdgeV1[] = [];
   const order: string[] = [];
@@ -313,9 +360,9 @@ export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2)
     timeline.push({ itemId: item.id, kind: item.kind, startMs: cursor, durationMs: item.durationMs, audioPolicy: item.audioPolicy, track });
     if (item.kind === "title") {
       const assets = addNode(item.id, "media", "asset.multi_select", { paths: asStrings(item.params.media) }, x, 80);
-      const effect = addNode(item.id, "carousel", "effect.3d_carousel", { presetId: item.presetId, durationMs: item.durationMs, texts: item.params.texts ?? {}, composition: item.params.composition ?? "Main" }, x, 200);
-      const placement = addNode(item.id, "dynamic_link", "timeline.dynamic_link", { id: safeGeneratedId(item.id, "title"), startMs: cursor, durationMs: item.durationMs, track: 3, composition: item.params.composition ?? "Main", audioPolicy: "mute", storyboardItemId: item.id, editorialKind: "title" }, x, 320);
-      addEdge(assets, "mediaList", effect, "media"); addEdge(effect, "project", placement, "project"); timelineOutputs.push({ nodeId: placement, port: "dynamicLink" });
+      const effect = addNode(item.id, "carousel", "effect.3d_carousel", { presetId: item.presetId, durationMs: item.durationMs, media: asStrings(item.params.media), texts: item.params.texts ?? {}, composition: item.params.composition ?? "Main" }, x, 200);
+      const placement = addNode(item.id, "graphic_overlay", "timeline.graphic_overlay", { id: safeGeneratedId(item.id, "title"), startMs: cursor, durationMs: item.durationMs, track: 3, composition: item.params.composition ?? "Main", audioPolicy: "mute", storyboardItemId: item.id, editorialKind: "title" }, x, 320);
+      addEdge(assets, "mediaList", effect, "media"); addEdge(effect, "graphic", placement, "graphic"); timelineOutputs.push({ nodeId: placement, port: "overlay" });
     } else if (item.kind === "a_roll") {
       const asset = addNode(item.id, "source", "asset.select", { path: item.params.sourcePath }, x, 80);
       const scene = addNode(item.id, "scene", "timeline.scene", { startMs: cursor, durationMs: item.durationMs, sourceInMs: item.params.sourceInMs, track: 1, audio: true, audioPolicy: "preserve", storyboardItemId: item.id, editorialKind: "a_roll" }, x, 200);
@@ -329,15 +376,16 @@ export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2)
     } else if (item.kind === "cover_card") {
       const safeId = safeGeneratedId(item.id, "cover");
       const rawPrompt = String(item.params.prompt ?? "");
+      const promptInput = item.params.promptParts ?? rawPrompt;
       if (item.presetId === "comfy-cover-card-v1") {
         const asset = addNode(item.id, "source", "asset.select", { path: item.params.sourceImage }, x, 80);
         const cutout = addNode(item.id, "cutout", "image.removeBackground", { path: item.params.sourceImage, output: `media/storyboard-covers/${safeId}/cutout.png` }, x, 180);
         const comfy = addNode(item.id, "generate", "comfyui.workflow", {
           workflowFile: "workflows/generate-cover-zimage.api.json",
           uploads: [{ patch: "10.inputs.image", subfolder: `psu-ava/storyboard-covers/${safeId}`, overwrite: true }],
-          patches: { "6.inputs.text": buildCoverGenerationPrompt(rawPrompt), "3.inputs.seed": Number(item.params.seed ?? 0) },
-          width: 1920,
-          height: 1080,
+          patches: { "6.inputs.text": buildCoverGenerationPrompt(promptInput), "3.inputs.seed": resolveCoverSeed(item.params) },
+          width: 1344,
+          height: 768,
           downloadDir: `media/storyboard-covers/${safeId}`
         }, x, 280);
         const finalCard = addNode(item.id, "title_card", "graphics.cover_title", { output: `media/storyboard-covers/${safeId}/final-titled-cover.png`, eyebrow: String(item.params.eyebrow ?? "อาจารย์ตัวอย่างดีเด่น · ประจำปี 2569"), title: String(item.params.title ?? ""), subtitle: String(item.params.subtitle ?? "มหาวิทยาลัยสงขลานครินทร์") }, x, 360);
@@ -347,40 +395,32 @@ export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2)
         timelineOutputs.push({ nodeId: overlay, port: "overlay" });
       } else {
       const doodleEnabled = item.params.doodleEnabled === true;
-      const doodlePrompt = String(item.params.doodlePrompt ?? "ลายเส้น doodle สีขาวแบบวิชาการ กระจายทั่วภาพ");
-      const translationSystem = "Translate the user's visual direction into concise English for the Z-Image model. Preserve intent, add no people or rendered text, and output English only.";
+      const doodlePrompt = String(item.params.doodlePrompt ?? "white academic doodle line art distributed across the frame");
+      const selectedBackground = String(item.params.backgroundImage ?? "").trim();
       const asset = addNode(item.id, "source", "asset.select", { path: item.params.sourceImage }, x, 80);
       const cutout = addNode(item.id, "cutout", "image.removeBackground", {
         path: item.params.sourceImage,
         output: `media/storyboard-covers/${safeId}/cutout.png`
       }, x, 180);
-      const translate = addNode(item.id, "translate_bg_en", "llm.chat", {
-        system: translationSystem,
-        prompt: rawPrompt,
-        temperature: 0,
-        outputLanguage: "en",
-        mockResponse: buildCoverGenerationPrompt(rawPrompt),
-        provenance: { originalLanguage: "th-auto", targetLanguage: "en", consumer: "z-image-background" }
-      }, x, 240);
-      const comfy = addNode(item.id, "generate_bg", "comfyui.workflow", {
+      const comfy = selectedBackground ? undefined : addNode(item.id, "generate_bg", "comfyui.workflow", {
         workflowFile: "workflows/generate-cover-background-zimage.api.json",
         promptLanguage: "en",
         promptPatch: "6.inputs.text",
         patches: {
-          "3.inputs.seed": Number(item.params.seed ?? 0)
+          "6.inputs.text": buildCoverGenerationPrompt(promptInput),
+          "3.inputs.seed": resolveCoverSeed(item.params)
         },
-        width: 1920,
-        height: 1080,
+        width: 1344,
+        height: 768,
         downloadDir: `media/storyboard-covers/${safeId}/background`
       }, x, 320);
-      const review = addNode(item.id, "review", "review.media_approval", {
+      const review = selectedBackground ? undefined : addNode(item.id, "review", "review.media_approval", {
         storyboardItemId: item.id,
         sourceImage: item.params.sourceImage,
-        prompt: rawPrompt,
+        prompt: buildCoverGenerationPrompt(promptInput),
         seed: item.params.seed,
         title: String(item.params.personName ?? item.params.title ?? ""),
-        promptTranslationStep: translate,
-        layerContract: "premiere-cover-v2"
+        layerContract: "remotion-cover-v2"
       }, x, 400);
       const background = addNode(item.id, "background_v1", "timeline.overlay", {
         startMs: cursor,
@@ -401,58 +441,68 @@ export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2)
         storyboardItemId: item.id,
         editorialKind: "cover_card"
       }, x + 120, 500);
-      const graphic = addNode(item.id, "text_v4", "timeline.graphic_mogrt", {
+      const graphic = addNode(item.id, "text_v4", "timeline.graphic_overlay", {
         id: safeGeneratedId(item.id, "cover_text"),
-        mogrtPath: String(item.params.mogrtPath ?? ""),
+        composition: "CoverCard",
         startMs: cursor,
         durationMs: item.durationMs,
         track: 4,
-        text: {
-          personName: String(item.params.personName ?? item.params.title ?? ""),
-          positionTitle: String(item.params.positionTitle ?? ""),
-          award: String(item.params.award ?? "")
+        graphic: {
+          renderer: "remotion",
+          presetId: "cover-card-v2",
+          text: {
+            personName: String(item.params.personName ?? item.params.title ?? ""),
+            positionTitle: String(item.params.positionTitle ?? ""),
+            award: String(item.params.award ?? "")
+          },
+          textStyles: item.params.textStyles ?? {},
+          layout: {
+            personX: Number(item.params.personX ?? 0.72),
+            personY: Number(item.params.personY ?? 0.5),
+            personScale: Number(item.params.personScale ?? 1)
+          }
         },
-        parameterMap: item.params.parameterMap ?? { personName: "PERSON_NAME", positionTitle: "POSITION_TITLE", award: "AWARD" },
-        bindingMode: "preseeded",
-        seededOutput: `media/storyboard-covers/${safeId}/text/${safeId}-editable-text.mogrt`,
         storyboardItemId: item.id,
-        editorialKind: "cover_card"
+        editorialKind: "cover_card",
+        audioPolicy: "mute"
       }, x + 240, 500);
+      const backgroundSource = selectedBackground ? addNode(item.id, "background_source", "asset.select", { path: selectedBackground }, x, 260) : undefined;
       addEdge(asset, "path", cutout, "image");
-      addEdge(translate, "content", comfy, "prompt");
-      addEdge(comfy, "image", review, "asset");
-      addEdge(comfy, "workflowDigest", review, "workflowDigest");
-      addEdge(review, "approvedAsset", background, "asset");
+      if (comfy && review) {
+        addEdge(comfy, "image", review, "asset");
+        addEdge(comfy, "workflowDigest", review, "workflowDigest");
+        addEdge(review, "approvedAsset", background, "asset");
+      } else if (backgroundSource) {
+        addEdge(backgroundSource, "path", background, "asset");
+      }
       addEdge(cutout, "image", person, "asset");
-      timelineOutputs.push({ nodeId: background, port: "overlay" }, { nodeId: person, port: "overlay" }, { nodeId: graphic, port: "graphic" });
+      timelineOutputs.push({ nodeId: background, port: "overlay" }, { nodeId: person, port: "overlay" }, { nodeId: graphic, port: "overlay" });
       if (doodleEnabled) {
-        const doodleTranslate = addNode(item.id, "translate_doodle_en", "llm.chat", {
-          system: "Translate the user's doodle direction into concise English for Z-Image. Require white line art on pure black, full 1920x1080 canvas, no people and no text. Output English only.",
-          prompt: doodlePrompt,
-          temperature: 0,
-          outputLanguage: "en",
-          mockResponse: "sparse elegant academic white line doodles scattered across the full canvas on a pure solid black background, no people, no text",
-          provenance: { originalLanguage: "th-auto", targetLanguage: "en", consumer: "z-image-doodle" }
-        }, x + 360, 240);
+        const customDoodleWord = String(item.params.customDoodleWord ?? "").trim();
+        const customDoodle = Boolean(customDoodleWord);
         const doodleGenerate = addNode(item.id, "generate_doodle", "comfyui.workflow", {
           workflowFile: "workflows/generate-cover-doodle-zimage.api.json",
           promptLanguage: "en",
           promptPatch: "6.inputs.text",
-          patches: { "3.inputs.seed": Number(item.params.doodleSeed ?? Number(item.params.seed ?? 0) + 1) },
-          width: 1920,
-          height: 1080,
-          downloadDir: `media/storyboard-covers/${safeId}/doodle-matte`
+          patches: {
+            "6.inputs.text": buildCustomDoodlePrompt(customDoodleWord || doodlePrompt || "star"),
+            "3.inputs.seed": resolveCoverSeed({ ...item.params, seed: item.params.doodleSeed ?? Number(item.params.seed ?? 42) + 1 }),
+            ...(customDoodle ? { "5.inputs.width": 512, "5.inputs.height": 512 } : {})
+          },
+          width: customDoodle ? 512 : 1344,
+          height: customDoodle ? 512 : 768,
+          downloadDir: customDoodle ? `media/storyboard-doodles/${safeId}` : `media/storyboard-covers/${safeId}/doodle-matte`
         }, x + 360, 320);
         const doodleAlpha = addNode(item.id, "doodle_alpha", "image.luma_to_alpha", { output: `media/storyboard-covers/${safeId}/doodle-alpha.png` }, x + 360, 400);
         const doodle = addNode(item.id, "doodle_v2", "timeline.overlay", { startMs: cursor, durationMs: item.durationMs, track: 2, opacity: Number(item.params.doodleOpacity ?? 1), audioPolicy: "mute", storyboardItemId: item.id, editorialKind: "cover_card" }, x + 360, 500);
-        addEdge(doodleTranslate, "content", doodleGenerate, "prompt");
         addEdge(doodleGenerate, "image", doodleAlpha, "image");
         addEdge(doodleAlpha, "image", doodle, "asset");
         timelineOutputs.push({ nodeId: doodle, port: "overlay" });
       }
       }
     } else if (item.kind === "logo_outro") {
-      const asset = addNode(item.id, "source", "asset.select", { path: item.params.sourcePath }, x, 80);
+      const effectivePath = String(item.params.sourcePath ?? "").trim() || "/Volumes/ภาควีดีทัศน์/Logo 88 2561/Prince_of_Songkla_University_Emblem.png";
+      const asset = addNode(item.id, "source", "asset.select", { path: effectivePath }, x, 80);
       const scene = addNode(item.id, "scene", "timeline.scene", { startMs: cursor, durationMs: item.durationMs, sourceInMs: 0, track: 1, audio: false, audioPolicy: "mute", storyboardItemId: item.id, editorialKind: "logo_outro" }, x, 200);
       addEdge(asset, "path", scene, "source"); timelineOutputs.push({ nodeId: scene, port: "scene" });
     }

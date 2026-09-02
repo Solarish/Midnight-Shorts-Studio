@@ -1,15 +1,19 @@
 import React, { useState } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { PresetWrapper, ThreeDCarouselPreset } from "../presets";
+import type { ShowcaseShot } from "../presets/ThreeDCarouselPreset";
 import { resolveMediaUrl } from "../media-resolver";
-import type { AspectRatioMode, MotionPresetType, StudioThemeProps } from "../types";
+import type { AspectRatioMode, CgBlock, MotionPresetType, StudioThemeProps } from "../types";
 
 export interface TitleCardProps {
+  text?: string;
   title?: string;
   subtitle?: string;
   eyebrow?: string;
   texts?: Record<string, string>;
   media?: string[];
+  layoutSequence?: ShowcaseShot[];
+  cgBlocks?: CgBlock[];
   aspectRatio?: AspectRatioMode;
   presetId?: string;
   motionPreset?: MotionPresetType;
@@ -21,12 +25,15 @@ export interface TitleCardProps {
 
 export const TitleCard: React.FC<TitleCardProps> = ({
   title,
+  text,
   subtitle,
   eyebrow,
   texts,
   media,
+  layoutSequence,
+  cgBlocks,
   aspectRatio = "16:9",
-  presetId = "ae-3d-carousel-title-v1",
+  presetId = "3d-carousel-title-v1",
   motionPreset = "ZoomPunch",
   rotationSpeed = 1.0,
   cameraTilt = 8,
@@ -34,11 +41,14 @@ export const TitleCard: React.FC<TitleCardProps> = ({
   theme
 }) => {
   // If it is the 3D Carousel Title preset (default for Title or explicitly chosen), render the 3D Carousel!
-  if (presetId === "ae-3d-carousel-title-v1" || presetId?.includes("carousel") || (Array.isArray(media) && media.length > 1) || !media || media.length === 0) {
+  if (presetId === "3d-carousel-title-v1" || presetId?.includes("carousel") || (Array.isArray(media) && media.length > 1) || !media || media.length === 0) {
     return (
       <ThreeDCarouselPreset
         media={media}
+        layoutSequence={layoutSequence}
+        cgBlocks={cgBlocks}
         title={title}
+        text={text}
         subtitle={subtitle}
         eyebrow={eyebrow}
         texts={texts}

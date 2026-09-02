@@ -72,6 +72,40 @@ app.addHook("onRequest", async (request, reply) => {
 });
 
 app.get("/api/v1/health", async () => ({ ok: true, version: "0.2.0", buildTimestamp: "2026-08-27 16:15:00", csrfToken, bind: `${host}:${port}` }));
+app.get("/api/v1/system/status", async (_request, reply) => {
+  const target = process.env.AVA_SYSTEM_STATUS_URL ?? "http://10.135.66.70:3001/admin/api/system";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch(target, { signal: controller.signal, headers: { accept: "application/json" } });
+    const body = await response.json().catch(() => undefined);
+    if (!response.ok) return reply.code(502).send({ reachable: false, checkedAt: new Date().toISOString(), source: target, error: `System status HTTP ${response.status}` });
+    return { reachable: true, checkedAt: new Date().toISOString(), source: target, data: body?.data ?? body };
+  } catch (error) {
+    return reply.code(502).send({ reachable: false, checkedAt: new Date().toISOString(), source: target, error: error instanceof Error ? error.message : "System status unavailable" });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+app.get("/api/v1/comfyui/status", async (_request, reply) => {
+  const base = process.env.AVA_COMFYUI_URL ?? "http://10.135.66.70:8188";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+  try {
+    const [statsResponse, queueResponse] = await Promise.all([
+      fetch(`${base}/system_stats`, { signal: controller.signal }),
+      fetch(`${base}/queue`, { signal: controller.signal })
+    ]);
+    if (!statsResponse.ok || !queueResponse.ok) return reply.code(502).send({ reachable: false, checkedAt: new Date().toISOString(), source: base, error: "ComfyUI status endpoint failed" });
+    const stats = await statsResponse.json();
+    const queue = await queueResponse.json();
+    return { reachable: true, checkedAt: new Date().toISOString(), source: base, stats: stats.system ?? stats, devices: stats.devices ?? [], queue: { running: queue.queue_running ?? [], pending: queue.queue_pending ?? [] } };
+  } catch (error) {
+    return reply.code(502).send({ reachable: false, checkedAt: new Date().toISOString(), source: base, error: error instanceof Error ? error.message : "ComfyUI status unavailable" });
+  } finally {
+    clearTimeout(timer);
+  }
+});
 app.get("/api/v1/readiness", async () => readiness());
 app.get("/api/v1/diagnostics/readiness-rejections", async (request) => readinessDiagnostics.list(Number((request.query as any)?.limit ?? 20)));
 app.get("/api/v1/recipes", async () => [portraitStoryRecipe]);
@@ -106,6 +140,135 @@ app.get("/api/v1/comfyui/workflows", async () => {
   }
 });
 app.get("/api/v1/fs/bookmarks", async () => getNasBookmarks(projectRoot));
+
+const customDoodlesPath = path.join(controlRoot, "custom-doodles.json");
+
+async function discoverGeneratedDoodles(root: string): Promise<Array<{ runId: string; image: string; word?: string; createdAt?: string }>> {
+  const results: Array<{ runId: string; image: string; word?: string; createdAt?: string }> = [];
+  const prototypeRunsDir = path.join(root, "prototype-runs");
+  try {
+    const entries = await readdir(prototypeRunsDir, { withFileTypes: true });
+    for (const ent of entries) {
+      if (ent.isDirectory() && ent.name.startsWith("run_")) {
+        const runId = ent.name;
+        const candidate1 = path.join(prototypeRunsDir, runId, "media/doodle-alpha.png");
+        try {
+          await stat(candidate1);
+          results.push({ runId, image: candidate1, word: "custom" });
+          continue;
+        } catch {}
+        const coversDir = path.join(prototypeRunsDir, runId, "media/storyboard-covers");
+        try {
+          const coverEntries = await readdir(coversDir, { withFileTypes: true });
+          for (const c of coverEntries) {
+            if (c.isDirectory()) {
+              const alphaPath = path.join(coversDir, c.name, "doodle-alpha.png");
+              try {
+                await stat(alphaPath);
+                results.push({ runId: `${runId}_${c.name}`, image: alphaPath, word: c.name.replace(/^cover_/, "") });
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+  return results;
+}
+
+app.get("/api/v1/doodles/custom", async () => {
+  let existing: Array<{ id: string; word: string; image: string; slot?: number; createdAt?: string; category?: string }> = [];
+  try {
+    const content = await readFile(customDoodlesPath, "utf8");
+    existing = JSON.parse(content);
+  } catch {
+    existing = [];
+  }
+
+  try {
+    const discovered = await discoverGeneratedDoodles(projectRoot);
+    const knownImages = new Set(existing.map((e) => e.image));
+    let added = false;
+    for (const d of discovered) {
+      if (!knownImages.has(d.image)) {
+        existing.push({
+          id: `custom_${d.runId}`,
+          word: d.word || "custom",
+          image: d.image,
+          slot: 25 + existing.length + 1,
+          createdAt: d.createdAt || new Date().toISOString(),
+          category: "custom"
+        });
+        knownImages.add(d.image);
+        added = true;
+      }
+    }
+    if (added) {
+      await writeFile(customDoodlesPath, JSON.stringify(existing, null, 2), "utf8");
+    }
+  } catch {}
+
+  return existing;
+});
+
+app.post("/api/v1/doodles/custom", async (request, reply) => {
+  const body = (request.body ?? {}) as any;
+  if (!body.image) {
+    return reply.code(400).send({ error: "Missing doodle image path" });
+  }
+  let existing: any[] = [];
+  try {
+    const content = await readFile(customDoodlesPath, "utf8");
+    existing = JSON.parse(content);
+  } catch {
+    existing = [];
+  }
+  const matchIndex = existing.findIndex((e) => e.image === body.image || e.id === body.id);
+  const entry = {
+    id: body.id || `custom_${Date.now()}`,
+    word: body.word || "custom",
+    image: body.image,
+    slot: body.slot ?? (25 + existing.length + 1),
+    createdAt: body.createdAt || new Date().toISOString(),
+    category: body.category || "custom"
+  };
+  if (matchIndex >= 0) {
+    existing[matchIndex] = { ...existing[matchIndex], ...entry };
+  } else {
+    existing.unshift(entry);
+  }
+  await writeFile(customDoodlesPath, JSON.stringify(existing, null, 2), "utf8");
+  return reply.code(200).send(existing);
+});
+
+app.delete("/api/v1/doodles/custom/:id", async (request, reply) => {
+  const { id } = (request.params ?? {}) as { id: string };
+  let existing: any[] = [];
+  try {
+    const content = await readFile(customDoodlesPath, "utf8");
+    existing = JSON.parse(content);
+  } catch {
+    existing = [];
+  }
+  const filtered = existing.filter((e) => e.id !== id && e.image !== id);
+  await writeFile(customDoodlesPath, JSON.stringify(filtered, null, 2), "utf8");
+  return reply.code(200).send(filtered);
+});
+
+app.delete("/api/v1/doodles/custom", async (request, reply) => {
+  const body = (request.body ?? {}) as any;
+  const target = body.id || body.image;
+  let existing: any[] = [];
+  try {
+    const content = await readFile(customDoodlesPath, "utf8");
+    existing = JSON.parse(content);
+  } catch {
+    existing = [];
+  }
+  const filtered = target ? existing.filter((e) => e.id !== target && e.image !== target) : [];
+  await writeFile(customDoodlesPath, JSON.stringify(filtered, null, 2), "utf8");
+  return reply.code(200).send(filtered);
+});
 app.get("/api/v1/fs/browse", async (request) => {
   const query = (request.query ?? {}) as any;
   return browseDirectory(query.path, query.filter, projectRoot);
@@ -143,6 +306,43 @@ app.post("/api/v1/storyboards/:storyboardId/versions/:version/execution-graph", 
   Number((request.params as any).version),
   request.body as any
 ));
+app.post("/api/v1/storyboards/:storyboardId/items/:itemId/run", async (request, reply) => {
+  const { storyboardId, itemId } = request.params as any;
+  const body = (request.body as any) ?? {};
+  const stage = body.stage === "doodle" ? "doodle" : body.stage === "person" ? "person" : body.stage === "assets" ? "assets" : "background";
+  const compilation = await storyboards.createNodeCompilation(storyboardId, itemId, body.item, stage);
+  compilation.graph.graphId = `${compilation.graph.graphId}__run_${randomUUID().slice(0, 8)}`;
+  const workflow = compileGraphToWorkflow(compilation.graph);
+  await workflowSnapshots.save(compilation.graph.graphId, 1, workflow);
+  const requestedMode = body.mode ?? "live";
+  if (!["auto", "dry-run", "live"].includes(requestedMode)) return reply.code(422).send({ error: "mode must be 'auto', 'dry-run', or 'live'" });
+  const comfyNode = compilation.graph.nodes.find((node) => node.type === "comfyui.workflow");
+  const targetNode = stage === "assets"
+    ? undefined
+    : stage === "person"
+      ? compilation.graph.nodes.find((node) => node.id.endsWith("__cutout"))?.id
+      : stage === "doodle"
+        ? compilation.graph.nodes.find((node) => node.id.endsWith("__doodle_alpha"))?.id
+        : comfyNode?.id;
+  if (!comfyNode && stage !== "person") return reply.code(422).send({ error: "This storyboard node has no GenAI execution step" });
+  if (stage === "person" && !targetNode) return reply.code(422).send({ error: "This storyboard node has no person cutout step" });
+  const runtime = loadWorkflowText(workflow.raw, { configPath: path.join(projectRoot, `${compilation.graph.graphId}.workflow.json`), configDir: projectRoot });
+  const capabilities = workflowCapabilities(runtime.workflow);
+  const readinessResult = await evaluateReadiness(projectRoot, { capabilities, services: runtime.workflow.settings.services, adobe: runtime.workflow.settings.adobe, requiredFiles: workflowReadinessFiles(runtime.workflow) });
+  const dryRun = requestedMode === "dry-run" || (requestedMode === "auto" && !readinessResult.ready);
+  if (requestedMode === "live" && !readinessResult.ready) return reply.code(409).send({ code: "READINESS_FAILED", error: "AI service readiness checks failed; live node run was not queued", readiness: readinessResult });
+  const idempotencyKey = request.headers["idempotency-key"];
+  if (typeof idempotencyKey !== "string" || !idempotencyKey.trim()) return reply.code(400).send({ error: "Idempotency-Key header is required" });
+  const record = await scheduler.enqueueCompiledWorkflow({
+    manifest: { schemaVersion: 1, graphId: compilation.graph.graphId, graphRevision: 1, workflowDigest: workflow.digest },
+    workflow: workflow.workflow,
+    raw: workflow.raw,
+    digest: workflow.digest,
+    recipeId: compilation.graph.graphId,
+    projectName: compilation.graph.name
+  }, dryRun, idempotencyKey, targetNode ? { to: targetNode } : {});
+  return reply.code(202).send({ runId: record.runId, status: record.status, workflowDigest: record.workflowDigest, executionMode: dryRun ? (requestedMode === "dry-run" ? "dry-run" : "dry-run-fallback") : "live", dryRun, readiness: readinessResult, monitorUrl: `/runs/${record.runId}` });
+});
 app.get("/api/v1/workflow-packages", async () => starterWorkflowPackages);
 app.post("/api/v1/workflow-packages/:packageId/instantiate", async (request, reply) => {
   const body = (request.body ?? {}) as any;
@@ -355,7 +555,8 @@ app.get("/api/v1/runs", async () => Promise.all((await store.list()).map(async (
   catch (error: any) { return toRunDtoFallback(record, error); }
 })));
 app.get("/api/v1/runs/:runId", async (request, reply) => {
-  const record = await store.get((request.params as any).runId);
+  const runId = (request.params as any).runId;
+  const record = await store.get(runId) ?? (await store.list()).find((value) => value.runId === runId);
   return record ? toRunDto(record) : reply.code(404).send({ error: "Run not found" });
 });
 
@@ -599,6 +800,10 @@ async function toRunDto(record: any) {
   let dataError: string | undefined;
   try { workflow = JSON.parse(await readFile(record.configPath, "utf8")); }
   catch (error: any) { dataError = `Workflow snapshot unavailable: ${error?.message ?? error}`; }
+  const workflowSteps = workflow.steps ?? [];
+  const completedSteps = workflowSteps.filter((step: any) => ["success", "skipped"].includes(state?.steps?.[step.id]?.status)).length;
+  const progressTotal = workflowSteps.length;
+  const progressPercent = record.status === "success" ? 100 : progressTotal ? Math.round((completedSteps / progressTotal) * 100) : 0;
   return {
     runId: record.runId,
     recipeId: record.recipeId,
@@ -620,7 +825,8 @@ async function toRunDto(record: any) {
     resumable: ["failed", "partial", "needs_attention"].includes(record.status) && !record.unsafeToResume,
     approval: record.status === "waiting_approval" ? state?.steps?.[state?.approval?.stepId]?.outputs?.approvalRequest : undefined,
     stoppedAtStep: state?.stoppedAtStep,
-    steps: (workflow.steps ?? []).map((step: any) => ({ id: step.id, label: labels[step.id] ?? step.name ?? step.id, type: step.type, status: state?.steps?.[step.id]?.status ?? "pending", attempts: state?.steps?.[step.id]?.attempts ?? 0, startedAt: state?.steps?.[step.id]?.startedAt, finishedAt: state?.steps?.[step.id]?.finishedAt, error: state?.steps?.[step.id]?.lastError?.message, outputs: state?.steps?.[step.id]?.outputs }))
+    progress: { completed: completedSteps, total: progressTotal, percent: progressPercent },
+    steps: workflowSteps.map((step: any) => ({ id: step.id, label: labels[step.id] ?? step.name ?? step.id, type: step.type, status: state?.steps?.[step.id]?.status ?? "pending", attempts: state?.steps?.[step.id]?.attempts ?? 0, startedAt: state?.steps?.[step.id]?.startedAt, finishedAt: state?.steps?.[step.id]?.finishedAt, error: state?.steps?.[step.id]?.lastError?.message, outputs: state?.steps?.[step.id]?.outputs }))
   };
 }
 
@@ -640,6 +846,7 @@ function toRunDtoFallback(record: any, error: any) {
     verification: record.verification,
     dataError: `Run metadata unavailable: ${error?.message ?? error}`,
     resumable: false,
+    progress: { completed: 0, total: 0, percent: record.status === "success" ? 100 : 0 },
     steps: []
   };
 }

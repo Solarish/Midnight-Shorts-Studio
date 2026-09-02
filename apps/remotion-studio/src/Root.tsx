@@ -37,6 +37,7 @@ function convertApiItemsToRemotion(apiItems: any[]): StoryboardItemProps[] {
       params: {
         ...rawParams,
         title: rawParams.title || rawParams.personName || rawParams.texts?.title,
+        text: rawParams.text || rawParams.title || rawParams.personName || rawParams.texts?.title,
         subtitle: rawParams.subtitle || rawParams.positionTitle,
         eyebrow: rawParams.eyebrow || rawParams.award || rawParams.texts?.eyebrow,
         speaker: rawParams.speaker || rawParams.personName,

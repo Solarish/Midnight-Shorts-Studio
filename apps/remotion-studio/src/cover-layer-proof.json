@@ -1,0 +1,29 @@
+{
+  "storyboardId": "cover-layer-proof",
+  "title": "Cover Card 4 Layer Proof",
+  "fps": 25,
+  "durationInFrames": 125,
+  "items": [
+    {
+      "id": "cover_live_proof",
+      "kind": "cover_card",
+      "durationMs": 5000,
+      "audioPolicy": "mute",
+      "presetId": "comfy-cover-card-v2",
+      "params": {
+        "sourceImage": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /ภาพนิ่ง/DSC02129.JPG",
+        "backgroundImage": "/Users/louislee/Desktop/Midnight-Shorts-Studio/.ava-cache/comfyui/0029697917d41b5773e07aba092d34008a0e3c2b48579e50def8ea66223ca3d3/cover_background_00001_.png",
+        "personImage": "/Users/louislee/Desktop/Midnight-Shorts-Studio/prototype-runs/run_mtiu68w5_07dedd0b-567/media/person-cutout.png",
+        "doodleImage": "/Users/louislee/Desktop/Midnight-Shorts-Studio/prototype-runs/run_mtiu68w5_07dedd0b-567/media/doodle-alpha.png",
+        "doodleOpacity": 0.7,
+        "personX": 0.72,
+        "personY": 0.5,
+        "personScale": 1,
+        "personName": "Live Proof",
+        "positionTitle": "PSU Dental Faculty",
+        "award": "AI Layer Test",
+        "motionPreset": "Spring"
+      }
+    }
+  ]
+}

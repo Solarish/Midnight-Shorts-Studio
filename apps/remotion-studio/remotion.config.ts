@@ -5,5 +5,5 @@ Config.setDelayRenderTimeoutInMilliseconds(90000);
 Config.setChromiumDisableWebSecurity(true);
 Config.setChromiumIgnoreCertificateErrors(true);
 Config.setChromiumOpenGlRenderer("angle");
-Config.setHardwareAcceleration(true);
+Config.setHardwareAcceleration("if-possible");
 Config.setConcurrency(4);

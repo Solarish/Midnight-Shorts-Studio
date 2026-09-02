@@ -25,3 +25,10 @@ export async function approveAndCompileStoryboard(storyboard: Storyboard) {
   });
 }
 export async function getStoryboardCompilation(id: string, version: number) { return api<StoryboardCompilation>(`/api/v1/storyboards/${encodeURIComponent(id)}/versions/${version}/compiled`); }
+export async function runStoryboardNode(storyboardId: string, itemId: string, mode: "auto" | "dry-run" | "live" = "live", item?: StoryboardItem, stage: "background" | "doodle" | "person" | "assets" = "assets") {
+  return api<{ runId: string; status: string; dryRun: boolean; executionMode: string; monitorUrl: string }>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/items/${encodeURIComponent(itemId)}/run`, {
+    method: "POST",
+    headers: { "idempotency-key": `storyboard-node-${storyboardId}-${itemId}-${Date.now()}` },
+    body: JSON.stringify({ mode, stage, ...(item ? { item } : {}) })
+  });
+}

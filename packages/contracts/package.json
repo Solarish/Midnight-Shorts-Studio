@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cover-card": "./src/cover-card.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "node --import tsx --test test/*.test.ts"

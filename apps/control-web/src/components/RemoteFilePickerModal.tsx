@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { browseDirectory, type FsBookmark, type FsBrowseResult, type FsEntry } from "../api";
+import { browseDirectory, mediaStreamUrl, type FsBookmark, type FsBrowseResult, type FsEntry } from "../api";
 
 export interface RemoteFilePickerModalProps {
   isOpen: boolean;
@@ -108,6 +108,8 @@ export function RemoteFilePickerModal({
     if (ext === ".wav" || ext === ".mp3" || ext === ".m4a") return "🎵";
     return "📎";
   };
+
+  const isStillImage = (entry: FsEntry) => [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"].includes(entry.ext?.toLowerCase() ?? "");
 
   return (
     <div
@@ -397,6 +399,7 @@ export function RemoteFilePickerModal({
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
                       {multiple && !entry.isDirectory && <input type="checkbox" readOnly checked={isSelected} aria-label={`Select ${entry.name}`}/>} 
+                      {!entry.isDirectory && isStillImage(entry) && <img src={mediaStreamUrl(entry.path)} alt="" loading="lazy" style={{ width: "56px", height: "40px", objectFit: "cover", borderRadius: "4px", border: "1px solid #334155", background: "#020617" }} />}
                       <span style={{ fontSize: "16px" }}>{getFileIcon(entry)}</span>
                       <span
                         style={{

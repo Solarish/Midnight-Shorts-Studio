@@ -1,11 +1,12 @@
 {
   "1": {"inputs":{"unet_name":"z_image_turbo_bf16.safetensors","weight_dtype":"default"},"class_type":"UNETLoader","_meta":{"title":"Load Z-Image Turbo"}},
   "2": {"inputs":{"clip_name":"qwen_3_4b.safetensors","type":"lumina2"},"class_type":"CLIPLoader","_meta":{"title":"Load Qwen text encoder"}},
-  "3": {"inputs":{"seed":20260830,"steps":8,"cfg":1.5,"sampler_name":"euler_ancestral","scheduler":"karras","denoise":1.0,"model":["1",0],"positive":["6",0],"negative":["7",0],"latent_image":["5",0]},"class_type":"KSampler","_meta":{"title":"Synthesize white doodles on black"}},
+  "3": {"inputs":{"seed":42,"steps":8,"cfg":1.5,"sampler_name":"euler","scheduler":"simple","denoise":1.0,"model":["1",0],"positive":["6",0],"negative":["7",0],"latent_image":["5",0]},"class_type":"KSampler","_meta":{"title":"Synthesize filled doodle illustration"}},
   "4": {"inputs":{"vae_name":"ae.safetensors"},"class_type":"VAELoader","_meta":{"title":"Load VAE"}},
-  "5": {"inputs":{"width":1920,"height":1080,"batch_size":1},"class_type":"EmptyLatentImage","_meta":{"title":"Empty 1920x1080 latent"}},
-  "6": {"inputs":{"text":"sparse elegant hand-drawn white line doodles scattered across the full canvas on a pure solid black background, high contrast monochrome, no gray background, no text","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"English-only doodle prompt"}},
-  "7": {"inputs":{"text":"color, colored lines, gray background, white background, gradient background, photograph, people, words, letters, logo, watermark, blur","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"Negative doodle prompt"}},
+  "5": {"inputs":{"width":1344,"height":768,"batch_size":1},"class_type":"EmptyLatentImage","_meta":{"title":"Empty 16:9 latent · 1344x768"}},
+  "6": {"inputs":{"text":"tiny academic sticker icons, tiny books, stars, pencils and sparkles, clear filled shapes with crisp hand-drawn marker texture, a balanced ring around the outer edges and corners, a handful of small isolated accents with generous spacing, white artwork on a solid black canvas, playful editorial broadcast illustration, recognizable objects clean silhouettes high contrast crisp details, thumbnail-sized accents with varied small scale, a large calm open center field reserved for compositing","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"Small grouped positive doodle prompt"}},
+  "7": {"inputs":{"text":"","clip":["2",0]},"class_type":"CLIPTextEncode","_meta":{"title":"Empty conditioning"}},
   "8": {"inputs":{"samples":["3",0],"vae":["4",0]},"class_type":"VAEDecode","_meta":{"title":"Decode doodle matte"}},
-  "9": {"inputs":{"filename_prefix":"ava_storyboard/cover_doodle_matte","images":["8",0]},"class_type":"SaveImage","_meta":{"title":"Save white-on-black doodle matte"}}
+  "9": {"inputs":{"filename_prefix":"ava_storyboard/cover_doodle_matte","images":["8",0]},"class_type":"SaveImage","_meta":{"title":"Save white-on-black doodle matte"}},
+  "10": {"inputs":{"image":"placeholder.png","upload":"image"},"class_type":"LoadImage","_meta":{"title":"Receive source upload for graph binding (unused by doodle conditioning)"}}
 }

@@ -225,23 +225,37 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
             {item.kind === "cover_card" ? (
               <CoverCard
                 sourceImage={item.params?.sourceImage}
+                backgroundImage={item.params?.backgroundImage}
+                personImage={item.params?.personImage}
+                doodleImage={item.params?.doodleImage}
+                doodleOpacity={item.params?.doodleOpacity}
+                doodleScale={item.params?.doodleScale}
+                doodlePreset={item.params?.doodleEnabled === true ? (item.params?.doodlePreset ?? "academic") : "none"}
+                doodlePaths={item.params?.doodleEnabled === true ? item.params?.doodlePaths : []}
+                personX={item.params?.personX}
+                personY={item.params?.personY}
+                personScale={item.params?.personScale}
                 eyebrow={item.params?.eyebrow}
                 title={item.params?.title}
                 subtitle={item.params?.subtitle}
                 personName={item.params?.personName}
                 positionTitle={item.params?.positionTitle}
                 award={item.params?.award}
+                textStyles={item.params?.textStyles}
                 aspectRatio={aspectRatio}
                 motionPreset={item.params?.motionPreset ?? "Spring"}
                 theme={theme}
               />
             ) : item.kind === "title" ? (
               <TitleCard
+                text={item.params?.text}
                 title={item.params?.title}
                 subtitle={item.params?.subtitle}
                 eyebrow={item.params?.eyebrow}
                 texts={item.params?.texts}
                 media={item.params?.media}
+                layoutSequence={item.params?.layoutSequence}
+                cgBlocks={item.params?.cgBlocks}
                 aspectRatio={aspectRatio}
                 presetId={item.presetId || (item.params as any)?.presetId}
                 motionPreset={item.params?.motionPreset ?? "ZoomPunch"}
@@ -253,7 +267,16 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
             ) : item.kind === "logo_outro" ? (
               <LogoOutro
                 sourcePath={item.params?.sourcePath}
+                presetId={item.presetId || (item.params as any)?.presetId}
+                title={item.params?.title || item.params?.note}
                 note={item.params?.note}
+                subtitle={item.params?.subtitle}
+                eyebrow={item.params?.eyebrow}
+                logoScale={Number((item.params as any)?.logoScale ?? 1)}
+                glowIntensity={Number((item.params as any)?.glowIntensity ?? 1)}
+                videoFit={(item.params as any)?.videoFit ?? "cover"}
+                fadeInMs={Number((item.params as any)?.fadeInMs ?? 480)}
+                fadeOutMs={Number((item.params as any)?.fadeOutMs ?? 480)}
                 aspectRatio={aspectRatio}
                 theme={theme}
               />

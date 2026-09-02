@@ -54,9 +54,9 @@ test("approved storyboard compiles deterministically with complete provenance", 
   assert.equal(first.timeline.items.find((value) => value.kind === "b_roll")?.audioPolicy, "mute");
 
   // Dynamic Link Title wiring assertions
-  const dlNode = first.graph.nodes.find((value) => value.type === "timeline.dynamic_link");
+  const dlNode = first.graph.nodes.find((value) => value.type === "timeline.graphic_overlay");
   assert.ok(dlNode);
-  assert.equal(dlNode?.id, "sb_title_1__dynamic_link");
+  assert.equal(dlNode?.id, "sb_title_1__graphic_overlay");
   assert.deepEqual(dlNode?.config, {
     id: "title_1",
     startMs: 0,
@@ -67,17 +67,17 @@ test("approved storyboard compiles deterministically with complete provenance", 
     storyboardItemId: "title_1",
     editorialKind: "title"
   });
-  const carouselToDlEdge = first.graph.edges.find((e) => e.to.nodeId === "sb_title_1__dynamic_link");
+  const carouselToDlEdge = first.graph.edges.find((e) => e.to.nodeId === "sb_title_1__graphic_overlay");
   assert.ok(carouselToDlEdge);
   assert.equal(carouselToDlEdge?.from.nodeId, "sb_title_1__carousel");
-  assert.equal(carouselToDlEdge?.from.port, "project");
-  assert.equal(carouselToDlEdge?.to.port, "project");
+  assert.equal(carouselToDlEdge?.from.port, "graphic");
+  assert.equal(carouselToDlEdge?.to.port, "graphic");
 
-  const dlToComposeEdge = first.graph.edges.find((e) => e.from.nodeId === "sb_title_1__dynamic_link");
+  const dlToComposeEdge = first.graph.edges.find((e) => e.from.nodeId === "sb_title_1__graphic_overlay");
   assert.ok(dlToComposeEdge);
-  assert.equal(dlToComposeEdge?.from.port, "dynamicLink");
+  assert.equal(dlToComposeEdge?.from.port, "overlay");
   assert.equal(dlToComposeEdge?.to.nodeId, "sb_timeline__compose");
-  assert.equal(dlToComposeEdge?.to.port, "dynamicLinks");
+  assert.equal(dlToComposeEdge?.to.port, "overlays");
 
   // Milestone P5: A-roll wiring & config assertions
   assert.equal(first.graph.nodes.some((node) => node.type === "media.conform"), false);
@@ -155,15 +155,15 @@ test("approved storyboard compiles deterministically with complete provenance", 
       overwrite: true
     }],
     patches: {
-      "6.inputs.text": COVER_VISUAL_DIRECTION,
+      "6.inputs.text": buildCoverGenerationPrompt("academic portrait"),
       "3.inputs.seed": 1
     },
-    width: 1920,
-    height: 1080,
+    width: 1344,
+    height: 768,
     downloadDir: "media/storyboard-covers/cover_1"
   });
-  assert.equal(coverGen?.config.patches["6.inputs.text"], COVER_VISUAL_DIRECTION);
-  assert.equal(String(coverGen?.config.patches["6.inputs.text"]).includes("academic portrait"), false, "Generation prompt must not contain raw storyboard metadata");
+  assert.equal(coverGen?.config.patches["6.inputs.text"], buildCoverGenerationPrompt("academic portrait"));
+  assert.equal(String(coverGen?.config.patches["6.inputs.text"]).includes("academic portrait"), true, "Short user direction must be included in the background template prompt");
 
   const coverTitle = first.graph.nodes.find((node) => node.id === "sb_cover_1__title_card");
   assert.ok(coverTitle);
@@ -303,10 +303,10 @@ test("approved storyboard compiles deterministically with complete provenance", 
   await rm(root, { recursive: true, force: true });
 });
 
-test("layered cover v2 compiles exact V1-V4 tracks and omits or includes doodle deterministically", () => {
+test("layered cover v2 compiles exact Remotion layers and omits or includes doodle deterministically", () => {
   const cover = {
     id: "cover_v2", kind: "cover_card" as const, durationMs: 4000, audioPolicy: "mute" as const, presetId: "comfy-cover-card-v2",
-    params: { sourceImage: "/media/person.jpg", prompt: "ฉากมหาวิทยาลัย", personName: "สมชาย", positionTitle: "ศาสตราจารย์", award: "รางวัลดีเด่น", seed: 7, doodleEnabled: false, personX: 0.72, personY: 0.5, personScale: 1.1, mogrtPath: "/templates/cover.mogrt" }
+    params: { sourceImage: "/media/person.jpg", prompt: "Elegant empty university documentary background with navy and warm gold lighting, no people, no text", personName: "สมชาย", positionTitle: "ศาสตราจารย์", award: "รางวัลดีเด่น", seed: 7, doodleEnabled: false, personX: 0.72, personY: 0.5, personScale: 1.1 }
   };
   const storyboard: StoryboardSpecV2 = {
     schemaVersion: 2, storyboardId: "cover-v2", name: "Cover v2", revision: 1,
@@ -319,21 +319,23 @@ test("layered cover v2 compiles exact V1-V4 tracks and omits or includes doodle 
   assert.equal(off.graph.nodes.some((node) => node.id === "sb_cover_v2__doodle_v2"), false);
   const track = (role: string) => Number(off.graph.nodes.find((node) => node.id === `sb_cover_v2__${role}`)?.config.track);
   assert.deepEqual([track("background_v1"), track("person_v3"), track("text_v4")], [1, 3, 4]);
-  assert.equal(off.graph.edges.find((edge) => edge.from.nodeId === "sb_cover_v2__text_v4")?.to.port, "graphics");
-  assert.equal(off.graph.nodes.find((node) => node.id === "sb_cover_v2__translate_bg_en")?.config.outputLanguage, "en");
+  assert.ok(off.graph.edges.some((edge) => edge.from.nodeId === "sb_cover_v2__source" && edge.to.nodeId === "sb_cover_v2__cutout" && edge.to.port === "image"));
+  assert.equal(off.graph.edges.some((edge) => edge.from.nodeId === "sb_cover_v2__cutout" && edge.to.nodeId === "sb_cover_v2__generate_bg" && edge.to.port === "image"), false);
+  assert.ok(off.graph.edges.some((edge) => edge.from.nodeId === "sb_cover_v2__cutout" && edge.to.nodeId === "sb_cover_v2__person_v3" && edge.to.port === "asset"));
+  const textEdge = off.graph.edges.find((edge) => edge.from.nodeId === "sb_cover_v2__text_v4");
+  assert.equal(textEdge?.from.port, "overlay");
+  assert.equal(textEdge?.to.nodeId, "sb_timeline__compose");
+  assert.equal(textEdge?.to.port, "overlays");
+  assert.equal(off.graph.nodes.some((node) => node.type === "llm.chat"), false);
   const graphic = off.graph.nodes.find((node) => node.id === "sb_cover_v2__text_v4");
-  assert.equal(graphic?.config.bindingMode, "preseeded");
-  assert.equal(graphic?.config.seededOutput, "media/storyboard-covers/cover_v2/text/cover_v2-editable-text.mogrt");
+  assert.equal(graphic?.type, "timeline.graphic_overlay");
+  assert.equal((graphic?.config.graphic as Record<string, unknown>)?.renderer, "remotion");
+  assert.equal((graphic?.config.graphic as Record<string, unknown>)?.presetId, "cover-card-v2");
 
   const executable = compileGraphToWorkflow(off.graph).workflow;
-  const translateStep = executable.steps.find((step) => step.id === "sb_cover_v2__translate_bg_en");
   const comfyStep = executable.steps.find((step) => step.id === "sb_cover_v2__generate_bg");
-  assert.equal(translateStep?.with.prompt, "ฉากมหาวิทยาลัย");
-  assert.equal(translateStep?.with.outputLanguage, "en");
-  assert.equal(comfyStep?.with.prompt, "${steps.sb_cover_v2__translate_bg_en.outputs.content}");
   assert.equal(comfyStep?.with.promptPatch, "6.inputs.text");
-  assert.equal(comfyStep?.with.patches["6.inputs.text"], undefined);
-  assert.equal(/[\u0E00-\u0E7F]/u.test(String(comfyStep?.with.prompt)), false, "ComfyUI workflow config must never embed the Thai source prompt");
+  assert.equal(comfyStep?.with.patches["6.inputs.text"], buildCoverGenerationPrompt("Elegant empty university documentary background with navy and warm gold lighting, no people, no text"));
 
   const withDoodle: StoryboardSpecV2 = structuredClone(storyboard);
   (withDoodle.items[1]!.params as Record<string, unknown>).doodleEnabled = true;
@@ -343,6 +345,23 @@ test("layered cover v2 compiles exact V1-V4 tracks and omits or includes doodle 
   assert.equal(on.graph.nodes.find((node) => node.id === "sb_cover_v2__doodle_alpha")?.type, "image.luma_to_alpha");
   assert.equal(on.graph.edges.find((edge) => edge.from.nodeId === "sb_cover_v2__doodle_v2")?.to.port, "overlays");
   assert.deepEqual(on, compileApprovedStoryboard(createApprovedStoryboard(withDoodle, 2, "2026-08-31T00:00:00.000Z")));
+});
+
+test("cover v2 accepts prompt parts and never uploads person input as background reference", () => {
+  const cover = {
+    id: "cover_contract", kind: "cover_card" as const, durationMs: 4000, audioPolicy: "mute" as const, presetId: "comfy-cover-card-v2",
+    params: { sourceImage: "/media/person.jpg", promptParts: { place: "laboratory", style: "documentary" }, personName: "สมชาย", positionTitle: "ศาสตราจารย์", award: "รางวัลดีเด่น", seed: 7 }
+  };
+  const storyboard = {
+    schemaVersion: 2, storyboardId: "cover-contract", name: "Cover contract", revision: 1,
+    profile: { width: 1920, height: 1080, frameRate: 25 },
+    sourceImport: { importId: "cover_import", docxPath: "/story.docx", sourceDigest: "digest", importedAt: "2026-08-31T00:00:00.000Z" },
+    items: [{ id: "scene", kind: "a_roll", durationMs: 4000, audioPolicy: "preserve", presetId: "a-roll-segment-v1", params: { sourceKey: "A", sourcePath: "/media/a.mov", sourceInMs: 0, sourceOutMs: 4000 } }, cover]
+  } as StoryboardSpecV2;
+  assert.deepEqual(validateStoryboardSpec(storyboard), []);
+  const compiled = compileGraphToWorkflow(compileApprovedStoryboard(createApprovedStoryboard(storyboard, 1)).graph).workflow;
+  const background = compiled.steps.find((step) => step.id === "sb_cover_contract__generate_bg");
+  assert.equal(background?.with.uploads, undefined);
 });
 
 test("canonical documentary without cover_card compiles to graph with zero diagnostics", async () => {

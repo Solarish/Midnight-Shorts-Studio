@@ -14,7 +14,7 @@
       "id": "title_intro",
       "kind": "title",
       "durationMs": 10000,
-      "presetId": "ae-3d-carousel-title-v1",
+      "presetId": "3d-carousel-title-v1",
       "params": {
         "composition": "Main",
         "media": [
@@ -128,7 +128,6 @@
         "personX": 0.72,
         "personY": 0.5,
         "personScale": 1,
-        "mogrtPath": "/Users/louislee/Desktop/Adobe_Plugin/templates/premiere/psu-cover-text.mogrt",
         "speaker": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
         "dialogue": "",
         "motionPreset": "ZoomPunch"
@@ -282,7 +281,6 @@
         "personX": 0.72,
         "personY": 0.5,
         "personScale": 1,
-        "mogrtPath": "/Users/louislee/Desktop/Adobe_Plugin/templates/premiere/psu-cover-text.mogrt",
         "speaker": "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
         "dialogue": "",
         "motionPreset": "ZoomPunch"

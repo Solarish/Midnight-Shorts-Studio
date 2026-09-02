@@ -112,6 +112,65 @@ export class StoryboardService {
     return createStoryboardExecutionGraph(compilation, options);
   }
 
+  async createNodeCompilation(storyboardId: string, itemId: string, itemOverride?: unknown, stage = "background") {
+    const draft = await this.requireDraft(storyboardId);
+    let item = itemOverride && typeof itemOverride === "object" && !Array.isArray(itemOverride)
+      ? structuredClone(itemOverride) as StoryboardItemV2
+      : draft.items.find((value) => value.id === itemId);
+    if (!item) throw httpError(404, "Storyboard item not found");
+    // A doodle run is an explicit request to create/update the doodle layer,
+    // even when the layer was previously switched off in the inspector.
+    if (stage === "doodle") item = { ...item, params: { ...item.params, doodleEnabled: true } };
+    const isolated: StoryboardSpecV2 = {
+      ...structuredClone(draft),
+      storyboardId: `${draft.storyboardId}__node_${item.id}`,
+      name: `${draft.name} — ${item.id} node run`,
+      items: [structuredClone(item)]
+    };
+    const allDiagnostics = validateStoryboardSpec(isolated);
+    const stageOnlyCodes: Record<string, Set<string>> = {
+      person: new Set(["missing_prompt", "missing_cover_title", "missing_cover_position", "missing_cover_award"]),
+      background: new Set(["missing_media", "missing_cover_title", "missing_cover_position", "missing_cover_award"]),
+      doodle: new Set(["missing_media", "missing_prompt", "missing_cover_title", "missing_cover_position", "missing_cover_award"])
+    };
+    const ignored = stageOnlyCodes[stage] ?? new Set<string>();
+    const diagnostics = allDiagnostics.filter((diagnostic) => diagnostic.itemId !== item.id || !ignored.has(diagnostic.code));
+    if (diagnostics.some((value) => value.severity === "blocker")) {
+      throw Object.assign(new Error("Storyboard node has blocking diagnostics"), { statusCode: 422, diagnostics });
+    }
+    const compilation = compileApprovedStoryboard(createApprovedStoryboard(isolated, 1), { skipValidation: true });
+    const roles = stage === "assets"
+      ? new Set(["source", "cutout", "generate_bg", "generate_doodle", "doodle_alpha"])
+      : stage === "person"
+        ? new Set(["source", "cutout"])
+      : stage === "doodle"
+          ? new Set(["generate_doodle", "doodle_alpha"])
+      : new Set(["generate_bg", "background_v1", "background_source"]);
+    const keep = new Set(compilation.graph.nodes.filter((node) => [...roles].some((role) => node.id.endsWith(`__${role}`))).map((node) => node.id));
+    if (keep.size) {
+      compilation.graph.nodes = compilation.graph.nodes.filter((node) => keep.has(node.id));
+      compilation.graph.order = compilation.graph.order.filter((nodeId) => keep.has(nodeId));
+      compilation.graph.edges = compilation.graph.edges.filter((edge) => keep.has(edge.from.nodeId) && keep.has(edge.to.nodeId));
+      if (stage === "assets" || stage === "doodle") {
+        const cutout = compilation.graph.nodes.find((node) => node.id.endsWith("__cutout"));
+        const doodleGenerate = compilation.graph.nodes.find((node) => node.id.endsWith("__generate_doodle"));
+        if (cutout && doodleGenerate && !compilation.graph.edges.some((edge) => edge.to.nodeId === doodleGenerate.id)) {
+          compilation.graph.edges.push({ id: "sb_edge_assets_cutout_to_doodle", from: { nodeId: cutout.id, port: "image" }, to: { nodeId: doodleGenerate.id, port: "image" } });
+        }
+      }
+      if (stage === "background") {
+        const backgroundGenerate = compilation.graph.nodes.find((node) => node.id.endsWith("__generate_bg"));
+        const backgroundLayer = compilation.graph.nodes.find((node) => node.id.endsWith("__background_v1"));
+        if (backgroundGenerate && backgroundLayer) {
+          compilation.graph.edges.push({ id: "sb_edge_background_to_layer", from: { nodeId: backgroundGenerate.id, port: "image" }, to: { nodeId: backgroundLayer.id, port: "asset" } });
+        }
+      }
+    }
+    const compose = compilation.graph.nodes.find((node) => node.type === "timeline.compose");
+    if (compose) compose.config.scenes = [];
+    return compilation;
+  }
+
   async requireDraft(storyboardId: string) {
     const value = await this.store.getDraft(storyboardId);
     if (!value) throw httpError(404, "Storyboard not found");
