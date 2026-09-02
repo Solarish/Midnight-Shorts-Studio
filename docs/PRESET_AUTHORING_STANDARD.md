@@ -116,23 +116,28 @@ export const MyComponent: React.FC<MyComponentProps> = ({ presetId, ...props }) 
 
 ---
 
-## 5. Broadcast Motion & Design Guidelines
+## 5. Open Design System & Theme-Agnostic Aesthetics
 
-All presets must conform to the **PSU Midnight Scholar Motif**:
+The preset engine is **Theme-Agnostic** and deliberately unconstrained by any single visual motif. Presets have full creative freedom to explore diverse visual genres, art directions, and brand palettes.
 
-| Design Token | Value | Semantic Role |
-| :--- | :--- | :--- |
-| **Primary Color** | `#E5A93C` | PSU Warm Royal Gold (Headlines, Beacons, Highlights) |
-| **Secondary Color** | `#0B1220` | Midnight Navy (Deep Glassmorphism backdrops, Dark cards) |
-| **Accent Color** | `#00E5FF` | Bright Cyan (Secondary badges, Tech lines, Glows) |
-| **Text Color** | `#FFFFFF` | Pure White (High legibility body & titles) |
-| **Card Background** | `rgba(11, 18, 32, 0.88)` | Frosted glass with `backdrop-filter: blur(20px)` |
-| **Font Family** | `'Prompt', 'Kanit', sans-serif` | Modern Thai Typography |
+### Core Visual Principles
 
-### Motion Physics Rules
-- **Entrance Animation**: Use damped springs `spring({ frame, fps: 25, config: { damping: 14, mass: 0.6, stiffness: 120 } })`.
-- **Exit Animation**: Smooth opacity fade-out during the final 12–15 frames before duration ends.
-- **Framerate Constraint**: Always calculate timings based on $25\text{ fps}$ ($1\text{ frame} = 40\text{ms}$).
+1. **Dynamic Theme Inheritance with Creative Freedom**:
+   - Presets should read optional theme tokens (`theme?.primaryColor`, `theme?.fontFamily`, `theme?.cardBackground`) when applicable, allowing user-customized palette overrides.
+   - Presets can also define their own bold, standalone art styles (e.g. *Cyberpunk Neon, Nordic Minimal, Luxury Editorial, Retro 90s VHS, Warm Cinematic, Neo-Brutalism, Pop Vlog*).
+
+2. **Aesthetic Preset Families (Examples)**:
+   - 🌟 **Cinematic / Documentary**: Warm organic gradients, film grain, letterboxing, clean serif/sans typography.
+   - ⚡ **Modern Minimal / Nordic**: High contrast, razor-sharp geometric lines, monochromatic cards with single accent pop.
+   - 🔮 **Glassmorphism / Tech**: Frosted glass blur (`backdrop-filter`), luminous neon glow lines, semi-transparent depth.
+   - 🎨 **Bold Pop / Creative Vlog**: Vibrant pastel blocks, playful bouncy physics, dynamic stickers/doodles.
+   - 🏛️ **Corporate / Institutional**: Solid navy/gold elegance, structured badges, understated subtle glints.
+
+### Motion Physics & Video Rules
+- **Framerate Agility**: Standardized on **25 fps** ($1\text{ frame} = 40\text{ms}$) for broadcast-grade synchronization.
+- **Physics-Driven Motion**: Use `spring()` curves with custom `damping`, `mass`, and `stiffness` tailored to the preset's mood (e.g., snappier for Pop, heavily damped for Cinematic).
+- **Graceful Lifecycle**: Always handle both Entrance (in-spring) and Exit (fade-out or slide-out in the final 10–15 frames) cleanly so presets don't abruptly pop off screen.
+- **Multi-Ratio Responsiveness**: Ensure layouts gracefully reflow across `9:16` (Vertical Shorts/Reels/TikTok), `16:9` (Broadcast/YouTube), and `1:1`.
 
 ---
 
