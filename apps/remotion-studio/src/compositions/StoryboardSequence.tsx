@@ -1,30 +1,57 @@
 import React, { useState } from "react";
-import { AbsoluteFill, Audio, Img, Sequence, Video, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, Sequence, Video, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CoverCard } from "../components/CoverCard";
 import { DynamicThaiSubtitles } from "../components/DynamicThaiSubtitles";
 import { LogoOutro } from "../components/LogoOutro";
 import { TitleCard } from "../components/TitleCard";
+import { isImageFile, isVideoFile, resolveMediaUrl } from "../media-resolver";
 import { PresetWrapper } from "../presets";
-import { isAudioFile, isImageFile, isVideoFile, resolveMediaUrl } from "../media-resolver";
-import activeStoryboardData from "../active-storyboard.json";
-import type { AspectRatioMode, BrollItemProps, StoryboardAssemblyProps, StoryboardItemProps } from "../types";
-
-interface StoryboardSequenceProps extends StoryboardAssemblyProps {
-  aspectRatio: AspectRatioMode;
-}
+import type {
+  AspectRatioMode,
+  AudioTrackProps,
+  BrollItemProps,
+  CutlistSegmentProps,
+  StoryboardAssemblyProps,
+  StoryboardItemProps
+} from "../types";
 
 const ARollMediaView: React.FC<{
   sourcePath?: string;
   sourceInMs?: number;
   audioPolicy?: "preserve" | "mute" | "mix";
   speaker?: string;
+  presetId?: string;
+  pipPosition?: string;
+  pipShape?: string;
+  pipScale?: number;
+  jCutMs?: number;
+  lCutMs?: number;
+  audioFadeMs?: number;
   fps: number;
   theme?: StoryboardAssemblyProps["theme"];
-}> = ({ sourcePath, sourceInMs, audioPolicy, speaker, fps, theme }) => {
+}> = ({
+  sourcePath,
+  sourceInMs,
+  audioPolicy,
+  speaker,
+  presetId = "a-roll-segment-v1",
+  pipPosition = "bottom-right",
+  pipShape = "circle",
+  pipScale = 0.32,
+  jCutMs = 0,
+  lCutMs = 0,
+  audioFadeMs = 80,
+  fps,
+  theme
+}) => {
   const [hasError, setHasError] = useState(false);
   const resolved = resolveMediaUrl(sourcePath);
   const isVideo = isVideoFile(sourcePath);
   const isImage = isImageFile(sourcePath);
+  const isPip = presetId === "a-roll-pip-v1" || presetId?.includes("pip");
+  const isVoiceover = presetId === "a-roll-voiceover-v1" || presetId?.includes("voiceover");
+
+  const primaryColor = theme?.primaryColor ?? "#E5A93C";
 
   if (hasError || !resolved || (!isVideo && !isImage)) {
     return (
@@ -42,20 +69,81 @@ const ARollMediaView: React.FC<{
             padding: "24px 40px",
             borderRadius: 16,
             backgroundColor: "rgba(11, 18, 32, 0.85)",
-            border: "1px solid rgba(229, 169, 60, 0.3)",
-            color: theme?.primaryColor ?? "#E5A93C",
+            border: `1px solid ${primaryColor}44`,
+            color: primaryColor,
             fontSize: 28,
             fontWeight: 700,
             fontFamily: theme?.fontFamily ?? "sans-serif",
             textAlign: "center"
           }}
         >
-          {speaker || "A-Roll Interview"}
+          {speaker || (isVoiceover ? "🎙️ Voiceover Narration" : "🎤 A-Roll Interview")}
         </div>
       </AbsoluteFill>
     );
   }
 
+  // Picture-in-Picture mode
+  if (isPip) {
+    const startFromFrames = sourceInMs ? Math.max(0, Math.round((sourceInMs / 1000) * fps)) : 0;
+    const pipWidth = `${Math.round(pipScale * 100)}%`;
+    const pipRadius = pipShape === "circle" ? "50%" : "24px";
+    const posStyle: React.CSSProperties = {
+      position: "absolute",
+      width: pipWidth,
+      aspectRatio: pipShape === "circle" ? "1/1" : "16/9",
+      borderRadius: pipRadius,
+      overflow: "hidden",
+      border: `3px solid ${primaryColor}`,
+      boxShadow: `0 12px 36px rgba(0, 0, 0, 0.8), 0 0 20px ${primaryColor}44`,
+      zIndex: 25
+    };
+
+    if (pipPosition === "bottom-left") {
+      posStyle.bottom = "28%";
+      posStyle.left = "4%";
+    } else if (pipPosition === "top-right") {
+      posStyle.top = "6%";
+      posStyle.right = "4%";
+    } else if (pipPosition === "top-left") {
+      posStyle.top = "6%";
+      posStyle.left = "4%";
+    } else {
+      // Default: bottom-right
+      posStyle.bottom = "28%";
+      posStyle.right = "4%";
+    }
+
+    return (
+      <AbsoluteFill
+        style={{
+          background: "radial-gradient(circle at center, #1E293B 0%, #0B1220 70%, #030712 100%)"
+        }}
+      >
+        <div style={posStyle}>
+          {isVideo ? (
+            <Video
+              src={resolved}
+              startFrom={startFromFrames}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              volume={audioPolicy === "mute" ? 0 : 1}
+              delayRenderTimeoutInMilliseconds={90000}
+              delayRenderRetries={2}
+              onError={() => setHasError(true)}
+            />
+          ) : (
+            <Img
+              src={resolved}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={() => setHasError(true)}
+            />
+          )}
+        </div>
+      </AbsoluteFill>
+    );
+  }
+
+  // Standard Fullscreen Video / Image
   if (isVideo) {
     const startFromFrames = sourceInMs ? Math.max(0, Math.round((sourceInMs / 1000) * fps)) : 0;
     return (
@@ -170,56 +258,65 @@ const BrollMediaView: React.FC<{
   );
 };
 
-export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
+export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
   items = [],
   cutlist = [],
   brollStack = [],
-  audioTracks = [],
-  subtitles = [],
   theme,
-  aspectRatio
+  aspectRatio = "9:16"
 }) => {
   const { fps } = useVideoConfig();
 
-  // If no explicit items are passed, synthesize items from cutlist or default story
-  const effectiveItems: StoryboardItemProps[] =
-    items.length > 0
-      ? items
-      : cutlist.length > 0
-      ? cutlist.map((c, i) => ({
-          id: c.id || `cut_${i + 1}`,
-          kind: "a_roll" as const,
-          durationMs: c.durationMs,
-          params: {
-            sourcePath: c.sourcePath,
-            sourceInMs: c.sourceInMs,
-            sourceOutMs: c.sourceOutMs,
-            dialogue: c.dialogue,
-            subtitles: c.subtitles
-          }
-        }))
-      : (activeStoryboardData.items as StoryboardItemProps[]);
+  // If a raw cutlist is passed, render simple cutlist playback
+  if (cutlist.length > 0) {
+    let accumulatedCutlistFrames = 0;
+    return (
+      <AbsoluteFill style={{ backgroundColor: "#000000" }}>
+        {cutlist.map((cut: CutlistSegmentProps, idx: number) => {
+          const startFrame = accumulatedCutlistFrames;
+          const durationFrames = Math.max(1, Math.round((cut.durationMs / 1000) * fps));
+          accumulatedCutlistFrames += durationFrames;
 
-  let currentFrameOffset = 0;
+          return (
+            <Sequence
+              key={cut.id || idx}
+              name={`Cut ${idx + 1}: ${cut.id}`}
+              from={startFrame}
+              durationInFrames={durationFrames}
+            >
+              <ARollMediaView
+                sourcePath={cut.sourcePath}
+                sourceInMs={cut.sourceInMs}
+                audioPolicy="preserve"
+                fps={fps}
+                theme={theme}
+              />
+            </Sequence>
+          );
+        })}
+      </AbsoluteFill>
+    );
+  }
+
+  // Primary Timeline Playback from Storyboard items
+  let accumulatedFrames = 0;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#0B1220" }}>
-      {/* 1. Main Sequential Timeline Items */}
-      {effectiveItems.map((item, index) => {
+    <AbsoluteFill style={{ backgroundColor: "#000000" }}>
+      {/* 1. Main Video Track (Story Items) */}
+      {items.map((item: StoryboardItemProps, idx: number) => {
+        const itemOffsetFrames = accumulatedFrames;
         const itemDurationFrames = Math.max(
           1,
           Math.round((item.durationMs / 1000) * fps)
         );
-        const fromFrame = currentFrameOffset;
-        currentFrameOffset += itemDurationFrames;
-
-        const sceneLabel = item.params?.title || item.params?.speaker || item.id;
+        accumulatedFrames += itemDurationFrames;
 
         return (
           <Sequence
-            key={`${item.id}_${index}`}
-            name={`Scene ${index + 1}: [${item.kind.toUpperCase()}] ${sceneLabel}`}
-            from={fromFrame}
+            key={item.id}
+            name={`[${item.kind.toUpperCase()}] ${item.params?.title || item.params?.note || item.id}`}
+            from={itemOffsetFrames}
             durationInFrames={itemDurationFrames}
           >
             {item.kind === "cover_card" ? (
@@ -227,15 +324,8 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                 sourceImage={item.params?.sourceImage}
                 backgroundImage={item.params?.backgroundImage}
                 personImage={item.params?.personImage}
-                doodleImage={item.params?.doodleImage}
-                doodleOpacity={item.params?.doodleOpacity}
-                doodleScale={item.params?.doodleScale}
-                doodlePreset={item.params?.doodleEnabled === true ? (item.params?.doodlePreset ?? "academic") : "none"}
-                doodlePaths={item.params?.doodleEnabled === true ? item.params?.doodlePaths : []}
-                personX={item.params?.personX}
-                personY={item.params?.personY}
-                personScale={item.params?.personScale}
-                eyebrow={item.params?.eyebrow}
+                doodleImage={(item.params as any)?.doodleAssetPath}
+                doodlePaths={item.params?.doodlePaths}
                 title={item.params?.title}
                 subtitle={item.params?.subtitle}
                 personName={item.params?.personName}
@@ -288,6 +378,13 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                   sourceInMs={item.params?.sourceInMs}
                   audioPolicy={item.audioPolicy}
                   speaker={item.params?.speaker}
+                  presetId={item.presetId || (item.params as any)?.presetId}
+                  pipPosition={(item.params as any)?.pipPosition}
+                  pipShape={(item.params as any)?.pipShape}
+                  pipScale={(item.params as any)?.pipScale}
+                  jCutMs={Number((item.params as any)?.jCutMs ?? 0)}
+                  lCutMs={Number((item.params as any)?.lCutMs ?? 0)}
+                  audioFadeMs={Number((item.params as any)?.audioFadeMs ?? 80)}
                   fps={fps}
                   theme={theme}
                 />
@@ -343,7 +440,7 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
       })}
 
       {/* 2. Global B-Roll Stack Overlays */}
-      {brollStack.map((b, bIdx) => {
+      {brollStack.map((b: BrollItemProps, bIdx: number) => {
         const offsetMs = b.offsetMs ?? b.startMs ?? 0;
         const durationMs = b.durationMs ?? 3000;
         const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
@@ -370,54 +467,6 @@ export const StoryboardSequence: React.FC<StoryboardSequenceProps> = ({
                 theme={theme}
               />
             </PresetWrapper>
-          </Sequence>
-        );
-      })}
-
-      {/* 3. Global Subtitle Tracks */}
-      {subtitles.map((sub, sIdx) => {
-        const startMs = sub.startMs ?? 0;
-        const durationMs =
-          sub.durationMs ?? (sub.endMs != null ? Math.max(500, sub.endMs - startMs) : 3000);
-        const sOffsetFrames = Math.max(0, Math.round((startMs / 1000) * fps));
-        const sDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
-
-        return (
-          <Sequence
-            key={`global_sub_${sIdx}`}
-            name={`💬 Subtitle Track: ${sub.speaker || `Track ${sIdx + 1}`}`}
-            from={sOffsetFrames}
-            durationInFrames={sDurationFrames}
-          >
-            <DynamicThaiSubtitles
-              dialogue={sub.text}
-              words={sub.words}
-              aspectRatio={aspectRatio}
-              speaker={sub.speaker}
-              theme={theme}
-            />
-          </Sequence>
-        );
-      })}
-
-      {/* 4. Audio Pipeline: Background Music & Sound Effects */}
-      {audioTracks.map((track, aIdx) => {
-        const fromFrame = track.startMs ? Math.round((track.startMs / 1000) * fps) : 0;
-        const durationFrames = track.durationMs
-          ? Math.round((track.durationMs / 1000) * fps)
-          : undefined;
-
-        return (
-          <Sequence
-            key={`audio_${aIdx}`}
-            name={`🎵 Audio: ${track.role || "BGM"} (${track.path.split(/[\\/]/).pop()})`}
-            from={fromFrame}
-            durationInFrames={durationFrames}
-          >
-            <Audio
-              src={resolveMediaUrl(track.path) ?? track.path}
-              volume={track.volume ?? 1}
-            />
           </Sequence>
         );
       })}

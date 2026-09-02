@@ -700,7 +700,11 @@ export default function StoryboardEditorPage() {
 const presetOptions: Record<Exclude<StoryboardKind, "note">, Array<{ value: string; label: string }>> & {
   note: never[];
 } = {
-  a_roll: [{ value: "a-roll-segment-v1", label: "A-roll Segment · v1" }],
+  a_roll: [
+    { value: "a-roll-segment-v1", label: "🎤 Standard Interview / Talking Head · v1" },
+    { value: "a-roll-voiceover-v1", label: "🎙️ Voiceover & Full B-roll · v1" },
+    { value: "a-roll-pip-v1", label: "🖼️ Picture-in-Picture Presentation · v1" }
+  ],
   title: [
     { value: "3d-carousel-title-v1", label: "🎡 3D Photo Carousel Showcase · v1" },
     { value: "title-classic-flat-v1", label: "🎬 Classic Cinematic Title · v1" },
