@@ -47,6 +47,7 @@ export function ARollInspector({
   const sourceKey = String(item.params.sourceKey ?? "");
   const speaker = String(item.params.speaker ?? "");
   const dialogue = String(item.params.dialogue ?? "");
+  const enableSubtitles = Boolean((item.params as any)?.enableSubtitles ?? false);
 
   // J-Cut & L-Cut Split Edit Parameters
   const jCutMs = Number((item.params as any)?.jCutMs ?? 0);
@@ -274,11 +275,47 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 3. Editorial & Speaker Dialogue Card (Default: Off / Collapsed) */}
+      {/* 3. Editorial & Speaker Dialogue Card (On-Screen Text Toggleable) */}
       <div className="inspector-card accent-gold">
-        <details>
-          <summary style={{ color: "#E5A93C" }}>✍️ Editorial, Speaker &amp; Dialogue</summary>
+        <details open>
+          <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>✍️ Editorial, Speaker &amp; Dialogue</span>
+            <span style={{ fontSize: "11px", color: enableSubtitles ? "#10B981" : "#94A3B8", fontWeight: 600 }}>
+              {enableSubtitles ? "● On-screen Text ON" : "○ On-screen Text OFF (Default)"}
+            </span>
+          </summary>
           <div className="inspector-card-body">
+            {/* On-screen Text Master Toggle */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 12px",
+                background: "#1E293B",
+                borderRadius: "8px",
+                border: "1px solid #334155",
+                marginBottom: "10px"
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: "12px", color: "#F8FAFC", display: "block" }}>
+                  แสดงซับไตเติล / ป้ายชื่อบนวิดีโอ (On-screen Text)
+                </strong>
+                <small style={{ fontSize: "10px", color: "#94A3B8" }}>
+                  เมื่อปิด (OFF) วิดีโอจะเล่นเฉพาะภาพและเสียงคลีนๆ โดยไม่มีข้อความซ้อนทับ
+                </small>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", color: enableSubtitles ? "#10B981" : "#94A3B8" }}>
+                <input
+                  type="checkbox"
+                  checked={enableSubtitles}
+                  onChange={(e) => onParams({ enableSubtitles: e.target.checked })}
+                />
+                <strong>{enableSubtitles ? "เปิด (ON)" : "ปิด (OFF)"}</strong>
+              </label>
+            </div>
+
             <div className="inspector-field">
               <label className="inspector-label">
                 ชื่อผู้พูด / วิทยากร (Speaker Name Badge)
@@ -291,7 +328,7 @@ export function ARollInspector({
                 />
               </label>
               <small style={{ color: "#94A3B8", fontSize: "11px" }}>
-                ป้ายชื่อหรูหราจะแสดงด้านบนซับไตเติลคาราโอเกะใน Remotion Studio อัตโนมัติ
+                ป้ายชื่อจะแสดงบนหน้าจอเฉพาะเมื่อเปิด &quot;แสดงซับไตเติล / ป้ายชื่อ (ON)&quot;
               </small>
             </div>
 

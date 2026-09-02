@@ -423,8 +423,8 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
                     })
                   : null}
 
-                {/* Dynamic Thai Subtitles for this segment */}
-                {item.params?.dialogue || item.params?.subtitles ? (
+                {/* Dynamic Thai Subtitles for this segment (Default: OFF, only rendered when enableSubtitles is true) */}
+                {Boolean((item.params as any)?.enableSubtitles) && (item.params?.dialogue || item.params?.subtitles) ? (
                   <DynamicThaiSubtitles
                     dialogue={item.params?.dialogue}
                     words={item.params?.subtitles}
