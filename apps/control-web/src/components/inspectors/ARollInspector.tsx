@@ -64,6 +64,47 @@ export function ARollInspector({
       broll: broll.map((val, itemIndex) => (itemIndex === index ? { ...val, ...patch } : val))
     });
 
+  const handleAddBroll = () => {
+    const last = broll[broll.length - 1];
+    // Auto-cascade: Place next B-roll immediately after previous B-roll
+    const nextOffset = last ? Math.min(item.durationMs, last.offsetMs + last.durationMs) : 0;
+    const remainingMs = Math.max(0, item.durationMs - nextOffset);
+    const nextDuration = remainingMs >= 1000 ? Math.min(3000, remainingMs) : Math.min(3000, item.durationMs);
+
+    const next = {
+      id: uniqueId(`${item.id}_broll`, broll.map((val) => val.id)),
+      asset: { path: "" },
+      offsetMs: nextOffset,
+      durationMs: nextDuration,
+      audioPolicy: "mute" as const,
+      fit: "cover" as const,
+      preset: "Pop"
+    };
+    onItem({ ...item, broll: [...broll, next] });
+    onSelectBroll?.(next.id);
+  };
+
+  const handleAutoChainBroll = () => {
+    let cursor = 0;
+    const updated = broll.map((b) => {
+      const offsetMs = cursor;
+      cursor = Math.min(item.durationMs, cursor + b.durationMs);
+      return { ...b, offsetMs };
+    });
+    onItem({ ...item, broll: updated });
+  };
+
+  const handleDistributeEvenly = () => {
+    if (!broll.length) return;
+    const segmentDuration = Math.max(40, Math.floor(item.durationMs / broll.length));
+    const updated = broll.map((b, idx) => ({
+      ...b,
+      offsetMs: idx * segmentDuration,
+      durationMs: segmentDuration
+    }));
+    onItem({ ...item, broll: updated });
+  };
+
   const updateRange = (patch: Record<string, number>) => {
     const params = { ...item.params, ...patch };
     const sourceInMs = Number(params.sourceInMs ?? 0);
@@ -90,6 +131,9 @@ export function ARollInspector({
       presetId: nextPreset
     });
   };
+
+  // Pre-calculate B-Roll colors for visual timeline
+  const brollColors = ["#3B82F6", "#E5A93C", "#10B981", "#EC4899", "#8B5CF6", "#F59E0B"];
 
   return (
     <div className="inspector-container">
@@ -429,35 +473,93 @@ export function ARollInspector({
         </div>
       )}
 
-      {/* 6. B-Roll Overlays Card with Motion & Fit Controls */}
+      {/* 6. B-Roll Overlays Card with Sequential Cascade & Auto-Chain */}
       <div className="inspector-card accent-blue">
         <details open>
           <summary style={{ color: "#60A5FA" }}>
             <span>🎬</span> <strong>B-roll overlays</strong> <small style={{ color: "#94A3B8" }}>({broll.length} layers)</small>
           </summary>
           <div className="inspector-card-body">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "12px", color: "#94A3B8" }}>B-roll inserts on top of this A-roll</span>
-              <button
-                type="button"
-                className="inspector-btn inspector-btn-primary inspector-btn-sm"
-                onClick={() => {
-                  const next = {
-                    id: uniqueId(`${item.id}_broll`, broll.map((val) => val.id)),
-                    asset: { path: "" },
-                    offsetMs: 0,
-                    durationMs: Math.min(4000, item.durationMs),
-                    audioPolicy: "mute" as const,
-                    fit: "cover" as const,
-                    preset: "Pop"
-                  };
-                  onItem({ ...item, broll: [...broll, next] });
-                  onSelectBroll?.(next.id);
-                }}
-              >
-                ＋ Add B-roll under A-roll
-              </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+              <span style={{ fontSize: "12px", color: "#94A3B8" }}>ภาพ/คลิปแทรกซ้อนทับบทพูด</span>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {broll.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      className="inspector-btn inspector-btn-secondary inspector-btn-sm"
+                      title="จัดเรียงให้ B-roll ทุกตัวเล่นต่อกันอัตโนมัติ ไม่ทับซ้อนกัน"
+                      onClick={handleAutoChainBroll}
+                    >
+                      ⚡ เรียงต่อกัน (Chain)
+                    </button>
+                    <button
+                      type="button"
+                      className="inspector-btn inspector-btn-secondary inspector-btn-sm"
+                      title="แบ่งความยาว B-roll ทุกตัวให้เท่าๆ กันตลอดช่วงเวลา A-roll"
+                      onClick={handleDistributeEvenly}
+                    >
+                      ⚖️ กระจายเวลาเท่ากัน
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="inspector-btn inspector-btn-primary inspector-btn-sm"
+                  onClick={handleAddBroll}
+                >
+                  ＋ Add B-roll under A-roll
+                </button>
+              </div>
             </div>
+
+            {/* Visual B-Roll Timeline Map Strip */}
+            {broll.length > 0 && (
+              <div style={{ marginTop: "10px", marginBottom: "8px", padding: "8px", background: "#0F172A", borderRadius: "8px", border: "1px solid #334155" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#94A3B8", marginBottom: "4px" }}>
+                  <span>0.0s (A-roll In)</span>
+                  <span>Timeline Coverage ({formatSeconds(item.durationMs)}s)</span>
+                  <span>{formatSeconds(item.durationMs)}s (A-roll Out)</span>
+                </div>
+                <div style={{ position: "relative", width: "100%", height: "20px", background: "#1E293B", borderRadius: "4px", overflow: "hidden" }}>
+                  {broll.map((b, idx) => {
+                    const leftPercent = item.durationMs > 0 ? (b.offsetMs / item.durationMs) * 100 : 0;
+                    const widthPercent = item.durationMs > 0 ? (b.durationMs / item.durationMs) * 100 : 0;
+                    const color = brollColors[idx % brollColors.length];
+                    const isSelected = selectedBrollId === b.id;
+
+                    return (
+                      <div
+                        key={b.id}
+                        title={`#${idx + 1} (${b.id}): ${formatSeconds(b.offsetMs)}s - ${formatSeconds(b.offsetMs + b.durationMs)}s`}
+                        style={{
+                          position: "absolute",
+                          left: `${Math.max(0, Math.min(100, leftPercent))}%`,
+                          width: `${Math.max(2, Math.min(100 - leftPercent, widthPercent))}%`,
+                          height: "100%",
+                          background: color,
+                          border: isSelected ? "2px solid #FFFFFF" : "1px solid rgba(0,0,0,0.3)",
+                          borderRadius: "2px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "9px",
+                          fontWeight: 700,
+                          color: "#FFF",
+                          cursor: "pointer",
+                          zIndex: isSelected ? 10 : 1,
+                          overflow: "hidden",
+                          whiteSpace: "nowrap"
+                        }}
+                        onClick={() => onSelectBroll?.(b.id)}
+                      >
+                        #{idx + 1} ({formatSeconds(b.durationMs)}s)
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {broll.map((value, index) => (
               <div
@@ -469,8 +571,8 @@ export function ARollInspector({
                 onClick={() => onSelectBroll?.(value.id)}
               >
                 <div className="inspector-broll-header">
-                  <span style={{ color: "#E5A93C", fontWeight: 700, fontSize: "12px" }}>
-                    #{index + 1} ({value.id})
+                  <span style={{ color: brollColors[index % brollColors.length], fontWeight: 700, fontSize: "12px" }}>
+                    #{index + 1} ({value.id}) · {formatSeconds(value.offsetMs)}s - {formatSeconds(value.offsetMs + value.durationMs)}s
                   </span>
                   <button
                     type="button"
