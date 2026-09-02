@@ -701,7 +701,11 @@ const presetOptions: Record<Exclude<StoryboardKind, "note">, Array<{ value: stri
   note: never[];
 } = {
   a_roll: [{ value: "a-roll-segment-v1", label: "A-roll Segment · v1" }],
-  title: [{ value: "3d-carousel-title-v1", label: "3D Photo Carousel Showcase · v1" }],
+  title: [
+    { value: "3d-carousel-title-v1", label: "🎡 3D Photo Carousel Showcase · v1" },
+    { value: "title-classic-flat-v1", label: "🎬 Classic Cinematic Title · v1" },
+    { value: "title-minimal-badge-v1", label: "🏛️ Modern Minimal Title · v1" }
+  ],
   cover_card: [
     { value: "comfy-cover-card-v2", label: "Layered Cover Card · v2" },
     { value: "comfy-cover-card-v1", label: "Legacy Flattened Cover · v1" }

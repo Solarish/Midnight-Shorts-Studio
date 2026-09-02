@@ -292,7 +292,12 @@ export function validateStoryboardSpec(storyboard: StoryboardSpecV2): Storyboard
         diagnostics.push({ code: "missing_media", severity: "blocker", message: "Outro video ยังไม่ได้เลือกไฟล์วิดีโอ", itemId: item.id });
       }
     }
-    if (item.kind === "title" && !asStrings(item.params.media).length) diagnostics.push({ code: "missing_media", severity: "blocker", message: "3D title ต้องมี media อย่างน้อยหนึ่งรายการ", itemId: item.id });
+    if (item.kind === "title") {
+      const is3DCarousel = item.presetId === "3d-carousel-title-v1" || !item.presetId;
+      if (is3DCarousel && !asStrings(item.params.media).length) {
+        diagnostics.push({ code: "missing_media", severity: "blocker", message: "3D title ต้องมี media อย่างน้อยหนึ่งรายการ", itemId: item.id });
+      }
+    }
     if (item.kind !== "a_roll" && (item.broll?.length ?? 0) > 0) diagnostics.push({ code: "invalid_broll_parent", severity: "blocker", message: "B-roll ต้องอยู่ภายใน A-roll เท่านั้น", itemId: item.id });
     for (const [brollIndex, broll] of (item.broll ?? []).entries()) {
       if (!SAFE_ID.test(broll.id) || ids.has(broll.id)) diagnostics.push({ code: "invalid_broll_id", severity: "blocker", message: "B-roll ID ไม่ถูกต้องหรือซ้ำ", itemId: item.id, path: `${itemPath}/broll/${brollIndex}/id` });

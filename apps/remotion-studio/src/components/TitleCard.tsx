@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { Pop } from "../presets/Pop";
 import { PresetWrapper, ThreeDCarouselPreset } from "../presets";
 import type { ShowcaseShot } from "../presets/ThreeDCarouselPreset";
 import { resolveMediaUrl } from "../media-resolver";
@@ -40,28 +41,6 @@ export const TitleCard: React.FC<TitleCardProps> = ({
   enableReflection = true,
   theme
 }) => {
-  // If it is the 3D Carousel Title preset (default for Title or explicitly chosen), render the 3D Carousel!
-  if (presetId === "3d-carousel-title-v1" || presetId?.includes("carousel") || (Array.isArray(media) && media.length > 1) || !media || media.length === 0) {
-    return (
-      <ThreeDCarouselPreset
-        media={media}
-        layoutSequence={layoutSequence}
-        cgBlocks={cgBlocks}
-        title={title}
-        text={text}
-        subtitle={subtitle}
-        eyebrow={eyebrow}
-        texts={texts}
-        aspectRatio={aspectRatio}
-        rotationSpeed={rotationSpeed}
-        cameraTilt={cameraTilt}
-        enableReflection={enableReflection}
-        theme={theme}
-      />
-    );
-  }
-
-  // Classic Flat Title card fallback
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const [hasMediaError, setHasMediaError] = useState(false);
@@ -73,103 +52,225 @@ export const TitleCard: React.FC<TitleCardProps> = ({
     theme?.fontFamily ??
     "-apple-system, BlinkMacSystemFont, 'Prompt', 'Kanit', 'Noto Sans Thai', sans-serif";
 
-  const mainTitle = title || texts?.["Text 1"] || texts?.title || "PSU BROADCAST";
-  const subTitle = subtitle || texts?.["Text 2"] || texts?.subtitle || "Midnight Shorts Studio";
-  const firstMedia = Array.isArray(media) && media.length > 0 ? media[0] : undefined;
-  const resolvedMedia = resolveMediaUrl(firstMedia);
+  const mainTitle = title || texts?.["Text 1"] || texts?.title || text || "PSU BROADCAST";
+  const subTitle = subtitle || texts?.["Text 2"] || texts?.subtitle || "Prince of Songkla University";
+  const eyebrowText = eyebrow || texts?.eyebrow || texts?.["Text 5"] || "";
 
-  const titleSize = aspectRatio === "9:16" ? 64 : aspectRatio === "16:9" ? 56 : 48;
-  const bgScale = interpolate(frame, [0, fps * 10], [1.0, 1.12]);
-
-  return (
-    <AbsoluteFill
-      style={{
-        backgroundColor: "#0B1220",
-        overflow: "hidden",
-        fontFamily
-      }}
-    >
-      {resolvedMedia && !hasMediaError ? (
-        <AbsoluteFill style={{ transform: `scale(${bgScale})`, transformOrigin: "center center" }}>
-          <Img
-            src={resolvedMedia}
-            onError={() => setHasMediaError(true)}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-          <AbsoluteFill
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(11,18,32,0.6) 0%, rgba(11,18,32,0.85) 100%)"
-            }}
-          />
-        </AbsoluteFill>
-      ) : (
-        <AbsoluteFill
-          style={{
-            background:
-              "radial-gradient(circle at center, #1E293B 0%, #0B1220 70%, #030712 100%)"
-          }}
-        />
-      )}
-
-      {/* Decorative Grid Lines */}
+  // 1. Modern Minimal Title Preset (title-minimal-badge-v1)
+  if (presetId === "title-minimal-badge-v1") {
+    return (
       <AbsoluteFill
         style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-          pointerEvents: "none"
-        }}
-      />
-
-      <AbsoluteFill
-        style={{
+          backgroundColor: "#070B14",
           display: "flex",
-          alignItems: "center",
           justifyContent: "center",
-          padding: aspectRatio === "9:16" ? "40px" : "60px"
+          alignItems: "center",
+          fontFamily,
+          overflow: "hidden"
         }}
       >
-        <PresetWrapper preset={motionPreset} delayFrames={5}>
+        <div
+          style={{
+            position: "absolute",
+            width: 400,
+            height: 400,
+            borderRadius: 200,
+            background: `radial-gradient(circle, ${primaryColor}22 0%, transparent 70%)`,
+            pointerEvents: "none"
+          }}
+        />
+
+        <Pop delayFrames={4}>
           <div
             style={{
-              padding: aspectRatio === "9:16" ? "40px 30px" : "40px 60px",
-              borderRadius: "24px",
-              backgroundColor: "rgba(15, 23, 42, 0.75)",
-              border: `2px solid ${primaryColor}88`,
-              boxShadow: `0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px ${primaryColor}33`,
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
               textAlign: "center",
-              maxWidth: "90%"
+              padding: "0 30px"
             }}
           >
+            {eyebrowText ? (
+              <div
+                style={{
+                  fontSize: aspectRatio === "9:16" ? 18 : 16,
+                  fontWeight: 700,
+                  color: primaryColor,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  padding: "4px 16px",
+                  borderRadius: 99,
+                  backgroundColor: "rgba(229, 169, 60, 0.12)",
+                  border: "1px solid rgba(229, 169, 60, 0.35)",
+                  marginBottom: 16
+                }}
+              >
+                {eyebrowText}
+              </div>
+            ) : null}
+
             <div
               style={{
                 color: textColor,
-                fontSize: `${titleSize}px`,
-                fontWeight: 900,
-                lineHeight: 1.2,
-                marginBottom: "16px",
-                textShadow: "0 4px 12px rgba(0,0,0,0.8)"
+                fontSize: aspectRatio === "9:16" ? 44 : 40,
+                fontWeight: 800,
+                letterSpacing: "0.06em",
+                marginBottom: 8,
+                textShadow: `0 0 24px ${primaryColor}55`
               }}
             >
               {mainTitle}
             </div>
+
             <div
               style={{
                 color: accentColor,
-                fontSize: `${Math.round(titleSize * 0.42)}px`,
+                fontSize: aspectRatio === "9:16" ? 22 : 18,
                 fontWeight: 600,
-                letterSpacing: "0.08em",
+                letterSpacing: "0.12em",
                 textTransform: "uppercase"
               }}
             >
               {subTitle}
             </div>
           </div>
-        </PresetWrapper>
+        </Pop>
       </AbsoluteFill>
-    </AbsoluteFill>
+    );
+  }
+
+  // 2. Classic Flat Title Card Preset (title-classic-flat-v1)
+  if (presetId === "title-classic-flat-v1") {
+    const firstMedia = Array.isArray(media) && media.length > 0 ? media[0] : undefined;
+    const resolvedMedia = resolveMediaUrl(firstMedia);
+    const titleSize = aspectRatio === "9:16" ? 56 : aspectRatio === "16:9" ? 52 : 44;
+    const bgScale = interpolate(frame, [0, fps * 10], [1.0, 1.12]);
+
+    return (
+      <AbsoluteFill
+        style={{
+          backgroundColor: "#0B1220",
+          overflow: "hidden",
+          fontFamily
+        }}
+      >
+        {resolvedMedia && !hasMediaError ? (
+          <AbsoluteFill style={{ transform: `scale(${bgScale})`, transformOrigin: "center center" }}>
+            <Img
+              src={resolvedMedia}
+              onError={() => setHasMediaError(true)}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            <AbsoluteFill
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(11,18,32,0.55) 0%, rgba(11,18,32,0.85) 100%)"
+              }}
+            />
+          </AbsoluteFill>
+        ) : (
+          <AbsoluteFill
+            style={{
+              background:
+                "radial-gradient(circle at center, #1E293B 0%, #0B1220 70%, #030712 100%)"
+            }}
+          />
+        )}
+
+        {/* Decorative Grid Lines */}
+        <AbsoluteFill
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+            pointerEvents: "none"
+          }}
+        />
+
+        <AbsoluteFill
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: aspectRatio === "9:16" ? "40px 24px" : "60px 40px"
+          }}
+        >
+          <PresetWrapper preset={motionPreset} delayFrames={5}>
+            <div
+              style={{
+                padding: aspectRatio === "9:16" ? "36px 24px" : "40px 50px",
+                borderRadius: "24px",
+                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                border: `2px solid ${primaryColor}88`,
+                boxShadow: `0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px ${primaryColor}33`,
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                textAlign: "center",
+                maxWidth: "92%"
+              }}
+            >
+              {eyebrowText ? (
+                <div
+                  style={{
+                    fontSize: aspectRatio === "9:16" ? 18 : 16,
+                    fontWeight: 700,
+                    color: primaryColor,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    marginBottom: 12
+                  }}
+                >
+                  {eyebrowText}
+                </div>
+              ) : null}
+
+              <div
+                style={{
+                  color: textColor,
+                  fontSize: `${titleSize}px`,
+                  fontWeight: 900,
+                  lineHeight: 1.2,
+                  marginBottom: "14px",
+                  textShadow: "0 4px 12px rgba(0,0,0,0.8)"
+                }}
+              >
+                {mainTitle}
+              </div>
+
+              <div
+                style={{
+                  color: accentColor,
+                  fontSize: `${Math.round(titleSize * 0.44)}px`,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase"
+                }}
+              >
+                {subTitle}
+              </div>
+            </div>
+          </PresetWrapper>
+        </AbsoluteFill>
+      </AbsoluteFill>
+    );
+  }
+
+  // 3. Default: 3D Cylindrical Photo Carousel Showcase (3d-carousel-title-v1)
+  return (
+    <ThreeDCarouselPreset
+      media={media}
+      layoutSequence={layoutSequence}
+      cgBlocks={cgBlocks}
+      title={mainTitle}
+      text={text}
+      subtitle={subTitle}
+      eyebrow={eyebrowText}
+      texts={texts}
+      aspectRatio={aspectRatio}
+      rotationSpeed={rotationSpeed}
+      cameraTilt={cameraTilt}
+      enableReflection={enableReflection}
+      theme={theme}
+    />
   );
 };
