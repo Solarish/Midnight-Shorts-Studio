@@ -1,6 +1,8 @@
-:root{font-family:Manrope,system-ui,sans-serif;color:#eff5ff;background:#050b16;font-synthesis:none;--navy:#071225;--panel:#0b1930;--panel2:#10213d;--line:rgba(163,192,237,.13);--muted:#8999b5;--blue:#5aa8ff;--amber:#f7a63b;--green:#61d7ab;--red:#ff7184}
+@import './design-tokens.css';
+
+:root{font-family:var(--font-sans, Manrope,system-ui,sans-serif);color:var(--text-primary, #eff5ff);background:var(--bg-canvas, #050b16);font-synthesis:none;--navy:#071225;--panel:#0b1930;--panel2:#10213d;--line:rgba(163,192,237,.13);--muted:#8999b5;--blue:#5aa8ff;--amber:#f7a63b;--green:#61d7ab;--red:#ff7184}
 *{box-sizing:border-box}
-body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(circle at 74% -15%,#153563 0,transparent 36%),linear-gradient(160deg,#050b16,#081326 52%,#050a14)}
+body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(circle at 74% -15%,#153563 0,transparent 36%),linear-gradient(160deg,var(--bg-canvas, #050b16),#081326 52%,#050a14)}
 button,input,textarea{font:inherit}
 .app-shell{min-height:100vh}
 .topbar{height:78px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(28px,calc((100vw - 1240px)/2));background:rgba(5,11,22,.78);backdrop-filter:blur(20px);position:sticky;top:0;z-index:10}

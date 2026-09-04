@@ -9,6 +9,8 @@ import { StoryboardService } from "../src/storyboards.ts";
 test("storyboard service enforces revisions and compiles only a valid draft", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "ava-storyboard-service-"));
   const media = path.join(root, "logo.png"); await writeFile(media, "logo");
+  await writeFile(path.join(root, "clip1.mp4"), "clip1");
+  await writeFile(path.join(root, "clip2.mp4"), "clip2");
   const store = new LocalStoryboardStore(root); await store.init();
   await store.saveImport({ schemaVersion: 2, importId: "import_fixture", docxPath: path.join(root, "story.docx"), sourceDigest: "docx", importedAt: "2026-08-29T00:00:00.000Z", rawRows: [], proposals: [], diagnostics: [] });
   const service = new StoryboardService(store);
@@ -46,5 +48,55 @@ test("storyboard service enforces revisions and compiles only a valid draft", as
   assert.equal(approved.status, "approved");
   const changed = await service.update(created.storyboardId, { expectedRevision: approved.revision, name: "Changed" });
   assert.equal(changed.status, "stale");
+
+  // Test Auto B-Roll calculation via service
+  const aRollDraft = await service.update(created.storyboardId, {
+    expectedRevision: changed.revision,
+    items: [{
+      id: "interview_1",
+      kind: "a_roll",
+      durationMs: 36000,
+      audioPolicy: "preserve",
+      presetId: "a-roll-segment-v1",
+      params: {
+        sourceKey: "C7724",
+        dialogue: "นักศึกษาได้เรียนรู้การทำฟันจำลอง 3 มิติในห้องปฏิบัติการและคลินิก"
+      },
+      broll: []
+    }]
+  });
+  const autoBroll = await service.generateAutoBroll(aRollDraft.storyboardId, "interview_1", {
+    brollPoolDir: root
+  });
+  assert.ok(autoBroll.slots.length >= 2, "36s A-roll generates at least 2 B-roll slots");
+  assert.equal(autoBroll.broll.length, autoBroll.slots.length);
+  assert.ok(autoBroll.rationale.includes("B-roll"));
+
+  // Verify board-aware cooldown: save interview_1 with its assigned B-roll, then add interview_2
+  const updatedWithBroll = await service.update(aRollDraft.storyboardId, {
+    expectedRevision: aRollDraft.revision,
+    items: [
+      { ...aRollDraft.items[0]!, broll: autoBroll.broll },
+      {
+        id: "interview_2",
+        kind: "a_roll",
+        durationMs: 30000,
+        audioPolicy: "preserve",
+        presetId: "a-roll-segment-v1",
+        params: {
+          sourceKey: "C7724",
+          dialogue: "การทำฟันจำลอง 3 มิติและบรรยากาศในคลินิก"
+        },
+        broll: []
+      }
+    ]
+  });
+
+  const autoBroll2 = await service.generateAutoBroll(updatedWithBroll.storyboardId, "interview_2", {
+    brollPoolDir: root
+  });
+  // Top B-roll of interview_2 must NOT repeat the top B-roll of interview_1
+  assert.notEqual(autoBroll2.broll[0]?.asset.path, autoBroll.broll[0]?.asset.path, "Interview 2 picks a different top B-roll due to board-aware cooldown");
+
   await rm(root, { recursive: true, force: true });
 });

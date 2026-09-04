@@ -1,0 +1,201 @@
+{
+  "storyboardId": "storyboard_mtl6j9uh_bb96b748",
+  "name": "สารคดี ปฐวี",
+  "revision": 3,
+  "coverCard": null,
+  "shots": [
+    {
+      "shotIndex": 1,
+      "id": "interview_01",
+      "dialogue": "เพราะผมเชื่อว่าการเรียนการสอนที่ดีไม่ได้เกิดจากสิ่งที่อาจารย์คิดว่าดีเพียงฝ่ายเดียว แต่ต้องพิจารณาด้วยว่าสิ่งที่เราทำช่วยนักศึกษาเรียนรู้ได้ดีขึ้นหรือไม่ครับ",
+      "durationMs": 9000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_01_aroll.jpg",
+      "brollCount": 1,
+      "brolls": [
+        {
+          "brollId": "interview_01_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Ins/2X7A9171.MP4",
+          "assetName": "2X7A9171.MP4",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_01_broll_1.jpg",
+          "offsetMs": 2920,
+          "durationMs": 3960
+        }
+      ]
+    },
+    {
+      "shotIndex": 2,
+      "id": "interview_02",
+      "dialogue": "ผมอาจารย์ ปัฐ วี อินสุวรรณโณ",
+      "durationMs": 2000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_02_aroll.jpg",
+      "brollCount": 0,
+      "brolls": []
+    },
+    {
+      "shotIndex": 3,
+      "id": "interview_03",
+      "dialogue": "อาจารย์ตัวอย่างด้านการเรียนการสอนประจำปีพุทธศักราช 2569 ครับ",
+      "durationMs": 4000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_03_aroll.jpg",
+      "brollCount": 0,
+      "brolls": []
+    },
+    {
+      "shotIndex": 4,
+      "id": "interview_04",
+      "dialogue": "สิ่งที่ประทับใจที่สุดในการทำงานที่มหาวิทยาลัยสงขลานครินทร์ คือการได้เห็นพัฒนาการของนักศึกษาครับ โดยเฉพาะนักศึกษาที่ในช่วงแรกอาจยังไม่มั่นใจในตัวเองไม่กล้าพูด ไม่กล้าแสดงความคิดเห็น หรือยังไม่เห็นเป้าหมายของตัวเองชัดเจนแต่เมื่อเรามีโอกาสได้สอน ให้คำแนะนำและสร้างพื้นที่ให้เขาได้ลองทำจริง เราจะค่อยค่อยเห็นเขาเติบโตขึ้นครับ สำหรับผมความสุขของการเป็นอาจารย์จึงไม่ใช่เพียงการเห็นนักศึกษาได้คะแนนดี แต่คือการได้เห็นเขาค้นพบศักยภาพในตัวเองมีความมั่นใจมากขึ้นและสามารถนำสิ่งที่เรียนไปใช้จริงในชีวิตประจำวันได้ครับ",
+      "durationMs": 32000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_04_aroll.jpg",
+      "brollCount": 2,
+      "brolls": [
+        {
+          "brollId": "interview_04_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Ins/2X7A9188.MP4",
+          "assetName": "2X7A9188.MP4",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_04_broll_1.jpg",
+          "offsetMs": 3520,
+          "durationMs": 3000
+        },
+        {
+          "brollId": "interview_04_broll_2",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Insจาก อ./13.png",
+          "assetName": "13.png",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_04_broll_2.jpg",
+          "offsetMs": 6520,
+          "durationMs": 3000
+        }
+      ]
+    },
+    {
+      "shotIndex": 5,
+      "id": "interview_05",
+      "dialogue": "ในด้านการเรียนการสอนผมให้ความสำคัญกับการออกแบบการเรียนรู้ที่เชื่อมโยงระหว่างความรู้ในห้องเรียนกับการปฏิบัติงานจริง โดยเฉพาะในสาขาการบริการและการท่องเที่ยว นักศึกษาไม่เพียงแค่รู้ว่าการให้บริการที่ดีเป็นอย่างไร แต่นักศึกษาควรสามารถทำและถ่ายทอดการบริการที่ดีออกมาได้อย่างจริง ผมจึงนำกิจกรรมที่มีความหลากหลายมาใช้ในการเรียนการสอน เช่น การจำลองสถานการณ์ การฝึกปฏิบัติจริง การใช้ระบบที่ใช้ใน อุตสาหกรรมจริง การเรียนรู้ผ่านกรณีศึกษา รวมถึงการสะท้อนผลการเรียนรู้ เพื่อให้นักศึกษาได้เรียนรู้จากความสำเร็จและข้อผิดพลาดของตัวเอง นอกจากนี้ผมยังให้ความสำคัญกับเสียงของนักศึกษา โดยการนำฟีดแบคทั้งระหว่างเรียนและหลังเรียนมาปรับปรุงการเรียนการสอนอย่างต่อเนื่อง เพราะผมเชื่อว่าการเรียนการสอนที่ดีไม่ได้เกิดจากสิ่งที่อาจารย์คิดว่าดีเพียงฝ่ายเดียว แต่ต้องพิจารณาด้วยว่าสิ่งที่เราทำช่วยนักศึกษาเรียนรู้ได้ดีขึ้นหรือไม่ครับ",
+      "durationMs": 51000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_05_aroll.jpg",
+      "brollCount": 3,
+      "brolls": [
+        {
+          "brollId": "interview_05_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Insจาก อ./23.jpg",
+          "assetName": "23.jpg",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_05_broll_1.jpg",
+          "offsetMs": 2920,
+          "durationMs": 3000
+        },
+        {
+          "brollId": "interview_05_broll_2",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Insจาก อ./8.png",
+          "assetName": "8.png",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_05_broll_2.jpg",
+          "offsetMs": 5920,
+          "durationMs": 3000
+        },
+        {
+          "brollId": "interview_05_broll_3",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Ins/2X7A9166.MP4",
+          "assetName": "2X7A9166.MP4",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_05_broll_3.jpg",
+          "offsetMs": 21920,
+          "durationMs": 3520
+        }
+      ]
+    },
+    {
+      "shotIndex": 6,
+      "id": "interview_06",
+      "dialogue": "แนวทางหลังนี้ยังทำให้ผมได้มีโอกาสพัฒนาตัวเองอย่างต่อเนื่องจนได้รับการรับรองในระดับพร ิ้น ซิเพ ิลแฟร์โร ชิป ซึ่งสำหรับผมไม่ได้เป็นเพียงการรับรองส่วนบุคคล แต่เป็นแรงผลักดันให้ผมนำประสบการณ์การเรียนการสอนไปแลกเปลี่ยนกับเพื่อนอาจารย์และร่วมพัฒนาคุณภาพการเรียนรู้ของนักศึกษาให้ดียิ่งขึ้นครับ",
+      "durationMs": 17000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_06_aroll.jpg",
+      "brollCount": 1,
+      "brolls": [
+        {
+          "brollId": "interview_06_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Ins/2X7A9186.MP4",
+          "assetName": "2X7A9186.MP4",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_06_broll_1.jpg",
+          "offsetMs": 6120,
+          "durationMs": 4000
+        }
+      ]
+    },
+    {
+      "shotIndex": 7,
+      "id": "interview_07",
+      "dialogue": "สำหรับผมแนวทางที่ผมใช้มาตลอดผมขอสรุปง่ายๆ เป็นสามคำนะครับคือฟัง ปรับและพัฒนา ฟังคือฟังนักศึกษา ฟังเพื่อนร่วมงานและฟังความต้องการของอุตสาหกรรม เพื่อให้เราเข้าใจว่าผู้เรียนและสังคมต้องการอะไร ปรับคือการไม่ยึดติดกับวิธีเดิมเดิมหากกิจกรรมหรือวิธีการสอนบางอย่างไม่ตอบโจทย์เราต้องพร้อมที่จะเปลี่ยนแปลง",
+      "durationMs": 23000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_07_aroll.jpg",
+      "brollCount": 1,
+      "brolls": [
+        {
+          "brollId": "interview_07_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Insจาก อ./11.jpg",
+          "assetName": "11.jpg",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_07_broll_1.jpg",
+          "offsetMs": 8520,
+          "durationMs": 4000
+        }
+      ]
+    },
+    {
+      "shotIndex": 8,
+      "id": "interview_08",
+      "dialogue": "และการพัฒนาคือการพัฒนาตัวเองอย่างต่อเนื่อง เพราะผมคิดว่าเราไม่สามารถคาดหวังให้นักเรียนเป็นไลฟ์รองเลอเนอร์ได้ ถ้าตัวอาจารย์เองยังหยุดเรียนรู้ครับ ผมจึงมองความสำเร็จไม่ใช่การไม่ใช่แค่การทำทุกอย่างขอโทษนะครับ",
+      "durationMs": 9000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_08_aroll.jpg",
+      "brollCount": 1,
+      "brolls": [
+        {
+          "brollId": "interview_08_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Insจาก อ./21.jpg",
+          "assetName": "21.jpg",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_08_broll_1.jpg",
+          "offsetMs": 2920,
+          "durationMs": 3960
+        }
+      ]
+    },
+    {
+      "shotIndex": 9,
+      "id": "interview_09",
+      "dialogue": "ผมจึงมองความสำเร็จไม่ใช่การทำทุกอย่างให้สมบูรณ์แบบตั้งแต่ครั้งแรก แต่คือการทำวันนี้ให้ดีขึ้นกว่าเมื่อวานครับ",
+      "durationMs": 7000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_09_aroll.jpg",
+      "brollCount": 0,
+      "brolls": []
+    },
+    {
+      "shotIndex": 10,
+      "id": "interview_10",
+      "dialogue": "ผมรู้สึกเป็นเกียรติและขอบคุณอย่างมากครับ การได้รับการคัดเลือกในครั้งนี้มีความหมายกับผม ไม่ใช่เพราะเป็นการบอกว่าสิ่งที่ผมทำดีที่สุดแต่เป็นการยืนยันว่าสิ่งที่เราพยายามทำเพื่อพัฒนาการเรียนรู้ของนักศึกษามีคุณค่า ในขณะเดียวกันรางวัลนี้ก็เตือนผมว่ายังมีอีกหลายอย่างที่ผมสามารถพัฒนาได้ ผมจึงมองว่ารางวัลนี้ไม่ใช่ปลายทางแต่เป็นอีกหนึ่งจุดเริ่มต้นของการพัฒนาตัวเองในฐานะอาจารย์ และผมอยากขอบคุณนักศึกษาทุกคนเพื่อนร่วมงานและผู้ที่เคยให้คำแนะนำหรือฟีดแบคกับผม เพราะทุกคนมีส่วนทำให้ผมได้เรียนรู้และพัฒนาตัวเองจนมาถึงทุกวันนี้ครับ สำหรับผมการเป็นอาจารย์ที่ดีไม่ใช่การสร้างนักศึกษาที่เก่งแต่คือการช่วยให้เขาค้นพบว่าเขาสามารถเก่งในแบบของตัวเองได้อย่างไรครับ ขอบคุณครับ",
+      "durationMs": 45000,
+      "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_10_aroll.jpg",
+      "brollCount": 3,
+      "brolls": [
+        {
+          "brollId": "interview_10_broll_1",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Insจาก อ./6.png",
+          "assetName": "6.png",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_10_broll_1.jpg",
+          "offsetMs": 2920,
+          "durationMs": 3000
+        },
+        {
+          "brollId": "interview_10_broll_2",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Ins/2X7A9164.MP4",
+          "assetName": "2X7A9164.MP4",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_10_broll_2.jpg",
+          "offsetMs": 5920,
+          "durationMs": 3000
+        },
+        {
+          "brollId": "interview_10_broll_3",
+          "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/2.อ.ดร.ปฐวี อินทร์สุวรรณโณ /Ins/2X7A9181.MP4",
+          "assetName": "2X7A9181.MP4",
+          "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_pathawee/shot_10_broll_3.jpg",
+          "offsetMs": 18920,
+          "durationMs": 3520
+        }
+      ]
+    }
+  ]
+}

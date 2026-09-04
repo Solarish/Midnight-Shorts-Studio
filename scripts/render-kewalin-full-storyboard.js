@@ -44,49 +44,69 @@ async function main() {
         id: "scene_1_cover",
         kind: "cover_card",
         title: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+        personName: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
         subtitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+        positionTitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
         eyebrow: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
+        award: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
         durationMs: 4000,
-        motionPreset: "ZoomPunch"
+        motionPreset: "ZoomPunch",
+        params: {
+          title: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+          personName: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+          subtitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+          positionTitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+          eyebrow: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
+          award: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦"
+        }
       },
-      // 2. Title & Introduction
+      // 2. Real A-Roll Interview with Lower-Third
       {
         id: "scene_2_intro",
-        kind: "title_card",
-        speakerName: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
-        speakerRole: "อาจารย์ประจำสาขาวิชาทันตกรรมบูรณะ",
-        eyebrow: "HARVARD ALUMNI & 20+ YEARS EXPERIENCE",
-        durationMs: 3500,
-        motionPreset: "Bounce"
+        kind: "a_roll",
+        durationMs: 7000,
+        presetId: "a-roll-segment-v1",
+        params: {
+          sourcePath: path.join(projectRoot, ".ava-cache", "docx-kewalin-master", "01_real_hook.mp4"),
+          sourceInMs: 0,
+          speaker: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+          lowerThird: {
+            enabled: true,
+            name: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+            title: "อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙",
+            department: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+            offsetMs: 400,
+            durationMs: 5500
+          }
+        }
       },
-      // 3. Teaching Philosophy & Mentorship
+      // 3. Climax Quote Card
       {
-        id: "scene_3_mentorship",
-        kind: "title_card",
-        speakerName: "การเรียนการสอนเชิงรุก & นวัตกรรมฟันจำลอง 3D",
-        speakerRole: "Active Learning & 3D Dental Innovation",
-        eyebrow: "PEDAGOGY & INNOVATION",
-        durationMs: 3500,
-        motionPreset: "Spring"
-      },
-      // 4. Climax Quote Card
-      {
-        id: "scene_4_climax_quote",
+        id: "scene_3_climax_quote",
         kind: "cover_card",
         title: "“ความภูมิใจที่สุดคือการได้เห็นลูกศิษย์เติบโต”",
         subtitle: "และนำหลักคิดไปใช้เพื่อประโยชน์ของเพื่อนมนุษย์",
         eyebrow: "CLIMAX MOTTO — จิตวิญญาณความเป็นครู",
         durationMs: 4500,
-        motionPreset: "Pop"
+        motionPreset: "Pop",
+        params: {
+          title: "“ความภูมิใจที่สุดคือการได้เห็นลูกศิษย์เติบโต”",
+          subtitle: "และนำหลักคิดไปใช้เพื่อประโยชน์ของเพื่อนมนุษย์",
+          eyebrow: "CLIMAX MOTTO — จิตวิญญาณความเป็นครู"
+        }
       },
-      // 5. Official Outro
+      // 4. Official Outro
       {
-        id: "scene_5_outro",
+        id: "scene_4_outro",
         kind: "logo_outro",
         channelName: "PSU BROADCAST",
         tagline: "มหาวิทยาลัยสงขลานครินทร์ • เพื่อประโยชน์ของเพื่อนมนุษย์เป็นกิจที่หนึ่ง",
         durationMs: 2500,
-        motionPreset: "Spring"
+        motionPreset: "Spring",
+        params: {
+          title: "PSU BROADCAST",
+          subtitle: "มหาวิทยาลัยสงขลานครินทร์"
+        }
       }
     ],
     brollStack: [
@@ -94,7 +114,8 @@ async function main() {
         id: "broll_dental_lab",
         title: "3D Dental Simulation Lab",
         description: "นวัตกรรมฟันจำลองและอุปกรณ์แล็บทันตกรรมดิจิทัล",
-        startMs: 2500,
+        assetPath: path.join(projectRoot, ".ava-cache", "docx-kewalin-master", "07_broll_lab3d.mp4"),
+        startMs: 4500,
         durationMs: 3000,
         motionPreset: "Spring"
       },
@@ -102,8 +123,9 @@ async function main() {
         id: "broll_student_care",
         title: "Clinical Patient Mentoring",
         description: "การให้คำปรึกษาและดูแลคนไข้จริงในคลินิกทันตกรรม",
-        startMs: 7000,
-        durationMs: 3500,
+        assetPath: path.join(projectRoot, ".ava-cache", "docx-kewalin-master", "09_broll_clinic.mp4"),
+        startMs: 7800,
+        durationMs: 3000,
         motionPreset: "Bounce"
       }
     ],

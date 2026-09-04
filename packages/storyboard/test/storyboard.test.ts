@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { StoryboardSpecV2 } from "@psu-ava/contracts";
 import { compileGraphToWorkflow, validateGraphDefinition } from "@psu-ava/node-sdk";
-import { buildCoverGenerationPrompt, compileApprovedStoryboard, compileStoryboardToRemotionProps, COVER_VISUAL_DIRECTION, createApprovedStoryboard, createStoryboardExecutionGraph, parseStoryboardXmlV2, validateStoryboardMedia, validateStoryboardSpec } from "../src/index.ts";
+import { buildCoverGenerationPrompt, compileApprovedStoryboard, compileStoryboardToRemotionProps, COVER_VISUAL_DIRECTION, createApprovedStoryboard, createStoryboardExecutionGraph, formatARollAuto, parseStoryboardXmlV2, validateStoryboardMedia, validateStoryboardSpec } from "../src/index.ts";
 
 test("DOCX proposal parser keeps cover rows 3/5 separate from logo row 7", () => {
   const xml = documentXml([
@@ -527,6 +527,43 @@ test("validates and compiles cinematic title presets (parallax and split dynamic
 
   const splitDiagnostics = validateStoryboardSpec(invalidSplit);
   assert.ok(splitDiagnostics.some((d) => d.code === "missing_media" && d.itemId === "title_split"));
+});
+
+test("formatARollAuto injects PSU Royal Gold Glass Beacon lower-third from speaker or presenter", () => {
+  const rawARoll = {
+    id: "interview_01",
+    kind: "a_roll",
+    durationMs: 8000,
+    audioPolicy: "preserve",
+    params: {
+      sourceKey: "C7724",
+      sourcePath: "/Volumes/footage/C7724.mp4",
+      speaker: "รศ.ดร.ทันตแพทย์หญิง เกวลิน ธรรมสิทธิ์บูรณ์",
+      dialogue: "ยินดีต้อนรับทุกท่านสู่คณะทันตแพทยศาสตร์"
+    }
+  };
+
+  const projectContext = {
+    projectDir: "/Volumes/kewalin",
+    docxPath: "/Volumes/kewalin/story.docx",
+    brollPoolDirs: [],
+    photoDirs: [],
+    candidateBrolls: [],
+    portraitImages: [],
+    presenter: {
+      name: "รศ.ดร.ทันตแพทย์หญิง เกวลิน ธรรมสิทธิ์บูรณ์",
+      position: "รองผู้อำนวยการฝ่ายวิชาการและวิจัย",
+      department: "คณะทันตแพทยศาสตร์ ม.อ."
+    }
+  };
+
+  const formatted = formatARollAuto(rawARoll, projectContext);
+  assert.equal(formatted.params.lowerThird.enabled, true);
+  assert.equal(formatted.params.lowerThird.presetId, "lowerthird-glass-beacon-v1");
+  assert.equal(formatted.params.lowerThird.name, "รศ.ดร.ทันตแพทย์หญิง เกวลิน ธรรมสิทธิ์บูรณ์");
+  assert.equal(formatted.params.lowerThird.title, "รองผู้อำนวยการฝ่ายวิชาการและวิจัย");
+  assert.equal(formatted.params.lowerThird.department, "คณะทันตแพทยศาสตร์ ม.อ.");
+  assert.equal(formatted.params.lowerThird.offsetMs, 500);
 });
 
 function documentXml(rows: string[][]) {

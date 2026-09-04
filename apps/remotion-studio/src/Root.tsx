@@ -60,12 +60,7 @@ async function resolveDynamicStoryboardProps(
   incomingProps: StoryboardAssemblyProps
 ): Promise<StoryboardAssemblyProps> {
   // If explicitly passed custom items (e.g. from render script), respect them
-  if (
-    incomingProps.items &&
-    incomingProps.items.length > 0 &&
-    incomingProps.storyboardId !== "default-storyboard" &&
-    incomingProps.storyboardId !== "kewalin_documentary_2569"
-  ) {
+  if (incomingProps.items && incomingProps.items.length > 0) {
     return incomingProps;
   }
 

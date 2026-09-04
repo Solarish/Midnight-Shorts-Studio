@@ -11,7 +11,9 @@ export function NoteInspector({ item, onParams }: NoteInspectorProps) {
     <div className="inspector-container">
       <div className="inspector-card accent-slate">
         <details open>
-          <summary style={{ color: "#CBD5E1" }}>📝 Editorial Note</summary>
+          <summary style={{ color: "#F8F6F0", letterSpacing: "0.05em", fontWeight: 700 }}>
+            <span className="tva-lamp" style={{ marginRight: 6 }}>●</span> EDITORIAL NOTE <span style={{ color: "#94A3B8", fontWeight: 400, fontSize: "11px", marginLeft: 4 }}>// บันทึกข้อความกองบรรณาธิการ</span>
+          </summary>
           <div className="inspector-card-body">
             <div className="inspector-field">
               <label className="inspector-label">

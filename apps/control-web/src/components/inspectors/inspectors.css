@@ -1,4 +1,19 @@
 /* Midnight Shorts Studio — Unified Reusable Node Inspectors Stylesheet */
+/* TVA (Loki) & Fantastic Four (2026) Space-Age Console Theme */
+
+:root {
+  --tva-amber: #F59E0B;
+  --tva-amber-glow: rgba(245, 158, 11, 0.4);
+  --tva-amber-subtle: rgba(245, 158, 11, 0.12);
+  --tva-cream: #F8F6F0;
+  --tva-parchment: #E2D9C8;
+  --tva-slate-dark: #0B0F19;
+  --tva-slate-card: #121826;
+  --tva-slate-panel: #1E293B;
+  --tva-border: #2A364F;
+  --tva-green: #10B981;
+  --tva-cyan: #06B6D4;
+}
 
 .inspector-container {
   display: flex;
@@ -6,25 +21,29 @@
   gap: 12px;
   width: 100%;
   box-sizing: border-box;
-  color: #F8FAFC;
+  color: var(--tva-cream);
   font-family: inherit;
 }
 
-/* Layer & Grouping Card */
+/* Layer & Grouping Card (Space-Age Console Module) */
 .inspector-card {
-  border-radius: 10px;
-  background: #0F172A;
-  border: 1px solid #334155;
+  border-radius: 9px;
+  background: var(--tva-slate-card);
+  border: 1px solid var(--tva-border);
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.inspector-card.accent-gold {
-  border-color: rgba(229, 169, 60, 0.35);
+.inspector-card.accent-gold,
+.inspector-card.accent-amber {
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
-.inspector-card.accent-gold:hover {
-  border-color: rgba(229, 169, 60, 0.6);
+.inspector-card.accent-gold:hover,
+.inspector-card.accent-amber:hover {
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
 }
 
 .inspector-card.accent-blue {
@@ -41,6 +60,14 @@
 
 .inspector-card.accent-cyan:hover {
   border-color: rgba(34, 211, 238, 0.6);
+}
+
+.inspector-card.accent-purple {
+  border-color: rgba(168, 85, 247, 0.35);
+}
+
+.inspector-card.accent-purple:hover {
+  border-color: rgba(168, 85, 247, 0.6);
 }
 
 .inspector-card.accent-slate {
@@ -203,14 +230,15 @@
 }
 
 .inspector-btn-gold {
-  background: linear-gradient(135deg, rgba(229, 169, 60, 0.25), rgba(217, 119, 6, 0.35));
-  color: #F8FAFC;
-  border-color: rgba(229, 169, 60, 0.5);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.35));
+  color: var(--tva-cream);
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
 .inspector-btn-gold:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(229, 169, 60, 0.35), rgba(217, 119, 6, 0.5));
-  border-color: rgba(229, 169, 60, 0.8);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.5));
+  border-color: rgba(245, 158, 11, 0.8);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
 .inspector-btn-secondary {
@@ -228,6 +256,122 @@
 .inspector-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* TVA & Fantastic Four (2026) Console Specific Components */
+.tva-telemetry-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tva-lamp {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #F59E0B;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+  flex-shrink: 0;
+}
+
+.tva-lamp-green {
+  background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+.tva-lamp-off {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #475569;
+  border: 1px solid #64748B;
+  flex-shrink: 0;
+}
+
+.tva-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* 2-Tier Stacked Console Preset Card */
+.tva-stacked-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 10px;
+  background: #161F30;
+  border: 1px solid #2A364F;
+  border-radius: 7px;
+  color: var(--tva-cream);
+  cursor: pointer;
+  text-align: left;
+  gap: 2px;
+  min-width: 0;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.tva-stacked-card:hover {
+  background: #1E2B42;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.tva-stacked-card.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.12));
+  border-color: #F59E0B;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.tva-stacked-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.tva-stacked-en {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #F8FAFC;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tva-stacked-card.active .tva-stacked-en {
+  color: #FBBF24;
+}
+
+.tva-stacked-th {
+  font-size: 10px;
+  color: #94A3B8;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.tva-stacked-card.active .tva-stacked-th {
+  color: #E2D9C8;
 }
 
 /* Image Thumbnail Preview in Inspector */

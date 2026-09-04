@@ -3,20 +3,29 @@ import { useParams } from "react-router-dom";
 import { GraphShell } from "./WorkflowCatalogPage";
 import {
   approveAndCompileStoryboard,
+  autoBrollStoryboardAll,
+  autoGenerateAssets,
+  autoLowerThirdStoryboardAll,
+  fullAutoStoryboard,
   getStoryboard,
   getStoryboardCompilation,
   getStoryboardImport,
   patchStoryboard,
+  resyncStoryboardDocx,
   validateStoryboard
 } from "./storyboard-api";
 import type { Storyboard, StoryboardCompilation, StoryboardDiagnostic, StoryboardImport, StoryboardItem, StoryboardKind } from "./storyboard-types";
 import { InteractiveTimelineStudioModal } from "./components/InteractiveTimelineStudioModal";
+import { RemoteFilePickerModal } from "./components/RemoteFilePickerModal";
+import { RenderProgressModal } from "./components/RenderProgressModal";
 import {
   ARollInspector,
   CoverCardInspector,
   LogoOutroInspector,
   NoteInspector,
   TitleCarouselInspector,
+  BgmInspector,
+  BGM_PRESETS,
   SecondsField,
   useNodeRunMonitor,
   snapToFrameMs,
@@ -33,6 +42,7 @@ export default function StoryboardEditorPage() {
   const { storyboardId = "" } = useParams();
   const [storyboard, setStoryboard] = useState<Storyboard>();
   const [showLivePlayer, setShowLivePlayer] = useState(false);
+  const [showRenderModal, setShowRenderModal] = useState(false);
   const [sourceImport, setSourceImport] = useState<StoryboardImport>();
   const [compilation, setCompilation] = useState<StoryboardCompilation>();
   const [selectedId, setSelectedId] = useState("");
@@ -44,6 +54,52 @@ export default function StoryboardEditorPage() {
   const [showImport, setShowImport] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const [dragIndex, setDragIndex] = useState<number>();
+  const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9" | "1:1">("16:9");
+  const [showSafeZones, setShowSafeZones] = useState(true);
+  const [showDiagnosticsDetail, setShowDiagnosticsDetail] = useState(false);
+  const [activeInspectorTab, setActiveInspectorTab] = useState<"style" | "media" | "timing" | "graphics">("style");
+  const [isAutoBrollingAll, setIsAutoBrollingAll] = useState(false);
+  const [isAutoLowerThirdRunning, setIsAutoLowerThirdRunning] = useState(false);
+  const [bgmPresetId, setBgmPresetId] = useState<string>("news-pulse");
+  const [customBgmPath, setCustomBgmPath] = useState<string>("");
+  const [bgmVolume, setBgmVolume] = useState<number>(0.6);
+  const [bgmDuckVolume, setBgmDuckVolume] = useState<number>(0.12);
+  const [autoDucking, setAutoDucking] = useState<boolean>(true);
+  const [isBgmPickerOpen, setIsBgmPickerOpen] = useState<boolean>(false);
+  const [isAuditionPlaying, setIsAuditionPlaying] = useState<boolean>(false);
+  const audioAuditionRef = useRef<HTMLAudioElement | null>(null);
+
+  const selectedBgmTrack = useMemo(() => {
+    const preset = BGM_PRESETS.find((p) => p.id === bgmPresetId);
+    const resolvedPath = bgmPresetId === "custom" ? customBgmPath : preset?.path;
+    if (!resolvedPath || bgmPresetId === "none") return undefined;
+    return {
+      path: resolvedPath,
+      volume: bgmVolume,
+      duckVolume: bgmDuckVolume,
+      autoDucking,
+      role: "music" as const
+    };
+  }, [bgmPresetId, customBgmPath, bgmVolume, bgmDuckVolume, autoDucking]);
+
+  const effectiveAuditionPath = bgmPresetId === "custom" ? customBgmPath : BGM_PRESETS.find((p) => p.id === bgmPresetId)?.path || "";
+
+  const toggleAudition = useCallback(() => {
+    if (!audioAuditionRef.current || !effectiveAuditionPath) return;
+    if (isAuditionPlaying) {
+      audioAuditionRef.current.pause();
+      setIsAuditionPlaying(false);
+    } else {
+      audioAuditionRef.current.currentTime = 0;
+      audioAuditionRef.current.volume = bgmVolume;
+      audioAuditionRef.current.play().then(() => {
+        setIsAuditionPlaying(true);
+      }).catch(() => {
+        setIsAuditionPlaying(false);
+      });
+    }
+  }, [effectiveAuditionPath, isAuditionPlaying, bgmVolume]);
+
   const editVersion = useRef(0);
 
   const selected = useMemo(
@@ -322,38 +378,230 @@ export default function StoryboardEditorPage() {
     }
   };
 
+  const handleAutoBrollAll = async () => {
+    if (!storyboard) return;
+    setIsAutoBrollingAll(true);
+    setMessage("⏳ กำลังวิเคราะห์บทพูดและจัด B-roll ทั้งกระดานด้วย AI...");
+    try {
+      const data = await autoBrollStoryboardAll(storyboard.storyboardId);
+      if (data.storyboard) {
+        setStoryboard(data.storyboard);
+        setDirty(false);
+        editVersion.current++;
+        const stats = data.stats;
+        setMessage(
+          `✅ จัด B-roll ทั้งกระดานสำเร็จ! ใส่ทั้งหมด ${stats.totalBrollsAssigned} จุด จากฟุตเทจไม่ซ้ำกัน ${stats.uniqueClipsUsed} คลิป (${stats.notes?.join(" · ") || "จังหวะคัตชนคัต & เว้นช่วงพูดเป็นธรรมชาติ"})`
+        );
+      }
+    } catch (err: any) {
+      setMessage(`❌ Auto B-roll ทั้งกระดานล้มเหลว: ${err.message}`);
+    } finally {
+      setIsAutoBrollingAll(false);
+    }
+  };
+
+  const [isFullAutoRunning, setIsFullAutoRunning] = useState(false);
+
+  const handleFullAutoAll = async () => {
+    if (!storyboard) return;
+    setIsFullAutoRunning(true);
+    setMessage("⏳ กำลังจัดเต็มระบบ Full Auto 100% (Title 3D Carousel + Cover Card PSU Stidti + Lower-Third + Auto B-Roll ทั้งกระดาน)...");
+    try {
+      const data = await fullAutoStoryboard(storyboard.storyboardId);
+      if (data.storyboard) {
+        setStoryboard(data.storyboard);
+        setDirty(false);
+        editVersion.current++;
+        const stats = data.stats;
+        setMessage(
+          `✅ Full Auto สำเร็จ 100%! จัด B-roll ${stats.totalBrollsAssigned} จุด (${stats.uniqueClipsUsed} คลิปไม่ซ้ำ), ตั้งค่า Lower-Third (${(stats as any).lowerThirdsConfigured || 0} ฉาก A-Roll), Cover Card (${stats.coverCardsFormatted} ฉากด้วยฟอนต์ ${stats.fontUsed}) และ Title Card (3D Carousel) เรียบร้อยแล้ว!`
+        );
+      }
+    } catch (err: any) {
+      setMessage(`❌ Full Auto ล้มเหลว: ${err.message}`);
+    } finally {
+      setIsFullAutoRunning(false);
+    }
+  };
+
+  const handleAutoLowerThirdAll = async () => {
+    if (!storyboard) return;
+    setIsAutoLowerThirdRunning(true);
+    setMessage("⏳ กำลังตั้งค่า Lower-Third (PSU Royal Gold Glass Beacon) ให้ทุกช็อต A-Roll อัตโนมัติ...");
+    try {
+      const data = await autoLowerThirdStoryboardAll(storyboard.storyboardId);
+      if (data.storyboard) {
+        setStoryboard(data.storyboard);
+        setDirty(false);
+        editVersion.current++;
+        setMessage(
+          `✅ ตั้งค่า Lower-Third สำเร็จ! ใส่ชื่อและตำแหน่งวิทยากรให้ ${data.stats.lowerThirdsConfigured} ฉาก A-Roll เรียบร้อยแล้ว!`
+        );
+      }
+    } catch (err: any) {
+      setMessage(`❌ Auto Lower-Third ล้มเหลว: ${err.message}`);
+    } finally {
+      setIsAutoLowerThirdRunning(false);
+    }
+  };
+
+  const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
+
+  const handleAutoGenerateAssets = async () => {
+    if (!storyboard) return;
+    setIsGeneratingAssets(true);
+    setMessage("⏳ กำลังสังเคราะห์แอสเซต AI อัตโนมัติ (Apple Vision ตัดพื้นหลังบุคคล 0.5 วิ + ComfyUI Z-Image เจนภาพพื้นหลังสตูดิโอ)...");
+    try {
+      const data = await autoGenerateAssets(storyboard.storyboardId);
+      if (data.storyboard) {
+        setStoryboard(data.storyboard);
+        setDirty(false);
+        editVersion.current++;
+        setMessage(
+          `✅ สังเคราะห์แอสเซต AI สำเร็จ! ตัดพื้นหลังบุคคล ${data.stats.cutoutsGenerated} ภาพ และเจนภาพพื้นหลัง ComfyUI ${data.stats.backgroundsGenerated} ภาพ บันทึกลงกระดานเรียบร้อย!`
+        );
+      }
+    } catch (err: any) {
+      setMessage(`❌ สังเคราะห์แอสเซต AI ล้มเหลว: ${err.message}`);
+    } finally {
+      setIsGeneratingAssets(false);
+    }
+  };
+
+  const [isResyncing, setIsResyncing] = useState(false);
+
+  const handleResyncDocx = async () => {
+    if (!storyboard) return;
+    if (!window.confirm("คุณต้องการโหลดซิงค์บทจากไฟล์ DOCX ต้นฉบับซ้ำหรือไม่?\nระบบจะอัปเดตบทพูดและช่วงเวลาใหม่ แต่คง B-Roll และการตั้งค่าที่ตัดแต่งไว้ทั้งหมด!")) return;
+    setIsResyncing(true);
+    setMessage("⏳ กำลังโหลดและซิงค์บทใหม่จากไฟล์ DOCX บน NAS...");
+    try {
+      const updated = await resyncStoryboardDocx(storyboard.storyboardId);
+      setStoryboard(updated);
+      setDirty(false);
+      editVersion.current++;
+      setMessage(`✅ โหลดซิงค์ DOCX สำเร็จ! อัปเดตเป็น Revision ${updated.revision} เรียบร้อยแล้ว`);
+    } catch (err: any) {
+      setMessage(`❌ ซิงค์ DOCX ล้มเหลว: ${err.message}`);
+    } finally {
+      setIsResyncing(false);
+    }
+  };
+
   const blockerCount = diagnostics.filter((item) => item.severity === "blocker").length;
 
   return (
     <GraphShell>
       <main className="storyboard-editor">
+        {/* 5-Step Golden Path Stepper */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            padding: "8px 24px",
+            background: "rgba(15, 23, 42, 0.8)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            fontSize: "12px",
+            color: "#94A3B8",
+            flexWrap: "wrap"
+          }}
+        >
+          <span style={{ color: "#34D399", fontWeight: 600 }}>1. นำเข้า DOCX ✓</span>
+          <span>➜</span>
+          <span style={{ color: storyboard?.items?.length ? "#34D399" : "#94A3B8", fontWeight: 600 }}>
+            2. วางโครงเรื่อง ({storyboard?.items?.length ?? 0} ฉาก) {storyboard?.items?.length ? "✓" : ""}
+          </span>
+          <span>➜</span>
+          <span
+            style={{
+              color: storyboard?.status === "draft" ? "#60A5FA" : "#34D399",
+              fontWeight: 700,
+              background: storyboard?.status === "draft" ? "rgba(59, 130, 246, 0.2)" : "transparent",
+              padding: "2px 8px",
+              borderRadius: "4px"
+            }}
+          >
+            3. ปรับแต่ง & Auto B-Roll {storyboard?.status === "draft" ? "(ขั้นตอนปัจจุบัน)" : "✓"}
+          </span>
+          <span>➜</span>
+          <span
+            style={{
+              color: storyboard?.status === "approved" ? "#34D399" : "#94A3B8",
+              fontWeight: storyboard?.status === "approved" ? 700 : 400
+            }}
+          >
+            4. ตรวจและอนุมัติ {storyboard?.status === "approved" ? `(v${storyboard.approvedVersion} ✓)` : ""}
+          </span>
+          <span>➜</span>
+          <span style={{ color: compilation ? "#A78BFA" : "#64748B", fontWeight: compilation ? 600 : 400 }}>
+            5. เรนเดอร์ Master Video {compilation ? "✓" : ""}
+          </span>
+        </div>
+
         <header className="storyboard-header">
-          <div>
-            <div className="storyboard-breadcrumbs">
-              <a href="/storyboards">Storyboards</a>
-              <span>/</span>
-              <span>{storyboard?.name || storyboardId}</span>
-              {saveState !== "idle" && (
-                <span className={`save-badge ${saveState}`}>
-                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState}
-                </span>
-              )}
+          <div className="storyboard-title-group">
+            <div className="storyboard-title-info">
+              <div className="storyboard-breadcrumbs">
+                <a href="/storyboards">Storyboards</a>
+                <span>/</span>
+                <span>{storyboard?.name || storyboardId}</span>
+                {saveState !== "idle" && (
+                  <span className={`save-badge ${saveState}`}>
+                    {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState}
+                  </span>
+                )}
+              </div>
+              <h1 style={{ margin: "2px 0" }}>{storyboard?.name || "Storyboard Editor"}</h1>
+              <p className="storyboard-meta" style={{ margin: 0 }}>
+                DOCX: <code>{storyboard?.sourceImport.docxPath}</code> · Revision {storyboard?.revision ?? 0} ·{" "}
+                {storyboard?.items.length ?? 0} items · Status <strong>{storyboard?.status}</strong>
+                {storyboard?.approvedVersion ? ` · Approved v${storyboard.approvedVersion}` : ""}
+                {compilation ? ` · graph ${compilation.graphDigest.slice(0, 12)}` : ""}
+              </p>
             </div>
-            <h1>{storyboard?.name || "Storyboard Editor"}</h1>
-            <p className="storyboard-meta">
-              DOCX: <code>{storyboard?.sourceImport.docxPath}</code> · Revision {storyboard?.revision ?? 0} ·{" "}
-              {storyboard?.items.length ?? 0} items · Status <strong>{storyboard?.status}</strong>
-              {storyboard?.approvedVersion ? ` · Approved v${storyboard.approvedVersion}` : ""}
-              {compilation ? ` · graph ${compilation.graphDigest.slice(0, 12)}` : ""}
-            </p>
+            <div className="aspect-switcher" role="group" aria-label="Aspect Ratio Switcher">
+              <button
+                type="button"
+                className="aspect-btn active"
+                title="16:9 Broadcast Master (Active Production Standard)"
+                style={{
+                  fontWeight: 700,
+                  borderColor: "var(--nle-accent-gold)",
+                  color: "var(--nle-accent-gold)"
+                }}
+              >
+                🖥️ 16:9 Master
+              </button>
+              <button
+                type="button"
+                className="aspect-btn disabled"
+                disabled
+                title="แนวตั้ง 9:16 Auto-Compositing อยู่ระหว่างการพัฒนา (เปิดใช้งาน 16:9 เท่านั้น)"
+                style={{ opacity: 0.35, cursor: "not-allowed" }}
+              >
+                📱 9:16 (เร็วๆ นี้)
+              </button>
+              <button
+                type="button"
+                className="aspect-btn disabled"
+                disabled
+                title="จัตุรัส 1:1 Auto-Compositing อยู่ระหว่างการพัฒนา (เปิดใช้งาน 16:9 เท่านั้น)"
+                style={{ opacity: 0.35, cursor: "not-allowed" }}
+              >
+                ⏹️ 1:1 (เร็วๆ นี้)
+              </button>
+            </div>
           </div>
           <div className="storyboard-header-actions">
             <button
               className="button secondary"
               style={{
-                background: "linear-gradient(135deg, rgba(229,169,60,.18), rgba(0,229,255,.14))",
-                borderColor: "rgba(229,169,60,.45)",
-                color: "#F8FAFC"
+                borderColor: "rgba(0, 229, 255, 0.5)",
+                color: "var(--accent-cyan)",
+                background: "rgba(0, 229, 255, 0.12)",
+                boxShadow: "0 0 14px rgba(0, 229, 255, 0.25)",
+                fontWeight: 700
               }}
               onClick={() => setShowLivePlayer(true)}
             >
@@ -372,12 +620,241 @@ export default function StoryboardEditorPage() {
             >
               Approve Storyboard &amp; Compile Graph
             </button>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => setShowRenderModal(true)}
+              style={{
+                background: "linear-gradient(135deg, #E5A93C 0%, #D97706 100%)",
+                color: "#0B132B",
+                border: "none",
+                fontWeight: 800,
+                boxShadow: "0 2px 10px rgba(229, 169, 60, 0.4)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+              title="เปิดหน้าต่างสั่ง Render Master Video (MP4 1080p @ 25fps) ลงโฟลเดอร์ปลายทาง"
+            >
+              <span>🚀</span> Render Master Video
+            </button>
           </div>
         </header>
+
+        {/* Action Ribbon: AI Automation Hub & Soundtrack Controller */}
+        <div
+          className="storyboard-action-ribbon"
+          style={{
+            margin: "0 24px 16px 24px",
+            padding: "10px 16px",
+            background: "rgba(15, 23, 42, 0.8)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "10px",
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "14px",
+            backdropFilter: "blur(12px)"
+          }}
+        >
+          {/* Left: Automation Hub */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+              ⚡ AI Automation:
+            </span>
+            <button
+              className="button primary"
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                borderColor: "rgba(229, 169, 60, 0.8)",
+                color: "#FFFFFF",
+                background: "linear-gradient(135deg, #D97706 0%, #B45309 100%)",
+                boxShadow: "0 0 12px rgba(217, 119, 6, 0.3)",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: "5px"
+              }}
+              onClick={handleFullAutoAll}
+              disabled={isFullAutoRunning || isAutoBrollingAll || isAutoLowerThirdRunning || isResyncing}
+              title="จัดเต็มระบบ 100% ในคลิกเดียว: ตั้งค่า Title 3D, Cover Card PSU Stidti, Lower-Third ทุก A-Roll และคำนวณ Auto B-Roll ทั้งกระดาน"
+            >
+              {isFullAutoRunning ? "⏳ กำลังจัดเต็มระบบ..." : "🚀 Full Auto 100% (One-Click)"}
+            </button>
+            <button
+              className="button secondary"
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                borderColor: "rgba(129, 140, 248, 0.7)",
+                color: "#E0E7FF",
+                background: "rgba(99, 102, 241, 0.22)",
+                boxShadow: "0 0 10px rgba(99, 102, 241, 0.2)",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "5px"
+              }}
+              onClick={handleAutoBrollAll}
+              disabled={isAutoBrollingAll || isFullAutoRunning}
+              title="วิเคราะห์บทพูดและจัด B-roll ทุกช็อต A-roll อัตโนมัติด้วย AI พร้อมเกลี่ยฟุตเทจไม่ซ้ำกันทั้งกระดาน"
+            >
+              {isAutoBrollingAll ? "⏳ กำลังจัด B-roll..." : "✨ Auto B-Roll All (ทั้งกระดาน)"}
+            </button>
+            <button
+              className="button secondary"
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                borderColor: "rgba(34, 211, 238, 0.5)",
+                color: "#A5F3FC",
+                background: "rgba(6, 182, 212, 0.16)",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "5px"
+              }}
+              onClick={handleAutoLowerThirdAll}
+              disabled={isAutoLowerThirdRunning || isFullAutoRunning}
+              title="ดึงชื่อและตำแหน่งวิทยากรจาก DOCX มาตั้งค่า Lower-Third (PSU Royal Gold Glass Beacon) ทุกฉาก A-Roll อัตโนมัติ"
+            >
+              {isAutoLowerThirdRunning ? "⏳ กำลังตั้งค่า..." : "🏷️ Auto Lower-Third All"}
+            </button>
+            <button
+              className="button secondary"
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                borderColor: "rgba(16, 185, 129, 0.5)",
+                color: "#A7F3D0",
+                background: "rgba(16, 185, 129, 0.14)",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "5px"
+              }}
+              onClick={handleAutoGenerateAssets}
+              disabled={isGeneratingAssets || isFullAutoRunning || isAutoBrollingAll || isResyncing}
+              title="สั่งตัดพื้นหลังบุคคลด้วย Apple Vision (0.5 วินาที) และเจนภาพพื้นหลังสตูดิโอด้วย ComfyUI เข้า Storyboard โดยอัตโนมัติ"
+            >
+              {isGeneratingAssets ? "⏳ กำลังเจนแอสเซต..." : "🎨 Auto Cover Assets"}
+            </button>
+            <button
+              className="button secondary"
+              style={{
+                padding: "6px 10px",
+                fontSize: "12px",
+                borderColor: "rgba(148, 163, 184, 0.3)",
+                color: "#94A3B8",
+                background: "rgba(30, 41, 59, 0.4)"
+              }}
+              onClick={handleResyncDocx}
+              disabled={isResyncing}
+              title="โหลดไฟล์ DOCX ต้นฉบับจาก NAS ใหม่อีกครั้ง เพื่อซิงค์บทพูดล่าสุดโดยคง B-roll และการตัดต่อเดิมไว้"
+            >
+              {isResyncing ? "⏳..." : "🔄 ซิงค์ DOCX"}
+            </button>
+          </div>
+
+          {/* Right: BGM & Soundtrack Controller */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(11, 18, 32, 0.7)", padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#FBBF24" }}>🎵 BGM:</span>
+            <select
+              value={bgmPresetId}
+              onChange={(e) => {
+                setBgmPresetId(e.target.value);
+                const preset = BGM_PRESETS.find((p) => p.id === e.target.value);
+                if (preset?.path) {
+                  setCustomBgmPath(preset.path);
+                }
+              }}
+              style={{
+                background: "#090D16",
+                border: "1px solid #334155",
+                color: "#F8FAFC",
+                fontSize: "11px",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                outline: "none"
+              }}
+            >
+              {BGM_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+              {bgmPresetId === "custom" && (
+                <option value="custom">📁 Custom: {customBgmPath ? customBgmPath.split("/").pop() : "ไฟล์เฉพาะกิจ"}</option>
+              )}
+            </select>
+
+            {effectiveAuditionPath && bgmPresetId !== "none" && (
+              <button
+                type="button"
+                onClick={toggleAudition}
+                style={{
+                  background: isAuditionPlaying ? "rgba(239, 68, 68, 0.3)" : "rgba(139, 92, 246, 0.2)",
+                  border: `1px solid ${isAuditionPlaying ? "#EF4444" : "#8B5CF6"}`,
+                  borderRadius: "4px",
+                  color: isAuditionPlaying ? "#FCA5A5" : "#C4B5FD",
+                  padding: "3px 8px",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+                title="กดเพื่อลองฟังเสียงเพลงตัวอย่าง (Audition)"
+              >
+                {isAuditionPlaying ? "⏸️ หยุด" : "▶️ พรีวิว"}
+              </button>
+            )}
+
+            {effectiveAuditionPath && (
+              <audio
+                ref={audioAuditionRef}
+                src={`/api/v1/media/stream?path=${encodeURIComponent(effectiveAuditionPath)}`}
+                onEnded={() => setIsAuditionPlaying(false)}
+                onError={() => setIsAuditionPlaying(false)}
+              />
+            )}
+
+            {bgmPresetId !== "none" && (
+              <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "#CBD5E1", cursor: "pointer", userSelect: "none" }}>
+                <input
+                  type="checkbox"
+                  checked={autoDucking}
+                  onChange={(e) => setAutoDucking(e.target.checked)}
+                />
+                <span>Auto-Ducking</span>
+                {autoDucking && (
+                  <span style={{ fontSize: "9px", padding: "1px 5px", borderRadius: "4px", background: "rgba(34, 211, 238, 0.2)", color: "#22D3EE", fontWeight: 600 }}>
+                    -14dB ในเสียงพูด
+                  </span>
+                )}
+              </label>
+            )}
+          </div>
+        </div>
+
+        {isBgmPickerOpen && (
+          <RemoteFilePickerModal
+            isOpen={isBgmPickerOpen}
+            initialPath=""
+            mode="file"
+            filter=".mp3,.wav,.m4a,.aac,.flac,.ogg"
+            title="เลือกไฟล์เพลงประกอบ BGM จาก NAS หรือเครื่อง"
+            onSelect={(selectedPath) => {
+              setCustomBgmPath(selectedPath);
+              setBgmPresetId("custom");
+              setIsBgmPickerOpen(false);
+            }}
+            onClose={() => setIsBgmPickerOpen(false)}
+          />
+        )}
 
         {showLivePlayer && storyboard && (
           <InteractiveTimelineStudioModal
             storyboard={storyboard}
+            bgmTrack={selectedBgmTrack}
             onMutate={(updater) => {
               setStoryboard((prev) => {
                 if (!prev) return prev;
@@ -388,6 +865,16 @@ export default function StoryboardEditorPage() {
               });
             }}
             onClose={() => setShowLivePlayer(false)}
+          />
+        )}
+
+        {showRenderModal && storyboard && (
+          <RenderProgressModal
+            isOpen={showRenderModal}
+            onClose={() => setShowRenderModal(false)}
+            storyboard={storyboard}
+            bgmTrack={selectedBgmTrack}
+            initialFormat={aspectRatio === "9:16" ? "9:16" : "16:9"}
           />
         )}
 
@@ -525,6 +1012,178 @@ export default function StoryboardEditorPage() {
             </div>
           </section>
 
+          {/* PANE 2: LIVE STUDIO CANVAS & TIMELINE */}
+          <section className="studio-canvas-pane">
+            <div className="canvas-header">
+              <h2><span>🎬</span> Studio Canvas Monitor</h2>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="aspect-btn"
+                  onClick={() => setShowSafeZones((v) => !v)}
+                  style={{
+                    border: "1px solid var(--border-subtle)",
+                    background: showSafeZones ? "rgba(0, 229, 255, 0.15)" : "transparent",
+                    color: showSafeZones ? "var(--accent-cyan)" : "var(--text-muted)"
+                  }}
+                >
+                  🎯 Safe Zones {showSafeZones ? "ON" : "OFF"}
+                </button>
+                <button
+                  type="button"
+                  className="aspect-btn active"
+                  onClick={() => setShowLivePlayer(true)}
+                  style={{
+                    border: "1px solid rgba(229, 169, 60, 0.4)",
+                    background: "rgba(229, 169, 60, 0.12)",
+                    color: "var(--accent-gold)"
+                  }}
+                >
+                  ⚡ Open Detailed Studio
+                </button>
+              </div>
+            </div>
+
+            <div className="canvas-viewport-container">
+              <div
+                className="canvas-viewport"
+                style={{
+                  width: "480px",
+                  height: "270px",
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  background: "radial-gradient(circle at center, #111C30 0%, #060A12 100%)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  boxShadow: "0 12px 32px rgba(0, 0, 0, 0.5)"
+                }}
+              >
+                {showSafeZones && (
+                  <div className="safe-zone-overlay" style={{ inset: "5%", border: "1px dashed rgba(229, 169, 60, 0.4)" }}>
+                    <div className="safe-zone-box" style={{ inset: "5%", border: "1px solid rgba(0, 229, 255, 0.3)" }}>
+                      <span className="safe-zone-label" style={{ color: "#E5A93C", fontSize: "10px" }}>16:9 Broadcast Safe Area</span>
+                    </div>
+                  </div>
+                )}
+
+                {selected ? (
+                  <div style={{ textAlign: "center", padding: "16px", zIndex: 1 }}>
+                    <span className={`kind-pill ${selected.kind}`} style={{ marginBottom: "10px" }}>
+                      {kindLabel(selected.kind)}
+                    </span>
+                    <div style={{ fontSize: "14px", fontWeight: 800, color: "#F8FAFC", marginTop: "8px" }}>
+                      {selected.params.title ? String(selected.params.title) : selected.id}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--accent-cyan)", fontFamily: "monospace", marginTop: "4px" }}>
+                      ⏱ {formatSeconds(selected.durationMs)}s ({selected.audioPolicy})
+                    </div>
+                    {selected.presetId && (
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
+                        Preset: {selected.presetId}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ color: "var(--text-dim)", fontSize: "12px" }}>No Scene Selected</div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Scrub Controls & Sequence Blocks */}
+            <div className="studio-scrub-strip">
+              <div className="scrub-controls">
+                <div className="timecode-display">
+                  00:00:00:00 · {storyboard?.items.length ?? 0} Clips
+                </div>
+                <div className="scrub-buttons">
+                  <button
+                    type="button"
+                    className="scrub-btn"
+                    title="Step back 1 frame (-40ms)"
+                    onClick={() => {
+                      if (!selected) return;
+                      updateDuration(Math.max(40, selected.durationMs - 40));
+                    }}
+                  >
+                    -1 Frame
+                  </button>
+                  <button
+                    type="button"
+                    className="scrub-btn"
+                    title="Step forward 1 frame (+40ms)"
+                    onClick={() => {
+                      if (!selected) return;
+                      updateDuration(selected.durationMs + 40);
+                    }}
+                  >
+                    +1 Frame
+                  </button>
+                </div>
+              </div>
+
+              <div className="canvas-mini-timeline" title="Click a clip to inspect">
+                {storyboard?.items.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className={`mini-timeline-block ${item.kind} ${selectedId === item.id ? "selected" : ""}`}
+                    onClick={() => {
+                      setSelectedId(item.id);
+                      setSelectedBrollId("");
+                    }}
+                    title={`${idx + 1}. ${item.id} (${formatSeconds(item.durationMs)}s)`}
+                  >
+                    {idx + 1}. {item.id}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sleek Collapsible Diagnostics Drawer */}
+            <aside
+              className={`diagnostics-drawer ${blockerCount > 0 ? "has-blockers" : ""}`}
+              onClick={() => setShowDiagnosticsDetail((v) => !v)}
+              role="button"
+              tabIndex={0}
+              aria-label="Toggle diagnostics details"
+            >
+              <header>
+                <span>{blockerCount > 0 ? "⚠️ Diagnostics" : "✓ Diagnostics"}</span>
+                <span>
+                  {blockerCount > 0 ? `${blockerCount} blockers` : "All checks passed"}{" "}
+                  <strong style={{ fontSize: "9px", marginLeft: "4px" }}>
+                    {showDiagnosticsDetail ? "▲" : "▼"}
+                  </strong>
+                </span>
+              </header>
+              {(showDiagnosticsDetail || blockerCount > 0) && (
+                <div className="diagnostics-list">
+                  {diagnostics.length ? (
+                    diagnostics.map((item, index) => (
+                      <article
+                        key={`${item.code}-${index}`}
+                        className={item.severity}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (item.itemId) setSelectedId(item.itemId);
+                        }}
+                      >
+                        <strong>{item.code}</strong> {item.message}
+                        {item.rowNumber && <small> (DOCX row {item.rowNumber})</small>}
+                      </article>
+                    ))
+                  ) : (
+                    <p className="empty-diagnostics" style={{ margin: 0, fontSize: "10px" }}>
+                      กด Validate เพื่อตรวจ Storyboard revision ปัจจุบัน
+                    </p>
+                  )}
+                </div>
+              )}
+            </aside>
+          </section>
+
+          {/* PANE 3: MODULAR TABBED INSPECTOR */}
           <section className="storyboard-inspector">
             {selected ? (
               <>
@@ -540,120 +1199,142 @@ export default function StoryboardEditorPage() {
                   </div>
                 </div>
 
-                <section className="inspector-section">
-                  <h3>Node setup</h3>
-                  <div className="field-grid">
-                    <label>
-                      Kind
-                      <select
-                        value={selected.kind}
-                        onChange={(event) => changeKind(event.target.value as StoryboardKind)}
-                      >
-                        {["title", "a_roll", "cover_card", "logo_outro", "note"].map((value) => (
-                          <option key={value} value={value}>
-                            {kindLabel(value as StoryboardKind)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {selected.kind !== "note" && (
-                      <>
-                        <SecondsField
-                          label="Duration"
-                          valueMs={selected.durationMs}
-                          minMs={40}
-                          onChange={updateDuration}
-                        />
-                        <label>
-                          Preset
-                          <select
-                            aria-label="Preset"
-                            value={selected.presetId ?? presetOptions[selected.kind][0]?.value ?? ""}
-                            onChange={(event) => updatePreset(event.target.value)}
-                          >
-                            {presetOptions[selected.kind].map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <small className="field-help">
-                            เลือกเฉพาะ preset ที่รองรับ {kindLabel(selected.kind)}
-                          </small>
-                        </label>
-                        <label>
-                          Audio policy
-                          <select value={selected.audioPolicy} disabled>
-                            <option>{selected.audioPolicy}</option>
-                          </select>
-                          <small className="field-help">กำหนดตามชนิดโหนดเพื่อป้องกันเสียงซ้อน</small>
-                        </label>
-                      </>
-                    )}
-                  </div>
-                </section>
+                {/* Inspector Tabs */}
+                <div className="inspector-tabs" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeInspectorTab === "style"}
+                    className={`inspector-tab-btn ${activeInspectorTab === "style" ? "active" : ""}`}
+                    onClick={() => setActiveInspectorTab("style")}
+                  >
+                    🎨 Style
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeInspectorTab === "media"}
+                    className={`inspector-tab-btn ${activeInspectorTab === "media" ? "active" : ""}`}
+                    onClick={() => setActiveInspectorTab("media")}
+                  >
+                    📁 Media
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeInspectorTab === "timing"}
+                    className={`inspector-tab-btn ${activeInspectorTab === "timing" ? "active" : ""}`}
+                    onClick={() => setActiveInspectorTab("timing")}
+                  >
+                    ⏱️ Timing
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeInspectorTab === "graphics"}
+                    className={`inspector-tab-btn ${activeInspectorTab === "graphics" ? "active" : ""}`}
+                    onClick={() => setActiveInspectorTab("graphics")}
+                  >
+                    🏷️ Graphics
+                  </button>
+                </div>
 
-                {selected.kind === "a_roll" && (
-                  <ARollInspector
-                    item={selected}
-                    selectedBrollId={selectedBrollId}
-                    onSelectBroll={setSelectedBrollId}
-                    onParams={updateParams}
-                    onItem={replaceItem}
-                    canMerge={canMerge}
-                    onSplit={splitSelected}
-                    onMerge={mergePrevious}
-                  />
-                )}
-                {selected.kind === "title" && (
-                  <TitleCarouselInspector
-                    item={selected}
-                    onParams={updateParams}
-                    onItem={replaceItem}
-                  />
-                )}
-                {selected.kind === "cover_card" && (
-                  <CoverCardInspector
-                    item={selected}
-                    onParams={updateParams}
-                    onRun={triggerRun}
-                    nodeRun={nodeRun}
-                    nodeRunBusy={nodeRunBusy}
-                    saveState={saveState}
-                  />
-                )}
-                {selected.kind === "logo_outro" && (
-                  <LogoOutroInspector item={selected} onParams={updateParams} onItem={replaceItem} />
-                )}
-                {selected.kind === "note" && (
-                  <NoteInspector item={selected} onParams={updateParams} />
-                )}
+                <div className="inspector-scroll-body nle-scroll">
+                  <section className="inspector-section">
+                    <h3>Node setup</h3>
+                    <div className="field-grid">
+                      <label>
+                        Kind
+                        <select
+                          value={selected.kind}
+                          onChange={(event) => changeKind(event.target.value as StoryboardKind)}
+                        >
+                          {["title", "a_roll", "cover_card", "logo_outro", "note"].map((value) => (
+                            <option key={value} value={value}>
+                              {kindLabel(value as StoryboardKind)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {selected.kind !== "note" && (
+                        <>
+                          <SecondsField
+                            label="Duration"
+                            valueMs={selected.durationMs}
+                            minMs={40}
+                            onChange={updateDuration}
+                          />
+                          <label>
+                            Preset
+                            <select
+                              aria-label="Preset"
+                              value={selected.presetId ?? presetOptions[selected.kind][0]?.value ?? ""}
+                              onChange={(event) => updatePreset(event.target.value)}
+                            >
+                              {presetOptions[selected.kind].map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <small className="field-help">
+                              เลือกเฉพาะ preset ที่รองรับ {kindLabel(selected.kind)}
+                            </small>
+                          </label>
+                          <label>
+                            Audio policy
+                            <select value={selected.audioPolicy} disabled>
+                              <option>{selected.audioPolicy}</option>
+                            </select>
+                            <small className="field-help">กำหนดตามชนิดโหนดเพื่อป้องกันเสียงซ้อน</small>
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </section>
+
+                  {selected.kind === "a_roll" && (
+                    <ARollInspector
+                      item={selected}
+                      storyboardId={storyboardId}
+                      selectedBrollId={selectedBrollId}
+                      onSelectBroll={setSelectedBrollId}
+                      onParams={updateParams}
+                      onItem={replaceItem}
+                      canMerge={canMerge}
+                      onSplit={splitSelected}
+                      onMerge={mergePrevious}
+                    />
+                  )}
+                  {selected.kind === "title" && (
+                    <TitleCarouselInspector
+                      item={selected}
+                      onParams={updateParams}
+                      onItem={replaceItem}
+                    />
+                  )}
+                  {selected.kind === "cover_card" && (
+                    <CoverCardInspector
+                      item={selected}
+                      onParams={updateParams}
+                      onRun={triggerRun}
+                      nodeRun={nodeRun}
+                      nodeRunBusy={nodeRunBusy}
+                      saveState={saveState}
+                    />
+                  )}
+                  {selected.kind === "logo_outro" && (
+                    <LogoOutroInspector item={selected} onParams={updateParams} onItem={replaceItem} />
+                  )}
+                  {selected.kind === "note" && (
+                    <NoteInspector item={selected} onParams={updateParams} />
+                  )}
+                </div>
               </>
             ) : (
               <p>Select an item to edit.</p>
             )}
           </section>
-
-          <aside className="storyboard-diagnostics">
-            <h2>
-              Diagnostics <span>{blockerCount} blockers</span>
-            </h2>
-            {diagnostics.length ? (
-              diagnostics.map((item, index) => (
-                <article
-                  key={`${item.code}-${index}`}
-                  className={item.severity}
-                  onClick={() => item.itemId && setSelectedId(item.itemId)}
-                >
-                  <strong>{item.code}</strong>
-                  <p>{item.message}</p>
-                  {item.rowNumber && <small>DOCX row {item.rowNumber}</small>}
-                </article>
-              ))
-            ) : (
-              <p className="empty-diagnostics">กด Validate เพื่อตรวจ Storyboard revision ปัจจุบัน</p>
-            )}
-          </aside>
         </div>
 
         <section className="compiled-preview">

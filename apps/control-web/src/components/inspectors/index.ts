@@ -6,3 +6,4 @@ export * from "./TitleCarouselInspector";
 export * from "./ARollInspector";
 export * from "./LogoOutroInspector";
 export * from "./NoteInspector";
+export * from "./BgmInspector";

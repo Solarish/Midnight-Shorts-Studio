@@ -1,0 +1,305 @@
+[
+  {
+    "shotIndex": 1,
+    "id": "interview_01",
+    "sourceKey": "C7724",
+    "dialogue": "สิ่งที่ตัวเองภูมิใจมาตลอดก็คือว่าเราสามารถทำให้ลูกศิษย์เราเติบโตขึ้นได้แล้วก็เราก็เป็นส่วนหนึ่งของการเติบโตนั้น",
+    "durationMs": 10000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_01_aroll.jpg",
+    "brollCount": 1,
+    "brolls": [
+      {
+        "brollId": "interview_01_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7736.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_01_broll_1.jpg",
+        "offsetMs": 3320,
+        "durationMs": 4000
+      }
+    ]
+  },
+  {
+    "shotIndex": 2,
+    "id": "interview_02",
+    "sourceKey": "C7723",
+    "dialogue": "รองศาสตราจารย์ ทันต แพทย์หญิง เก วลิน ธรรมสิทธิ์บูรณ์นะคะ อาจารย์ตัวอย่างดีเด่นด้านการเรียนการสอน สาขาวิทยาศาสตร์และเทคโนโลยีและวิทยาศาสตร์สุขภาพค่ะ เอ่อของมหาวิทยาลัยสงขลานครินทร์ประจำปี 2569 ค่ะ",
+    "durationMs": 17000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_02_aroll.jpg",
+    "brollCount": 1,
+    "brolls": [
+      {
+        "brollId": "interview_02_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7747.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_02_broll_1.jpg",
+        "offsetMs": 6120,
+        "durationMs": 4000
+      }
+    ]
+  },
+  {
+    "shotIndex": 3,
+    "id": "interview_03",
+    "sourceKey": "C7723",
+    "dialogue": "คือไม่ใช่เฉพาะแค่ทำงานอย่างเดียวเพราะว่าตัวเองก็เป็นศิษย์เก่าของมหาวิทยาลัยสงขลานครินทร์ด้วย ก็จบจากหลักสูตรทันตแพทย์ศาสตร์บัณฑิต ของคณะทันตแพทย์ ที่นี่นะคะ แล้วก็หลังจากนั้นก็รู้สึกว่าไม่อยากทำแค่คนไข้อย่างเดียวก็เลยสมัครเป็นอาจารย์ที่นี่นะคะ แล้วก็ได้รับทุน กพ ไปเรียนต่อต่างประเทศที่ที่มหาวิทยาลัย ฮาร์ เวิร์ดที่ประเทศสหรัฐอเมริกานะคะก็ไปเรียนได้รับปริญญาเอกแล้วก็ เทรนเป็น ทันต แพทย์เฉพาะทางจากที่นั่นแล้วก็หลังจากนั้นก็กลับมาทำงานในฐานะอาจารย์ตลอดระยะเวลาที่ผ่านมาทั้งหมดก็ตอนนี้ก็ประมาณ 20 กว่าปีแล้วค่ะ งั้นถ้าถามว่าประทับใจอะไรกับ มอ ของเรานะคะก็คงต้องบอกว่าเป็นในเรื่องของหลายหลายด้านเลยเพราะ มอ เป็นทุกอย่างเป็นอยู่ที่นี่มาทั้งชีวิตเลยทีเดียวนะคะ ในหลายๆ ด้าน แต่ว่าสิ่งที่สำคัญมากมากและที่รู้สึกว่าประทับใจก็คือโอกาส โอกาสที่ได้รับทั้งในแง่ของการศึกษาประสบการณ์แล้วก็ด้านการทำงานนะคะ เพราะว่าอย่างที่เรียนก็คือว่าทำงานที่นี่มาตลอดนะคะที่มหาลัยให้โอกาสในการพัฒนาตัวเองนะคะ",
+    "durationMs": 76000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_03_aroll.jpg",
+    "brollCount": 5,
+    "brolls": [
+      {
+        "brollId": "interview_03_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7734.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_03_broll_1.jpg",
+        "offsetMs": 2920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_03_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7745.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_03_broll_2.jpg",
+        "offsetMs": 5920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_03_broll_3",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7732.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_03_broll_3.jpg",
+        "offsetMs": 34120,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_03_broll_4",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7743.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_03_broll_4.jpg",
+        "offsetMs": 37120,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_03_broll_5",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7730.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_03_broll_5.jpg",
+        "offsetMs": 44120,
+        "durationMs": 3520
+      }
+    ]
+  },
+  {
+    "shotIndex": 4,
+    "id": "interview_04",
+    "sourceKey": "C7724",
+    "dialogue": "ต้องบอกเล่าว่าอย่าง งี้ ก่อนคือว่าวัฒนธรรมนึงที่ตัวเองชอบมากๆ ของคณะทันตะก็คือว่าเราจะแทนตัว ตัวอาจารย์เรียกตัวเองว่าพี่ แล้วก็เรียกนักศึกษาว่าน้อง อันเนี้ยเป็นบรรยากาศที่ดีมากมากเลยนะคะ แล้วก็เราก็ทำอย่าง งี้ กันมาตลอดตั้งแต่เปิดคณะนะคะ งั้นส่วนตัวเวลาเวลาสอนนักศึกษาแล้วก็ก็จะแทนตัวเองว่าพี่แล้วก็เรียกเขาว่าน้องหรือหมอนะคะ",
+    "durationMs": 25000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_04_aroll.jpg",
+    "brollCount": 2,
+    "brolls": [
+      {
+        "brollId": "interview_04_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7726.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_04_broll_1.jpg",
+        "offsetMs": 3520,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_04_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7731.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_04_broll_2.jpg",
+        "offsetMs": 6520,
+        "durationMs": 3000
+      }
+    ]
+  },
+  {
+    "shotIndex": 5,
+    "id": "interview_05",
+    "sourceKey": "C7724",
+    "dialogue": "คือการเรียนเป็นทันตแพทย์นี่เครียดแล้วก็เนื้อหาก็เยอะมากแล้วก็ไม่ใช่เรื่องง่ายที่จะเข้าใจถ้าส่วนตัวเนี่ยเวลาเวลาเตรียม เลคเชอร์ หรือบรรยายเนี่ยจะใช้เวลายาวนานมากนะคะเพื่อทำสิ่งยากให้ง่าย แล้วก็ใช้เทคนิคต่างๆ ให้เขาจำได้ง่ายอาจจะล้อเล่นกับเขาหรือเปรียบเทียบอะไรกับสิ่งรอบตัว เขาอะ ค่ะเปรียบใช้การเปรียบเทียบกับสิ่ง ง่ายๆ ให้เขาเข้าใจ อีกส่วนหนึ่งที่รู้สึกเป็นสิ่งที่สำคัญมากแล้วก็เป็นทักษะที่ตัวเองพยายามพัฒนาตัวเองมาตลอด แล้วก็เผอิญโชคดีด้วยค่ะว่าเคยมีตัวอย่างอาจารย์ผู้ใหญ่เหมือนกันที่เป็นท่านที่มีทักษะด้านนี้ดีมากเลย เรื่องนั้นก็คือการให้ฟีดแบค",
+    "durationMs": 48000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_05_aroll.jpg",
+    "brollCount": 3,
+    "brolls": [
+      {
+        "brollId": "interview_05_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7742.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_05_broll_1.jpg",
+        "offsetMs": 2920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_05_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7741.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_05_broll_2.jpg",
+        "offsetMs": 5920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_05_broll_3",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7728.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_05_broll_3.jpg",
+        "offsetMs": 20440,
+        "durationMs": 3520
+      }
+    ]
+  },
+  {
+    "shotIndex": 6,
+    "id": "interview_06",
+    "sourceKey": "C7724",
+    "dialogue": "ให้ฟีดแบคนักศึกษาอย่างไรที่จะเป็นการเสริมแรงเขาเป็นการเอ็น เคอร์เรจ ไม่ ใช่ดิสเคอร์เรจ อาจารย์ท่านนั้นเวลาเราทำผิด อาจารย์ท่านนั้นจะไม่ไม่ชี้ไปทางสิ่งที่เราทำพลาดหรือผิดโดยทันที ท่านจะดึงสิ่งที่เราทำดีก่อนทำเป็นจุดแข็ง ของเราขึ้นมาชื่นชมแล้ว หลังจากนั้นก็ค่อยๆ ชี้แนะว่าอะไรที่เราผิดพลาดไปแล้วก็ควรจะพัฒนายังไง คือมีความรู้สึกว่าความเป็นอาจารย์กับลูกศิษย์เราจะต้องให้ฟีดแบคกันตลอดเวลา ถ้าฟีดแบคนั้นไม่เสริมแรง เด็กอะ ค่ะเด็กก็จะรู้สึกว่าเฮ้ยเราทำไม่ได้แล้วเราก็จะทำไม่ได้ตลอดไปหรือเปล่า แล้วเด็กก็จะกลัวความผิดพลาด จริงๆแล้วเนี่ยความผิดพลาดทุกคนรู้แล้วค่ะว่าความผิดพลาดเป็นบทเรียนที่ดีสำหรับการพัฒนา เพราะงั้นจุดเนี้ยที่สำคัญมาก ๆ ที่จะทำให้เด็กสามารถเติบโตต่อไปได้ค่ะ",
+    "durationMs": 54000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_06_aroll.jpg",
+    "brollCount": 3,
+    "brolls": [
+      {
+        "brollId": "interview_06_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7739.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_06_broll_1.jpg",
+        "offsetMs": 2920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_06_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7737.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_06_broll_2.jpg",
+        "offsetMs": 5920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_06_broll_3",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7748.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_06_broll_3.jpg",
+        "offsetMs": 23440,
+        "durationMs": 3520
+      }
+    ]
+  },
+  {
+    "shotIndex": 7,
+    "id": "interview_07",
+    "sourceKey": "C7724",
+    "dialogue": "ถ้าเป็นในแง่ของชิ้นงานอย่างเดี๋ยวนี้เราต้องมีนวัตกรรมต่าง ๆ นานานะคะ ตอนนี้ก็คือถ้าเป็นชิ้นงานเราหมายถึงอาจารย์และทีมในภาควิชาหรือสาขาวิชาเนี่ยเราทำกันหลักเยอะแยะมากมาย แต่ถ้ายกตัวอย่างก็อาจจะเป็นชิ้นฟันสำรองสามมิติที่เราใช้เทคโนโลยีของทรีดีปริต ติ้ง มามาทำนะคะ ก็ต้องเล่าก่อนว่าในอดีตเนี่ยคือเวลาทันตแพทย์ก่อนจะไปทำคนไข้อะนะคะเขาก็ต้องเริ่มทำในในแล็บก่อนนะคะ ในอดีตเนี่ยเราจะให้นักศึกษาไปเก็บฟันฟันคนฟันธรรมชาติน่ะค่ะจากที่เขาถอนมาแล้วแล้วก็เอามาฝึกกัน อันนี้ความยากมันอยู่ที่ว่าฟันแต่ละคนไม่เหมือนกัน",
+    "durationMs": 44000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_07_aroll.jpg",
+    "brollCount": 2,
+    "brolls": [
+      {
+        "brollId": "interview_07_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7740.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_07_broll_1.jpg",
+        "offsetMs": 3520,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_07_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7736.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_07_broll_2.jpg",
+        "offsetMs": 6520,
+        "durationMs": 3000
+      }
+    ]
+  },
+  {
+    "shotIndex": 8,
+    "id": "interview_08",
+    "sourceKey": "C7724",
+    "dialogue": "แล้วก็เกิดความไม่เท่าเทียมกันด้วยว่าเพื่อนได้ฟันซี่ง่ายนะคะ งั้นพอเกิดปัญหานี้เกิดขึ้นเราก็รู้สึก ว่าอืม มันไม่ แฟร์ เราน่าจะทำอะไรได้ก็เลยออกแบบฟันจำลองทำกับนักศึกษา ป . โท นะคะ ออกแบบฟันจำลองที่เราสามารถปรับระดับความยากง่ายได้ตามทักษะของนักศึกษานะคะก็พอเอามาใช้เด็กเด็กก็สามารถพัฒนาจากบทเรียนง่าย ๆ แล้วก็ไต่ระดับขึ้นไปได้แล้วก็สามารถฝึกซ้ำจนเขาเชี่ยวชาญได้ค่ะ อันนี้น่าจะเป็นชิ้นงานที่ช่วยพัฒนาการเรียนการสอน และเป็นชิ้นงานที่ภาคภูมิใจค่ะ",
+    "durationMs": 36000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_08_aroll.jpg",
+    "brollCount": 2,
+    "brolls": [
+      {
+        "brollId": "interview_08_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7726.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_08_broll_1.jpg",
+        "offsetMs": 3520,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_08_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7737.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_08_broll_2.jpg",
+        "offsetMs": 6520,
+        "durationMs": 3000
+      }
+    ]
+  },
+  {
+    "shotIndex": 9,
+    "id": "interview_09",
+    "sourceKey": "C7724",
+    "dialogue": "คิดว่าที่สำคัญที่สุดน่าจะเป็นแง่มุมของความเป็นครูค่ะ คือสิ่งที่ตัวเองภูมิใจมาตลอดก็คือว่าเราเราสามารถทำให้ลูกศิษย์เราเติบโตขึ้นได้แล้วก็เราก็เป็นส่วนหนึ่งของการ เติบโตนั้นนะคะ หลาย ๆ ครั้งที่ลูกศิษย์ที่จบไปนานมาก ๆ แล้วเป็น 10 ปีแล้วเขาก็กลับมาแล้วเขาก็พูดกับเราว่า สิ่งที่อาจารย์สอนทั้งในแง่ของทักษะวิชาชีพหลักคิดหลักการทำคนไข้การคุยกับคนไข้หรือว่าหลักคิดของการใช้ ชีวิตอะ เขาเอาไปใช้ได้จริง ๆ อันเนี้ยเป็นความภาคภูมิใจมาก แล้วก็ยังเอ่อเวลาลูกศิษย์กลับมาหาแล้วเขาให้ความชื่นชมคำชื่นชมแบบเนี้ยอันเนี้ยคือสิ่งที่มีความภาคภูมิใจแล้วคิดว่าทำให้เราสามารถทำการเรียนการสอนได้ได้ดีขึ้น เรื่อยๆ",
+    "durationMs": 51000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_09_aroll.jpg",
+    "brollCount": 3,
+    "brolls": [
+      {
+        "brollId": "interview_09_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7745.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_09_broll_1.jpg",
+        "offsetMs": 2920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_09_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7748.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_09_broll_2.jpg",
+        "offsetMs": 5920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_09_broll_3",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7731.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_09_broll_3.jpg",
+        "offsetMs": 21920,
+        "durationMs": 3520
+      }
+    ]
+  },
+  {
+    "shotIndex": 10,
+    "id": "interview_10",
+    "sourceKey": "C7724",
+    "dialogue": "ก็รู้สึกดีใจมากน่ะนะคะแล้วก็รู้สึกดีใจและเป็นเกียรติอย่างมากนะคะ ซึ่งไม่ใช่รางวัลของตัวเองคนเดียวอย่างที่อย่างที่เรียนคือว่าเราทำงานกันเป็นทีม ต้องขอบคุณ พี่ ๆ น้อง ๆ เพื่อน ๆ อาจารย์ในในสาขามากมากที่ช่วยช่วยกันรวมถึงรวมถึงนักศึกษาปริญญาโทที่ช่วยงาน แล้วก็ผู้ใหญ่ใจดีทั้งหลายทุก ๆ ท่านในคณะนะคะที่ให้การสนับสนุนให้โอกาสแล้วก็ให้คำแนะนำมาตลอดเวลานะคะ รางวัลนี้น่าจะเป็นกำลังใจที่ดีแล้วก็เป็นสิ่งเตือนใจค่ะว่าเราได้มาจากการทำ การทำสิ่งที่อยากทำ ทำสิ่งที่เป็นหน้าที่ แล้วก็ทำให้ดีที่สุดโดยที่เราไม่รู้ หรอ กว่าเราจะได้รางวัลในวันนี้ถูกไหมคะ เพราะงั้นทุกอย่างทำเพื่อพัฒนาทุกอย่างทำเพื่อแก้ปัญหาให้ลูกศิษย์ของเรานะคะเพราะงั้นเอ่ออันนี้ก็เป็นอีกหนึ่งความภาคภูมิใจ",
+    "durationMs": 59000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_10_aroll.jpg",
+    "brollCount": 3,
+    "brolls": [
+      {
+        "brollId": "interview_10_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7735.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_10_broll_1.jpg",
+        "offsetMs": 2920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_10_broll_2",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7746.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_10_broll_2.jpg",
+        "offsetMs": 5920,
+        "durationMs": 3000
+      },
+      {
+        "brollId": "interview_10_broll_3",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7733.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_10_broll_3.jpg",
+        "offsetMs": 25920,
+        "durationMs": 3520
+      }
+    ]
+  },
+  {
+    "shotIndex": 11,
+    "id": "interview_11",
+    "sourceKey": "C7724",
+    "dialogue": "ทำหน้าที่ของตัวเองให้ดีที่สุดทำด้วยความรัก ทำด้วยความสนุกนะคะ รางวัลหรือสิ่งตอบแทนต่าง ๆ เนี่ยมันเป็นแค่ผลพลอยได้แต่ขออย่าให้หยุดนิ่งแค่นั้นเอง ถ้าเราหยุดนิ่งแล้วไม่ทำอะไรดอกผลก็ไม่เกิดความสวยงามก็ไม่เกิดค่ะ",
+    "durationMs": 18000,
+    "aRollFrame": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_11_aroll.jpg",
+    "brollCount": 1,
+    "brolls": [
+      {
+        "brollId": "interview_11_broll_1",
+        "assetPath": "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7744.MP4",
+        "framePath": "/Users/louislee/Desktop/Midnight-Shorts-Studio/eval_vision_shots/shot_11_broll_1.jpg",
+        "offsetMs": 6520,
+        "durationMs": 4000
+      }
+    ]
+  }
+]

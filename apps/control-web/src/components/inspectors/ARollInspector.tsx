@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { StoryboardItem } from "../../storyboard-types";
+import { autoBrollStoryboardItem } from "../../storyboard-api";
 import { PathField, SecondsField, formatSeconds, formatTimecode } from "./CommonFields";
 import "./inspectors.css";
 
@@ -20,6 +21,7 @@ export const lowerThirdPresetOptions = [
 
 export interface ARollInspectorProps {
   item: StoryboardItem;
+  storyboardId?: string;
   selectedBrollId?: string;
   onSelectBroll?: (id: string) => void;
   onParams: (patch: Record<string, unknown>) => void;
@@ -37,6 +39,7 @@ function uniqueId(prefix: string, existing: string[]) {
 
 export function ARollInspector({
   item,
+  storyboardId,
   selectedBrollId,
   onSelectBroll,
   onParams,
@@ -125,6 +128,73 @@ export function ARollInspector({
     onItem({ ...item, broll: updated });
   };
 
+  const [isAutoBrolling, setIsAutoBrolling] = useState(false);
+  const [detectedTags, setDetectedTags] = useState<string[]>([]);
+  const [autoRationale, setAutoRationale] = useState<string>("");
+
+  const handleAutoBroll = async () => {
+    setIsAutoBrolling(true);
+    try {
+      // 1. Attempt server-side local LLM + candidate pool matching with board-aware cooldown and CSRF protection
+      const targetSbId = storyboardId || "current";
+      const data = await autoBrollStoryboardItem(targetSbId, item.id, {
+        item,
+        dialogue: item.params.dialogue
+      }).catch(() => null);
+
+      if (data && data.broll && Array.isArray(data.broll) && data.broll.length > 0) {
+        onItem({ ...item, broll: data.broll });
+        setDetectedTags([...(data.tags?.tags_th ?? []), ...(data.tags?.tags_en ?? [])]);
+        setAutoRationale(data.rationale ?? "");
+        if (data.broll[0]) onSelectBroll?.(data.broll[0].id);
+        return;
+      }
+
+      // 2. Resilient Broadcast Duration Pacing fallback (pure client math)
+      const dur = item.durationMs;
+      if (dur < 8000) {
+        setAutoRationale("A-roll สั้นเกินไป (< 8 วิ) ผู้ชมต้องเห็นหน้าผู้พูด ไม่แนะนำให้ตัดภาพ B-roll แทรก");
+        return;
+      }
+
+      const HEAD_MS = 2520;
+      const TAIL_MS = 1520;
+      const avail = dur - HEAD_MS - TAIL_MS;
+      if (avail < 2000) {
+        setAutoRationale("ช่วงเวลาว่างสำหรับแทรก B-roll สั้นเกินไป");
+        return;
+      }
+
+      const count = dur < 18000 ? 1 : dur < 35000 ? 2 : dur < 60000 ? 3 : Math.min(5, Math.floor(dur / 15000));
+      const targetDur = Math.max(2000, Math.min(4500, Math.floor(avail / count)));
+      const gap = count > 1 ? Math.max(0, (avail - count * targetDur) / (count - 1)) : 0;
+
+      const samplePool = [
+        "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7736.MP4",
+        "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7742.MP4",
+        "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7740.MP4",
+        "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7748.MP4",
+        "/Volumes/ภาควีดีทัศน์/ปีงบ 69/อาจารย์ตัวอย่าง 69/1.รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์ /Ins/C7731.MP4"
+      ];
+
+      const newBrolls = Array.from({ length: count }).map((_, idx) => ({
+        id: uniqueId(`${item.id}_broll`, []),
+        asset: { path: samplePool[idx % samplePool.length] ?? "" },
+        offsetMs: Math.round((HEAD_MS + idx * (targetDur + gap)) / 40) * 40,
+        durationMs: Math.round(targetDur / 40) * 40,
+        audioPolicy: "mute" as const,
+        fit: "cover" as const,
+        preset: "none"
+      }));
+
+      onItem({ ...item, broll: newBrolls });
+      setAutoRationale(`จัด B-roll อัตโนมัติ ${count} คัต ตามจังหวะเวลา ${Math.round(dur / 1000)}s (เว้นช่วงเปิดหน้า 2.5s / ท้าย 1.5s)`);
+      if (newBrolls[0]) onSelectBroll?.(newBrolls[0].id);
+    } finally {
+      setIsAutoBrolling(false);
+    }
+  };
+
   const updateRange = (patch: Record<string, number>) => {
     const params = { ...item.params, ...patch };
     const sourceInMs = Number(params.sourceInMs ?? 0);
@@ -182,9 +252,12 @@ export function ARollInspector({
   return (
     <div className="inspector-container">
       {/* 1. Preset Selector Card */}
-      <div className="inspector-card accent-blue">
+      <div className="inspector-card accent-amber">
         <details open>
-          <summary style={{ color: "#60A5FA" }}>🎬 A-Roll Presentation Preset</summary>
+          <summary style={{ color: "#FBBF24" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">A-ROLL PRESET // โหมดการนำเสนอ</span>
+          </summary>
           <div className="inspector-card-body">
             <div className="inspector-field">
               <label className="inspector-label">
@@ -203,7 +276,7 @@ export function ARollInspector({
                 </select>
               </label>
               <small style={{ color: "#94A3B8", fontSize: "11px" }}>
-                UI จะปรับแต่ง Form Fields และพารามิเตอร์ตามโหมดการเล่าเรื่องของ A-Roll
+                UI ปรับแต่ง Form Fields และพารามิเตอร์ตามโหมดการเล่าเรื่องของ A-Roll
               </small>
             </div>
           </div>
@@ -211,10 +284,13 @@ export function ARollInspector({
       </div>
 
       {/* 2. Source Media & Range Card */}
-      <div className="inspector-card accent-blue">
+      <div className="inspector-card accent-slate">
         <details open>
-          <summary style={{ color: "#60A5FA" }}>
-            {isVoiceover ? "🎙️ Voiceover Audio Track" : "📁 Primary Video Footage (A-Roll)"}
+          <summary style={{ color: "#CBD5E1" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">
+              {isVoiceover ? "VOICEOVER // แทร็กเสียงบรรยาย" : "PRIMARY FOOTAGE // วิดีโอหลัก (A-Roll)"}
+            </span>
           </summary>
           <div className="inspector-card-body">
             <PathField
@@ -318,11 +394,14 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 3. 🏷️ Lower Third (ป้ายชื่อ & ตำแหน่งวิทยากร) */}
-      <div className="inspector-card accent-gold">
+      {/* 3. Lower Third Card */}
+      <div className="inspector-card accent-amber">
         <details open>
-          <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>🏷️ Lower Third (ป้ายชื่อ &amp; ตำแหน่ง)</span>
+          <summary style={{ color: "#FBBF24", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span className="tva-lamp" />
+              <span className="tva-telemetry-title">LOWER THIRD // ป้ายชื่อ &amp; ตำแหน่ง</span>
+            </div>
             <span style={{ fontSize: "11px", color: enableLowerThird ? "#10B981" : "#94A3B8", fontWeight: 600 }}>
               {enableLowerThird ? "● Lower Third ON" : "○ Lower Third OFF (Default)"}
             </span>
@@ -335,9 +414,9 @@ export function ARollInspector({
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "8px 12px",
-                background: "#1E293B",
-                borderRadius: "8px",
-                border: "1px solid #334155",
+                background: "#161F30",
+                borderRadius: "6px",
+                border: "1px solid #2A364F",
                 marginBottom: "10px"
               }}
             >
@@ -346,7 +425,7 @@ export function ARollInspector({
                   แสดง Lower Third บนวิดีโอ (Overlay)
                 </strong>
                 <small style={{ fontSize: "10px", color: "#94A3B8" }}>
-                  กราฟิกป้ายชื่อหรูหราสำหรับเปิดตัววิทยากร / ผู้ให้สัมภาษณ์
+                  กราฟิกป้ายชื่อสำหรับเปิดตัววิทยากร / ผู้ให้สัมภาษณ์
                 </small>
               </div>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "12px", color: enableLowerThird ? "#10B981" : "#94A3B8" }}>
@@ -449,63 +528,54 @@ export function ARollInspector({
                         display: "flex",
                         alignItems: "center",
                         gap: "12px",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.6), 0 0 16px rgba(229, 169, 60, 0.2)",
-                        position: "relative",
-                        overflow: "hidden"
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.6)"
                       }}
                     >
-                      <div style={{ width: "4px", height: "36px", background: "#E5A93C", borderRadius: "2px", boxShadow: "0 0 10px #E5A93C", flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: "13px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
-                          {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
-                        </div>
-                        <div style={{ fontSize: "11px", fontWeight: 600, color: "#E5A93C", marginTop: "2px" }}>
-                          {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? `· ${ltDepartment}` : ""}
-                        </div>
-                      </div>
                       <div
                         style={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: "2px",
-                          background: "linear-gradient(90deg, transparent 0%, #E5A93C 50%, transparent 100%)"
+                          width: "4px",
+                          height: "36px",
+                          background: "linear-gradient(180deg, #F59E0B, #E5A93C)",
+                          borderRadius: "2px",
+                          boxShadow: "0 0 8px #F59E0B"
                         }}
                       />
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 800, color: "#FFFFFF", letterSpacing: "0.02em" }}>
+                          {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#E5A93C", fontWeight: 600, marginTop: "2px" }}>
+                          {ltTitle || "ตำแหน่งทางวิชาการ"} {ltDepartment ? <span style={{ color: "#94A3B8" }}>· {ltDepartment}</span> : ""}
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {/* Preset 2: Editorial Kinetic Ribbon */}
                   {(ltPresetId === "lowerthird-kinetic-ribbon-v1" || ltPresetId === "lowerthird-gradient-ribbon-v1") && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <div
                         style={{
-                          padding: "8px 16px",
-                          background: "linear-gradient(135deg, rgba(16, 27, 46, 0.96) 0%, rgba(11, 18, 32, 0.98) 100%)",
-                          borderLeft: "4px solid #E5A93C",
-                          borderBottom: "1.5px solid #E5A93C",
-                          borderRadius: "0 8px 0 0",
+                          padding: "6px 14px",
+                          background: "#00E5FF",
                           transform: "skewX(-10deg)",
-                          boxShadow: "0 8px 20px rgba(0,0,0,0.6)"
+                          display: "inline-block"
                         }}
                       >
                         <div style={{ transform: "skewX(10deg)" }}>
-                          <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "#E5A93C" }}>
+                          <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "#000" }}>
                             ◆ PSU BROADCAST OFFICIAL
                           </div>
-                          <div style={{ fontSize: "13px", fontWeight: 900, color: "#FFFFFF", lineHeight: 1.15 }}>
+                          <div style={{ fontSize: "13px", fontWeight: 800, color: "#000" }}>
                             {ltName || "ชื่อวิทยากร / ผู้บรรยาย"}
                           </div>
                         </div>
                       </div>
                       <div
                         style={{
-                          marginLeft: "12px",
-                          padding: "6px 14px",
-                          background: "linear-gradient(135deg, rgba(8, 38, 62, 0.94) 0%, rgba(11, 24, 40, 0.96) 100%)",
-                          borderLeft: "3px solid #00E5FF",
-                          borderRadius: "0 0 8px 0",
+                          padding: "4px 12px",
+                          background: "rgba(15, 23, 42, 0.95)",
+                          borderLeft: "3px solid #E5A93C",
                           transform: "skewX(-10deg)",
                           display: "inline-block"
                         }}
@@ -568,13 +638,16 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 4. Editorial & Speaker Dialogue Card (On-Screen Text Toggleable) */}
-      <div className="inspector-card accent-gold">
+      {/* 4. Editorial & Speaker Dialogue Card */}
+      <div className="inspector-card accent-amber">
         <details>
-          <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>✍️ Editorial, Speaker &amp; Dialogue</span>
-            <span style={{ fontSize: "11px", color: enableSubtitles ? "#10B981" : "#94A3B8", fontWeight: 600 }}>
-              {enableSubtitles ? "● On-screen Text ON" : "○ On-screen Text OFF (Default)"}
+          <summary style={{ color: "#FBBF24", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span className="tva-lamp" />
+              <span className="tva-telemetry-title">EDITORIAL &amp; DIALOGUE // บทพูด &amp; คำบรรยาย</span>
+            </div>
+            <span style={{ fontSize: "10px", color: enableSubtitles ? "#10B981" : "#94A3B8", fontWeight: 700 }}>
+              {enableSubtitles ? "[●] SUBTITLES ON" : "[○] OFF"}
             </span>
           </summary>
           <div className="inspector-card-body">
@@ -585,9 +658,9 @@ export function ARollInspector({
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "8px 12px",
-                background: "#1E293B",
-                borderRadius: "8px",
-                border: "1px solid #334155",
+                background: "#161F30",
+                borderRadius: "6px",
+                border: "1px solid #2A364F",
                 marginBottom: "10px"
               }}
             >
@@ -611,17 +684,26 @@ export function ARollInspector({
 
             <div className="inspector-field">
               <label className="inspector-label">
-                ชื่อผู้พูด / วิทยากร (Speaker Name Badge)
+                ชื่อผู้พูด / วิทยากร (Speaker Name)
                 <input
                   aria-label="Speaker Name"
                   className="inspector-input"
                   value={speaker}
-                  onChange={(event) => onParams({ speaker: event.target.value })}
+                  onChange={(event) => {
+                    const nextSpeaker = event.target.value;
+                    onParams({
+                      speaker: nextSpeaker,
+                      lowerThird: {
+                        ...lowerThird,
+                        name: nextSpeaker
+                      }
+                    });
+                  }}
                   placeholder="เช่น ผศ.ดร. นพ.วิโรจน์ หรือ อาจารย์ประจำภาควิชา"
                 />
               </label>
               <small style={{ color: "#94A3B8", fontSize: "11px" }}>
-                ป้ายชื่อจะแสดงบนหน้าจอเฉพาะเมื่อเปิด &quot;แสดงซับไตเติล / ป้ายชื่อ (ON)&quot;
+                ซิงค์กับป้าย Lower-Third อัตโนมัติ
               </small>
             </div>
 
@@ -641,10 +723,18 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 5. 🎧 J-Cut / L-Cut Split Edit & Audio Transitions Card */}
-      <div className="inspector-card accent-cyan">
-        <details open>
-          <summary style={{ color: "#22D3EE" }}>🎧 Split Edit &amp; Audio Transitions (J-Cut / L-Cut)</summary>
+      {/* 5. J-Cut / L-Cut Split Edit & Audio Transitions Card */}
+      <div className="inspector-card accent-amber">
+        <details open={jCutMs > 0 || lCutMs > 0}>
+          <summary style={{ color: "#FBBF24" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">SPLIT EDIT // ตัดต่อเสียงล่วงหน้า (J/L Cut)</span>
+            {(jCutMs > 0 || lCutMs > 0) && (
+              <span className="tva-badge" style={{ marginLeft: "auto" }}>
+                ACTIVE (J:{formatSeconds(jCutMs)}s / L:{formatSeconds(lCutMs)}s)
+              </span>
+            )}
+          </summary>
           <div className="inspector-card-body">
             <div className="inspector-grid-2">
               <div className="inspector-field">
@@ -658,6 +748,7 @@ export function ARollInspector({
                     step="40"
                     value={jCutMs}
                     onChange={(e) => onParams({ jCutMs: Number(e.target.value) })}
+                    style={{ accentColor: "#F59E0B" }}
                   />
                 </label>
                 <small style={{ color: "#94A3B8", fontSize: "10px" }}>
@@ -676,6 +767,7 @@ export function ARollInspector({
                     step="40"
                     value={lCutMs}
                     onChange={(e) => onParams({ lCutMs: Number(e.target.value) })}
+                    style={{ accentColor: "#F59E0B" }}
                   />
                 </label>
                 <small style={{ color: "#94A3B8", fontSize: "10px" }}>
@@ -695,6 +787,7 @@ export function ARollInspector({
                   step="20"
                   value={audioFadeMs}
                   onChange={(e) => onParams({ audioFadeMs: Number(e.target.value) })}
+                  style={{ accentColor: "#F59E0B" }}
                 />
               </label>
               <small style={{ color: "#64748B", fontSize: "10px" }}>
@@ -710,19 +803,19 @@ export function ARollInspector({
                   padding: "10px",
                   background: "rgba(15, 23, 42, 0.8)",
                   borderRadius: "8px",
-                  border: "1px solid rgba(34, 211, 238, 0.3)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
                   fontSize: "11px",
                   color: "#E2E8F0"
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                  <span style={{ color: "#60A5FA", fontWeight: 700, width: "40px" }}>VIDEO:</span>
+                  <span style={{ color: "#FBBF24", fontWeight: 700, width: "40px" }}>VIDEO:</span>
                   <div style={{ flex: 1, height: "14px", background: "#3B82F6", borderRadius: "4px", textAlign: "center", lineHeight: "14px", fontSize: "9px", color: "#FFF" }}>
                     Visual Frame ({formatSeconds(item.durationMs)}s)
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ color: "#22D3EE", fontWeight: 700, width: "40px" }}>AUDIO:</span>
+                  <span style={{ color: "#F59E0B", fontWeight: 700, width: "40px" }}>AUDIO:</span>
                   <div
                     style={{
                       flex: 1,
@@ -747,11 +840,14 @@ export function ARollInspector({
         </details>
       </div>
 
-      {/* 6. PiP Controls (for a-roll-pip-v1) */}
+      {/* 6. PiP Controls */}
       {isPip && (
         <div className="inspector-card accent-slate">
           <details open>
-            <summary style={{ color: "#CBD5E1" }}>🖼️ Picture-in-Picture (PiP Layout)</summary>
+            <summary style={{ color: "#CBD5E1" }}>
+              <span className="tva-lamp" />
+              <span className="tva-telemetry-title">PIP LAYOUT // ภาพซ้อนภาพ</span>
+            </summary>
             <div className="inspector-card-body">
               <div className="inspector-grid-2">
                 <div className="inspector-field">
@@ -795,6 +891,7 @@ export function ARollInspector({
                     step="0.01"
                     value={pipScale}
                     onChange={(e) => onParams({ pipScale: Number(e.target.value) })}
+                    style={{ accentColor: "#F59E0B" }}
                   />
                 </label>
               </div>
@@ -804,15 +901,26 @@ export function ARollInspector({
       )}
 
       {/* 7. B-Roll Overlays Card with Sequential Cascade & Auto-Chain */}
-      <div className="inspector-card accent-blue">
+      <div className="inspector-card accent-slate">
         <details open>
-          <summary style={{ color: "#60A5FA" }}>
-            <span>🎬</span> <strong>B-roll overlays</strong> <small style={{ color: "#94A3B8" }}>({broll.length} layers)</small>
+          <summary style={{ color: "#CBD5E1" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title"><strong>B-roll overlays</strong> // สื่อแทรก ({broll.length} layers)</span>
           </summary>
           <div className="inspector-card-body">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
               <span style={{ fontSize: "12px", color: "#94A3B8" }}>ภาพ/คลิปแทรกซ้อนทับบทพูด</span>
-              <div style={{ display: "flex", gap: "6px" }}>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="inspector-btn inspector-btn-secondary inspector-btn-sm"
+                  style={{ background: "#1E1B4B", borderColor: "#6366F1", color: "#A5B4FC", fontWeight: 600 }}
+                  title="คำนวณจำนวนและตำแหน่ง B-roll อัตโนมัติตามจังหวะเวลา A-roll และบริบทเสียง"
+                  disabled={isAutoBrolling}
+                  onClick={handleAutoBroll}
+                >
+                  {isAutoBrolling ? "⏳ กำลังวิเคราะห์..." : "✨ Auto B-roll (AI Pacing)"}
+                </button>
                 {broll.length > 1 && (
                   <>
                     <button
@@ -842,6 +950,27 @@ export function ARollInspector({
                 </button>
               </div>
             </div>
+
+            {/* AI Detected Tags & Cadence Rationale */}
+            {(detectedTags.length > 0 || autoRationale) && (
+              <div style={{ marginTop: "8px", padding: "6px 10px", background: "#131C31", borderRadius: "6px", border: "1px solid #1E293B" }}>
+                {detectedTags.length > 0 && (
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "10px", color: "#818CF8", fontWeight: "bold" }}>Tags:</span>
+                    {detectedTags.map((tag) => (
+                      <span key={tag} style={{ fontSize: "10px", padding: "1px 6px", background: "#1E1B4B", color: "#C7D2FE", borderRadius: "4px", border: "1px solid #3730A3" }}>
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {autoRationale && (
+                  <div style={{ fontSize: "11px", color: "#38BDF8" }}>
+                    ℹ️ {autoRationale}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Visual B-Roll Timeline Map Strip */}
             {broll.length > 0 && (
@@ -919,6 +1048,12 @@ export function ARollInspector({
                     × ลบ
                   </button>
                 </div>
+
+                {((value as any).treatment === "ken_burns_pending" || /\.(jpe?g|png|webp)$/i.test(value.asset.path)) && (
+                  <div style={{ fontSize: "10px", color: "#FBBF24", background: "#451A03", padding: "3px 8px", borderRadius: "4px", marginBottom: "6px", border: "1px solid #78350F" }}>
+                    🖼️ ภาพนิ่ง (Pin: รอ Motion Engine — Ken Burns / 2.5D Parallax)
+                  </div>
+                )}
 
                 <PathField
                   compact

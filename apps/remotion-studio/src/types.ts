@@ -7,7 +7,22 @@ export type MotionPresetType =
   | "ZoomPunch"
   | "BackdropBlur"
   | "none";
-export type DoodlePresetId = "academic" | "science" | "psychic" | "engineering" | "celebration" | "vlog" | "none";
+/**
+ * Named, broadcast-safe doodle compositions. `psychic` remains for existing
+ * storyboards; the UI presents it as the wellbeing / humanities treatment.
+ */
+export type DoodlePresetId =
+  | "academic"
+  | "science"
+  | "psychic"
+  | "engineering"
+  | "celebration"
+  | "vlog"
+  | "tourism"
+  | "creative"
+  | "sustainability"
+  | "campus"
+  | "none";
 
 /** Reusable, node-agnostic controls for one text layer. Coordinates are canvas percentages. */
 export interface TextLayerStyle {
@@ -183,6 +198,8 @@ export interface StoryboardItemProps {
     personX?: number;
     personY?: number;
     personScale?: number;
+    personSticker?: boolean;
+    personStickerPreset?: "solid-white" | "comic-pop" | "retro-shadow" | "none";
     text?: string;
     title?: string;
     eyebrow?: string;
@@ -237,6 +254,9 @@ export interface AudioTrackProps {
   durationMs?: number;
   volume?: number;
   duckVolume?: number;
+  autoDucking?: boolean;
+  fadeInMs?: number;
+  fadeOutMs?: number;
   role?: "dialogue" | "music" | "sfx";
 }
 
@@ -258,6 +278,7 @@ export interface StoryboardAssemblyProps {
   cutlist?: CutlistSegmentProps[];
   brollStack?: BrollItemProps[];
   audioTracks?: AudioTrackProps[];
+  bgmTrack?: AudioTrackProps;
   subtitles?: SubtitleTrack[];
   theme?: StudioThemeProps;
   fps?: number;

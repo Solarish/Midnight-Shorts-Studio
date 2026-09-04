@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { AbsoluteFill, Img, Sequence, Video, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Img, Sequence, Video, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CoverCard } from "../components/CoverCard";
 import { DynamicThaiSubtitles } from "../components/DynamicThaiSubtitles";
 import { LogoOutro } from "../components/LogoOutro";
 import { LowerThird } from "../components/LowerThird";
 import { TitleCard } from "../components/TitleCard";
-import { isImageFile, isVideoFile, resolveMediaUrl } from "../media-resolver";
+import { isAudioFile, isImageFile, isVideoFile, resolveMediaUrl } from "../media-resolver";
 import { PresetWrapper } from "../presets";
 import type {
   AspectRatioMode,
@@ -15,6 +15,72 @@ import type {
   StoryboardAssemblyProps,
   StoryboardItemProps
 } from "../types";
+
+/**
+ * Calculates dynamic background music gain frame-by-frame with smooth auto-ducking.
+ *
+ * - Outside speech windows: full nominal volume (e.g. 0.6)
+ * - Inside speech windows: ducked volume (e.g. 0.12 / ~-14dB)
+ * - Transitions: smooth ramps over 15-20 frames before & after speech
+ * - End of video: smooth fade-out
+ */
+export function calculateDuckedVolume(
+  frame: number,
+  fps: number,
+  speechWindows: Array<{ startFrame: number; endFrame: number }>,
+  bgm?: AudioTrackProps,
+  totalDurationFrames = 250
+): number {
+  if (!bgm || !bgm.path) return 0;
+  const normalVol = Math.max(0, Math.min(1, bgm.volume ?? 0.6));
+  const duckVol = Math.max(0, Math.min(normalVol, bgm.duckVolume ?? 0.12));
+  const autoDucking = bgm.autoDucking !== false; // default: true
+
+  // 1. Fade In at video start
+  const fadeInFrames = Math.max(1, Math.round(((bgm.fadeInMs ?? 500) / 1000) * fps));
+  let baseGain = normalVol;
+  if (frame < fadeInFrames) {
+    baseGain = (frame / fadeInFrames) * normalVol;
+  }
+
+  // 2. Fade Out at video end
+  const fadeOutFrames = Math.max(1, Math.round(((bgm.fadeOutMs ?? 1500) / 1000) * fps));
+  if (frame > totalDurationFrames - fadeOutFrames) {
+    const fadeProgress = (totalDurationFrames - frame) / fadeOutFrames;
+    baseGain = Math.max(0, baseGain * Math.max(0, fadeProgress));
+  }
+
+  if (!autoDucking || speechWindows.length === 0) {
+    return baseGain;
+  }
+
+  // 3. Ramp transition duration around speech (0.6s ~ 15 frames at 25fps)
+  const rampFrames = Math.max(6, Math.round(0.6 * fps));
+
+  // Find if we are near or within any speech window
+  let minGainFactor = 1.0;
+  for (const window of speechWindows) {
+    const rampStart = Math.max(0, window.startFrame - rampFrames);
+    const rampEnd = window.endFrame + rampFrames;
+
+    if (frame >= window.startFrame && frame <= window.endFrame) {
+      // Inside active dialogue: ducked
+      minGainFactor = Math.min(minGainFactor, duckVol / normalVol);
+    } else if (frame >= rampStart && frame < window.startFrame) {
+      // Ducking down into speech
+      const progress = (frame - rampStart) / rampFrames;
+      const factor = 1 - progress * (1 - duckVol / normalVol);
+      minGainFactor = Math.min(minGainFactor, factor);
+    } else if (frame > window.endFrame && frame <= rampEnd) {
+      // Raising back up from speech
+      const progress = (frame - window.endFrame) / rampFrames;
+      const factor = (duckVol / normalVol) + progress * (1 - duckVol / normalVol);
+      minGainFactor = Math.min(minGainFactor, factor);
+    }
+  }
+
+  return Math.max(0, Math.min(1, baseGain * minGainFactor));
+}
 
 const ARollMediaView: React.FC<{
   sourcePath?: string;
@@ -236,7 +302,8 @@ const BrollMediaView: React.FC<{
         style={{
           width: "100%",
           height: "100%",
-          objectFit: broll.fit ?? "cover"
+          objectFit: broll.fit ?? "cover",
+          backgroundColor: "#000000"
         }}
         volume={broll.audioPolicy === "preserve" ? 1 : 0}
         delayRenderTimeoutInMilliseconds={90000}
@@ -246,27 +313,45 @@ const BrollMediaView: React.FC<{
     );
   }
 
-  return (
-    <Img
-      src={resolved}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: broll.fit ?? "cover"
-      }}
-      onError={() => setHasError(true)}
-    />
-  );
-};
+    return (
+      <Img
+        src={resolved}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: broll.fit ?? "cover",
+          backgroundColor: "#000000"
+        }}
+        onError={() => setHasError(true)}
+      />
+    );
+  };
 
-export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
+  export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
   items = [],
   cutlist = [],
   brollStack = [],
+  audioTracks = [],
+  bgmTrack,
   theme,
   aspectRatio = "9:16"
 }) => {
   const { fps } = useVideoConfig();
+
+  // Pre-calculate speech windows for auto ducking across the timeline
+  const speechWindows: Array<{ startFrame: number; endFrame: number }> = [];
+  let speechCursor = 0;
+  for (const itm of items) {
+    const durFrames = Math.max(1, Math.round((itm.durationMs / 1000) * fps));
+    if (itm.kind === "a_roll" && itm.audioPolicy !== "mute") {
+      speechWindows.push({
+        startFrame: speechCursor,
+        endFrame: speechCursor + durFrames
+      });
+    }
+    speechCursor += durFrames;
+  }
+  const totalTimelineDurationFrames = Math.max(25, speechCursor);
 
   // If a raw cutlist is passed, render simple cutlist playback
   if (cutlist.length > 0) {
@@ -302,8 +387,58 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
   // Primary Timeline Playback from Storyboard items
   let accumulatedFrames = 0;
 
+  // Resolve BGM soundtrack
+  const effectiveBgm = bgmTrack || (audioTracks && audioTracks.find((t) => t.role === "music" || !t.role));
+  const resolvedBgmUrl = effectiveBgm?.path ? resolveMediaUrl(effectiveBgm.path) : undefined;
+
   return (
     <AbsoluteFill style={{ backgroundColor: "#000000" }}>
+      {/* 0. Background Music Track (with Auto-Ducking) */}
+      {resolvedBgmUrl ? (
+        <Sequence
+          name={`🎵 BGM Soundtrack: ${effectiveBgm?.path || "Bed Track"}`}
+          from={Math.max(0, Math.round(((effectiveBgm?.startMs ?? 0) / 1000) * fps))}
+          durationInFrames={totalTimelineDurationFrames}
+        >
+          <Audio
+            src={resolvedBgmUrl}
+            volume={(f) =>
+              calculateDuckedVolume(
+                f,
+                fps,
+                speechWindows,
+                effectiveBgm,
+                totalTimelineDurationFrames
+              )
+            }
+          />
+        </Sequence>
+      ) : null}
+
+      {/* 0.1 Additional Explicit Audio Tracks */}
+      {audioTracks && audioTracks.length > 0
+        ? audioTracks
+            .filter((t) => t !== effectiveBgm && t.path)
+            .map((track, tIdx) => {
+              const trackUrl = resolveMediaUrl(track.path);
+              if (!trackUrl) return null;
+              const startF = Math.max(0, Math.round(((track.startMs ?? 0) / 1000) * fps));
+              const durF = track.durationMs
+                ? Math.max(1, Math.round((track.durationMs / 1000) * fps))
+                : totalTimelineDurationFrames - startF;
+              return (
+                <Sequence
+                  key={`audio_track_${track.id || tIdx}`}
+                  name={`🔊 Audio Track: ${track.role || "track"} ${tIdx + 1}`}
+                  from={startF}
+                  durationInFrames={durF}
+                >
+                  <Audio src={trackUrl} volume={track.volume ?? 1} />
+                </Sequence>
+              );
+            })
+        : null}
+
       {/* 1. Main Video Track (Story Items) */}
       {items.map((item: StoryboardItemProps, idx: number) => {
         const itemOffsetFrames = accumulatedFrames;
@@ -322,19 +457,31 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
           >
             {item.kind === "cover_card" ? (
               <CoverCard
-                sourceImage={item.params?.sourceImage}
-                backgroundImage={item.params?.backgroundImage}
-                personImage={item.params?.personImage}
-                doodleImage={(item.params as any)?.doodleAssetPath}
-                doodlePaths={item.params?.doodlePaths}
-                title={item.params?.title}
-                subtitle={item.params?.subtitle}
-                personName={item.params?.personName}
-                positionTitle={item.params?.positionTitle}
-                award={item.params?.award}
-                textStyles={item.params?.textStyles}
+                sourceImage={item.params?.sourceImage ?? (item as any).sourceImage}
+                backgroundImage={item.params?.backgroundImage ?? (item as any).backgroundImage}
+                personImage={item.params?.personImage ?? (item as any).personImage}
+                doodleImage={(item.params as any)?.doodleAssetPath ?? (item.params as any)?.doodleImage ?? (item as any).doodleImage}
+                doodleEnabled={item.params?.doodleEnabled === true || (item as any).doodleEnabled === true}
+                doodleOpacity={item.params?.doodleOpacity !== undefined ? Number(item.params.doodleOpacity) : (item as any).doodleOpacity !== undefined ? Number((item as any).doodleOpacity) : 1}
+                doodleScale={item.params?.doodleScale !== undefined ? Number(item.params.doodleScale) : (item as any).doodleScale !== undefined ? Number((item as any).doodleScale) : 1}
+              doodleSeed={(item.params as any)?.doodleSeed !== undefined ? Number((item.params as any).doodleSeed) : 1}
+                doodlePreset={(item.params?.doodlePreset as any) ?? (item as any).doodlePreset ?? "none"}
+                doodlePaths={item.params?.doodlePaths ?? (item as any).doodlePaths}
+                doodleAssetSet={(item.params as any)?.doodleAssetSet ?? (item as any).doodleAssetSet}
+                personX={item.params?.personX !== undefined ? Number(item.params.personX) : (item as any).personX !== undefined ? Number((item as any).personX) : 0.72}
+                personY={item.params?.personY !== undefined ? Number(item.params.personY) : (item as any).personY !== undefined ? Number((item as any).personY) : 0.5}
+                personScale={item.params?.personScale !== undefined ? Number(item.params.personScale) : (item as any).personScale !== undefined ? Number((item as any).personScale) : 1}
+                personSticker={item.params?.personSticker !== false && (item as any).personSticker !== false}
+                personStickerPreset={(item.params as any)?.personStickerPreset || "solid-white"}
+                title={item.params?.title ?? (item as any).title}
+                subtitle={item.params?.subtitle ?? (item as any).subtitle}
+                eyebrow={item.params?.eyebrow ?? (item as any).eyebrow}
+                personName={item.params?.personName ?? (item as any).personName ?? item.params?.title ?? (item as any).title}
+                positionTitle={item.params?.positionTitle ?? (item as any).positionTitle ?? item.params?.subtitle ?? (item as any).subtitle}
+                award={item.params?.award ?? (item as any).award ?? item.params?.eyebrow ?? (item as any).eyebrow}
+                textStyles={item.params?.textStyles ?? (item as any).textStyles}
                 aspectRatio={aspectRatio}
-                motionPreset={item.params?.motionPreset ?? "Spring"}
+                motionPreset={item.params?.motionPreset ?? (item as any).motionPreset ?? "Spring"}
                 theme={theme}
               />
             ) : item.kind === "title" ? (
@@ -398,19 +545,32 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
                       const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
                       const bDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
 
+                      // Check if the next B-roll is chained cut-to-cut directly after this one
+                      const nextBroll = item.broll?.[bIdx + 1];
+                      const nextOffsetMs = nextBroll ? (nextBroll.offsetMs ?? nextBroll.startMs ?? 0) : null;
+                      const isChainedToNext =
+                        nextOffsetMs !== null && Math.abs(nextOffsetMs - (offsetMs + durationMs)) < 120;
+
+                      // Tail Under-lap: extend by 8 frames underneath the next clip
+                      // so that if the browser takes 1-2 frames to decode the next video,
+                      // THIS B-roll is visible behind it instead of the underlying A-roll interview!
+                      const effectiveDurationFrames = isChainedToNext
+                        ? bDurationFrames + 8
+                        : bDurationFrames;
+
                       return (
                         <Sequence
                           key={`${b.id}_${bIdx}`}
                           name={`↳ B-Roll ${bIdx + 1}: ${b.title || b.id} (${b.preset ?? "none"})`}
                           from={bOffsetFrames}
-                          durationInFrames={bDurationFrames}
+                          durationInFrames={effectiveDurationFrames}
                         >
                           <PresetWrapper
                             preset={b.preset ?? "none"}
                             style={{
                               position: "absolute",
                               inset: 0,
-                              zIndex: 20
+                              zIndex: 20 + bIdx
                             }}
                           >
                             <BrollMediaView
@@ -435,8 +595,8 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
                   />
                 ) : null}
 
-                {/* Lower Third Overlay for this segment (Default: OFF, rendered when enabled) */}
-                {Boolean(item.params?.lowerThird?.enabled || (item.params as any)?.enableLowerThird) ? (() => {
+                {/* Lower Third Overlay for this segment */}
+                {Boolean(item.params?.lowerThird?.enabled !== false && (item.params?.lowerThird || (item.params as any)?.enableLowerThird || item.params?.speaker)) ? (() => {
                   const lt = item.params?.lowerThird ?? {};
                   const ltOffsetMs = Number(lt.offsetMs ?? (item.params as any)?.lowerThirdOffsetMs ?? 500);
                   const ltDurationMs = Number(lt.durationMs ?? (item.params as any)?.lowerThirdDurationMs ?? 4000);
@@ -473,19 +633,27 @@ export const StoryboardSequence: React.FC<StoryboardAssemblyProps> = ({
         const bOffsetFrames = Math.max(0, Math.round((offsetMs / 1000) * fps));
         const bDurationFrames = Math.max(1, Math.round((durationMs / 1000) * fps));
 
+        const nextBroll = brollStack[bIdx + 1];
+        const nextOffsetMs = nextBroll ? (nextBroll.offsetMs ?? nextBroll.startMs ?? 0) : null;
+        const isChainedToNext =
+          nextOffsetMs !== null && Math.abs(nextOffsetMs - (offsetMs + durationMs)) < 120;
+        const effectiveDurationFrames = isChainedToNext
+          ? bDurationFrames + 8
+          : bDurationFrames;
+
         return (
           <Sequence
             key={`global_broll_${b.id}_${bIdx}`}
-            name={`🎬 Global B-Roll: ${b.title || b.id} (${b.preset ?? "Spring"})`}
+            name={`🎬 Global B-Roll: ${b.title || b.id} (${b.preset ?? "none"})`}
             from={bOffsetFrames}
-            durationInFrames={bDurationFrames}
+            durationInFrames={effectiveDurationFrames}
           >
             <PresetWrapper
-              preset={b.preset ?? "Spring"}
+              preset={b.preset ?? "none"}
               style={{
                 position: "absolute",
                 inset: 0,
-                zIndex: 30
+                zIndex: 30 + bIdx
               }}
             >
               <BrollMediaView

@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { access, mkdir, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -39,7 +39,7 @@ const graphStore = new LocalGraphStore(controlRoot);
 const storyboardStore = new LocalStoryboardStore(controlRoot);
 const workflowSnapshots = new LocalWorkflowSnapshotStore(controlRoot);
 const visualWorkflows = new VisualWorkflowService(graphStore);
-const storyboards = new StoryboardService(storyboardStore);
+const storyboards = new StoryboardService(storyboardStore, projectRoot);
 const scheduler = new RunScheduler(projectRoot, store);
 const readinessDiagnostics = new ReadinessDiagnostics(path.join(controlRoot, "readiness-rejections.ndjson"));
 const csrfToken = randomUUID();
@@ -286,6 +286,9 @@ app.get("/api/v1/storyboard-imports/:importId", async (request) => storyboards.g
 app.get("/api/v1/storyboards", async () => storyboards.list());
 app.post("/api/v1/storyboards", async (request, reply) => reply.code(201).send(await storyboards.create((request.body ?? {}) as any)));
 app.get("/api/v1/storyboards/:storyboardId", async (request) => storyboards.get((request.params as any).storyboardId));
+app.delete("/api/v1/storyboards/:storyboardId", async (request) => storyboards.delete((request.params as any).storyboardId));
+app.post("/api/v1/storyboards/:storyboardId/clone", async (request, reply) => reply.code(201).send(await storyboards.clone((request.params as any).storyboardId, request.body as any)));
+app.post("/api/v1/storyboards/:storyboardId/resync-docx", async (request) => storyboards.resyncDocx((request.params as any).storyboardId));
 app.patch("/api/v1/storyboards/:storyboardId", async (request) => storyboards.update(
   (request.params as any).storyboardId,
   request.body as any,
@@ -306,6 +309,257 @@ app.post("/api/v1/storyboards/:storyboardId/versions/:version/execution-graph", 
   Number((request.params as any).version),
   request.body as any
 ));
+
+app.post("/api/v1/storyboards/:storyboardId/items/:itemId/auto-broll", async (request) => {
+  let { storyboardId, itemId } = request.params as any;
+  if (storyboardId === "current") {
+    const list = await storyboards.list();
+    if (list.length > 0) storyboardId = list[0]!.storyboardId;
+  }
+  const body = (request.body as any) ?? {};
+  return storyboards.generateAutoBroll(storyboardId, itemId, body);
+});
+
+app.post("/api/v1/storyboards/:storyboardId/auto-broll-all", async (request) => {
+  let { storyboardId } = request.params as any;
+  if (storyboardId === "current") {
+    const list = await storyboards.list();
+    if (list.length > 0) storyboardId = list[0]!.storyboardId;
+  }
+  const body = (request.body as any) ?? {};
+  return storyboards.generateAutoBrollBatch(storyboardId, body);
+});
+
+app.post("/api/v1/storyboards/:storyboardId/full-auto", async (request) => {
+  let { storyboardId } = request.params as any;
+  if (storyboardId === "current") {
+    const list = await storyboards.list();
+    if (list.length > 0) storyboardId = list[0]!.storyboardId;
+  }
+  const body = (request.body as any) ?? {};
+  return storyboards.fullAutoStoryboard(storyboardId, body);
+});
+
+app.post("/api/v1/storyboards/:storyboardId/auto-lowerthird", async (request) => {
+  let { storyboardId } = request.params as any;
+  if (storyboardId === "current") {
+    const list = await storyboards.list();
+    if (list.length > 0) storyboardId = list[0]!.storyboardId;
+  }
+  return storyboards.autoLowerThirdBatch(storyboardId);
+});
+
+app.post("/api/v1/storyboards/:storyboardId/auto-generate-assets", async (request) => {
+  let { storyboardId } = request.params as any;
+  if (storyboardId === "current") {
+    const list = await storyboards.list();
+    if (list.length > 0) storyboardId = list[0]!.storyboardId;
+  }
+  return storyboards.autoGenerateAssets(storyboardId);
+});
+
+interface StoryboardRenderJob {
+  jobId: string;
+  storyboardId: string;
+  version?: number;
+  status: "queued" | "rendering" | "completed" | "failed";
+  progress: number;
+  renderedFrames: number;
+  totalFrames: number;
+  fps: number;
+  etaSeconds?: number;
+  startedAt: string;
+  completedAt?: string;
+  outputDirectory: string;
+  fileName: string;
+  outputPath?: string;
+  fileUrl?: string;
+  sizeBytes?: number;
+  durationMs?: number;
+  renderTimeMs?: number;
+  error?: string;
+}
+
+const storyboardRenderJobs = new Map<string, StoryboardRenderJob>();
+
+function resolveStoryboardExportDefaults(storyboard: any, rootDir: string) {
+  const docxPath = storyboard.sourceImport?.docxPath;
+  let defaultDir = "";
+  let isDocxSource = false;
+
+  if (typeof docxPath === "string" && docxPath.trim()) {
+    try {
+      const parentDir = path.dirname(docxPath.trim());
+      defaultDir = path.join(parentDir, "Export");
+      isDocxSource = true;
+    } catch {
+      defaultDir = path.join(rootDir, "outputs/rendered");
+    }
+  } else {
+    defaultDir = path.join(rootDir, "outputs/rendered");
+  }
+
+  const rawName = (storyboard.name || "storyboard").trim();
+  const safeName = rawName.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, "_");
+  const versionSuffix = storyboard.approvedVersion ? `_v${storyboard.approvedVersion}` : `_v${storyboard.revision || 1}`;
+  const defaultFileName = `${safeName}${versionSuffix}_master.mp4`;
+
+  return {
+    defaultDirectory: defaultDir,
+    defaultFileName,
+    isDocxSource,
+    docxPath: docxPath || null
+  };
+}
+
+async function runRemotionRenderJob(job: StoryboardRenderJob, storyboard: any, options: any) {
+  const adapterPath = path.resolve(projectRoot, "src/adapters/remotion.js");
+  const { renderRemotion } = await import(pathToFileURL(adapterPath).href);
+
+  // Auto-create destination directory if it doesn't exist yet (including <DOCX>/Export on NAS/Local)
+  await mkdir(job.outputDirectory, { recursive: true });
+  const fullOutputPath = path.join(job.outputDirectory, job.fileName);
+  job.outputPath = fullOutputPath;
+
+  const fps = Number(options.fps) || 25;
+  const items = storyboard.items || [];
+  const totalDurationMs = items.reduce((acc: number, it: any) => acc + (Number(it.durationMs) || 0), 0);
+  const totalFrames = Math.max(25, Math.round((totalDurationMs / 1000) * fps));
+  job.totalFrames = totalFrames;
+  job.fps = fps;
+
+  const compositionId = options.format === "9:16" ? "VerticalComposition" : "HorizontalComposition";
+  const crf = options.quality === "draft" ? 26 : 18;
+
+  job.status = "rendering";
+  const startTime = Date.now();
+
+  try {
+    const result = await renderRemotion({
+      compositionId,
+      output: fullOutputPath,
+      props: {
+        storyboardId: storyboard.storyboardId,
+        items,
+        audioTracks: options.bgmTrack ? [options.bgmTrack] : undefined,
+        fps,
+        durationInFrames: totalFrames
+      },
+      crf,
+      fps,
+      concurrency: options.concurrency,
+      onProgress: (progressInfo: any) => {
+        const { progress, renderedFrames } = progressInfo;
+        job.progress = Math.min(100, Math.round((progress ?? 0) * 100));
+        job.renderedFrames = renderedFrames ?? Math.round((job.progress / 100) * totalFrames);
+        const elapsedSec = (Date.now() - startTime) / 1000;
+        if (job.progress > 5) {
+          const totalEstimatedSec = elapsedSec / (job.progress / 100);
+          job.etaSeconds = Math.max(0, Math.round(totalEstimatedSec - elapsedSec));
+        }
+      }
+    }, {
+      log: (msg: string) => app.log.info(msg)
+    });
+
+    job.status = "completed";
+    job.progress = 100;
+    job.renderedFrames = totalFrames;
+    job.completedAt = new Date().toISOString();
+    job.outputPath = result.output;
+    job.sizeBytes = result.sizeBytes;
+    job.durationMs = result.durationMs;
+    job.renderTimeMs = result.renderTimeMs;
+    job.fileUrl = `/api/v1/media/stream?path=${encodeURIComponent(result.output)}`;
+  } catch (err: any) {
+    job.status = "failed";
+    job.error = err.message || "Remotion rendering failed";
+    job.completedAt = new Date().toISOString();
+    app.log.error(err, `[Remotion] Job ${job.jobId} failed`);
+  }
+}
+
+app.get("/api/v1/storyboards/:storyboardId/render-defaults", async (request) => {
+  const { storyboardId } = request.params as any;
+  const storyboard = await storyboards.get(storyboardId);
+  return resolveStoryboardExportDefaults(storyboard, projectRoot);
+});
+
+app.post("/api/v1/storyboards/:storyboardId/render", async (request, reply) => {
+  const { storyboardId } = request.params as any;
+  const body = (request.body as any) ?? {};
+  const version = typeof body.version === "number" ? body.version : undefined;
+
+  let storyboard: any;
+  if (version) {
+    storyboard = await storyboards.getVersion(storyboardId, version);
+  } else {
+    storyboard = await storyboards.get(storyboardId);
+  }
+
+  const exportDefaults = resolveStoryboardExportDefaults(storyboard, projectRoot);
+  const targetDir = typeof body.outputDirectory === "string" && body.outputDirectory.trim()
+    ? body.outputDirectory.trim()
+    : exportDefaults.defaultDirectory;
+  const targetFileName = typeof body.fileName === "string" && body.fileName.trim()
+    ? body.fileName.trim()
+    : exportDefaults.defaultFileName;
+
+  const jobId = `render_${Date.now().toString(36)}_${randomUUID().slice(0, 6)}`;
+  const job: StoryboardRenderJob = {
+    jobId,
+    storyboardId,
+    version: version || storyboard.approvedVersion || storyboard.revision || 1,
+    status: "queued",
+    progress: 0,
+    renderedFrames: 0,
+    totalFrames: 0,
+    fps: Number(body.fps) || 25,
+    startedAt: new Date().toISOString(),
+    outputDirectory: targetDir,
+    fileName: targetFileName
+  };
+
+  storyboardRenderJobs.set(jobId, job);
+
+  // Execute in background
+  void runRemotionRenderJob(job, storyboard, {
+    format: body.format || "16:9",
+    quality: body.quality || "master",
+    fps: body.fps || 25,
+    bgmTrack: body.bgmTrack
+  });
+
+  return reply.code(202).send({
+    jobId,
+    status: "queued",
+    monitorUrl: `/api/v1/storyboards/${storyboardId}/render-jobs/${jobId}`,
+    outputDirectory: targetDir,
+    fileName: targetFileName
+  });
+});
+
+app.get("/api/v1/storyboards/:storyboardId/render-jobs/:jobId", async (request, reply) => {
+  const { jobId } = request.params as any;
+  const job = storyboardRenderJobs.get(jobId);
+  if (!job) return reply.code(404).send({ error: "Render job not found" });
+  return job;
+});
+
+app.post("/api/v1/system/gpu/free", async (_request, reply) => {
+  const comfyBase = process.env.AVA_COMFYUI_URL ?? "http://10.135.66.70:8188";
+  try {
+    const res = await fetch(`${comfyBase}/free`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unload_models: true, free_memory: true })
+    });
+    return { ok: true, status: res.status, message: "ComfyUI VRAM cache purged" };
+  } catch (err: any) {
+    return reply.code(502).send({ ok: false, error: err.message });
+  }
+});
+
 app.post("/api/v1/storyboards/:storyboardId/items/:itemId/run", async (request, reply) => {
   const { storyboardId, itemId } = request.params as any;
   const body = (request.body as any) ?? {};

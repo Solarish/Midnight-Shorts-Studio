@@ -2,8 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { cloneVisualWorkflow, createVisualWorkflow, deleteVisualWorkflow, instantiateWorkflowPackage, listVisualWorkflows, listWorkflowPackages } from "./graph-api";
 import type { VisualWorkflow, WorkflowPackage } from "./graph-types";
-import { createStoryboardFromDocx, DEFAULT_DOCUMENTARY_DOCX, listStoryboards } from "./storyboard-api";
+import { cloneStoryboard, createStoryboardFromDocx, DEFAULT_DOCUMENTARY_DOCX, deleteStoryboard, listStoryboards } from "./storyboard-api";
 import type { Storyboard } from "./storyboard-types";
+import { CreateStoryboardModal } from "./components/CreateStoryboardModal";
 
 export const APP_VERSION = "0.2.0";
 export const BUILD_TIMESTAMP = "2026-08-27 16:15:00";
@@ -39,12 +40,13 @@ export default function WorkflowCatalogPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   async function load() {
     setLoading(true); setError("");
-    try { const [nextWorkflows, nextPackages, nextStoryboards] = await Promise.all([listVisualWorkflows(), listWorkflowPackages(), listStoryboards()]); setWorkflows(nextWorkflows); setPackages(nextPackages); setStoryboards(nextStoryboards); }
+    try { const [nextWorkflows, nextPackages, nextStoryboards] = await Promise.all([listVisualWorkflows(), listWorkflowPackages(), listStoryboards().catch(() => [])]); setWorkflows(nextWorkflows); setPackages(nextPackages); setStoryboards(Array.isArray(nextStoryboards) ? nextStoryboards : []); }
     catch (cause: any) { setError(endpointMessage(cause)); }
     finally { setLoading(false); }
   }
@@ -103,6 +105,47 @@ export default function WorkflowCatalogPage() {
     }
   }
 
+  const [storyboardSearch, setStoryboardSearch] = useState("");
+  const [storyboardFilter, setStoryboardFilter] = useState<"all" | "draft" | "approved">("all");
+
+  async function handleCloneStoryboard(storyboard: Storyboard) {
+    setError("");
+    setCreating(true);
+    try {
+      const copy = await cloneStoryboard(storyboard.storyboardId);
+      setStoryboards((prev) => [copy, ...prev]);
+    } catch (cause: any) {
+      setError(endpointMessage(cause));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDeleteStoryboard(storyboard: Storyboard) {
+    if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ Storyboard "${storyboard.name}"?\nข้อมูลการตัดต่อและแคชที่เกี่ยวข้องทั้งหมดจะถูกลบถาวร`)) return;
+    setError("");
+    setDeletingId(storyboard.storyboardId);
+    try {
+      await deleteStoryboard(storyboard.storyboardId);
+      setStoryboards((prev) => prev.filter((item) => item.storyboardId !== storyboard.storyboardId));
+    } catch (cause: any) {
+      setError(endpointMessage(cause));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const safeStoryboards = Array.isArray(storyboards) ? storyboards : [];
+  const filteredStoryboards = safeStoryboards.filter((item) => {
+    if (storyboardFilter === "draft" && item.status !== "draft") return false;
+    if (storyboardFilter === "approved" && item.status !== "approved") return false;
+    if (storyboardSearch.trim()) {
+      const q = storyboardSearch.toLowerCase();
+      return (item?.name || "").toLowerCase().includes(q) || (item?.sourceImport?.docxPath || "").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   return <GraphShell><main className="workflow-catalog"><header className="catalog-heading"><div><p className="eyebrow"><span>ADMIN · VISUAL WORKFLOWS</span><span style={{ marginLeft: "8px", opacity: 0.85, fontSize: "11px", padding: "2px 6px", background: "rgba(255,255,255,0.1)", borderRadius: "4px" }}>v{APP_VERSION} · {BUILD_TIMESTAMP}</span></p><h1>Workflow catalog</h1><p>Create and govern reusable DAG workflows. The existing Guided Form remains available for portrait-story operators.</p></div><button className="button secondary" onClick={() => void load()} disabled={loading}>Refresh</button></header>
     {error && <section className="graph-unavailable" role="alert"><strong>Graph authoring API is unavailable</strong><p>{error}</p><small>Expected endpoints begin at <code>/api/v1/workflows</code> and <code>/api/v1/node-types</code>. Guided Form and Run Monitor are unaffected.</small></section>}
 
@@ -133,32 +176,220 @@ export default function WorkflowCatalogPage() {
             DOCX เป็นข้อมูลตั้งต้น แล้วให้ผู้ตัดต่อจัดลำดับ แก้ timecode เลือก 3D title, cover card และ B-roll พร้อมกำหนด audio policy ก่อนอนุมัติและ compile เป็น read-only backend graph
           </p>
         </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"
             className="button primary"
-            onClick={openOrLaunchDocumentary}
-            disabled={creating}
+            onClick={() => setIsCreateModalOpen(true)}
             style={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              background: "linear-gradient(135deg, #10B981, #059669)",
               fontWeight: 700,
               fontSize: "14px",
               padding: "10px 20px",
-              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
-              cursor: "pointer"
+              boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
+              cursor: "pointer",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
             }}
           >
-            {creating ? "กำลังเปิด..." : "🎬 เปิด Storyboard Editor"}
+            <span>➕</span> สร้าง Storyboard ใหม่จาก DOCX
+          </button>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={openOrLaunchDocumentary}
+            disabled={creating}
+            style={{
+              borderColor: "rgba(59, 130, 246, 0.5)",
+              color: "#60A5FA",
+              fontWeight: 600,
+              fontSize: "13px",
+              padding: "9px 16px"
+            }}
+          >
+            {creating ? "กำลังเปิด..." : "🎬 เปิดโปรเจกต์ตัวอย่าง (อ.เกวลิน)"}
           </button>
         </div>
       </div>
     </section>
 
-    {storyboards.length > 0 && <section className="starter-packages"><h2>Documentary storyboards</h2><div className="workflow-cards">{storyboards.map((storyboard) => <article className="workflow-card card" key={storyboard.storyboardId}><div><span className={`workflow-badge ${storyboard.status === "approved" ? "published" : "draft"}`}>{storyboard.status}</span><h2><Link to={`/storyboards/${storyboard.storyboardId}/edit`}>{storyboard.name}</Link></h2><p>{storyboard.items.length} editorial items · source revision {storyboard.revision}</p></div><dl><div><dt>Profile</dt><dd>1080p25</dd></div><div><dt>Approved</dt><dd>{storyboard.approvedVersion ? `v${storyboard.approvedVersion}` : "—"}</dd></div></dl><Link className="button primary" to={`/storyboards/${storyboard.storyboardId}/edit`}>Open storyboard</Link></article>)}</div></section>}
+    <section className="documentary-storyboards-catalog">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "32px 0 16px 0", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "24px", flexWrap: "wrap", gap: "12px" }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Documentary Storyboards</h2>
+          <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#94A3B8" }}>
+            โปรเจกต์สตอรี่บอร์ดสารคดีทั้งหมดที่สร้างจากไฟล์ DOCX ในสตูดิโอ ({filteredStoryboards.length}/{storyboards.length})
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="🔍 ค้นหา Storyboard..."
+            value={storyboardSearch}
+            onChange={(e) => setStoryboardSearch(e.target.value)}
+            style={{
+              padding: "6px 12px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: "6px",
+              color: "#fff",
+              fontSize: "13px",
+              minWidth: "200px"
+            }}
+          />
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.05)", borderRadius: "6px", padding: "2px", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <button
+              type="button"
+              onClick={() => setStoryboardFilter("all")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                border: "none",
+                borderRadius: "4px",
+                background: storyboardFilter === "all" ? "rgba(255,255,255,0.2)" : "transparent",
+                color: "#fff",
+                cursor: "pointer"
+              }}
+            >
+              ทั้งหมด
+            </button>
+            <button
+              type="button"
+              onClick={() => setStoryboardFilter("draft")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                border: "none",
+                borderRadius: "4px",
+                background: storyboardFilter === "draft" ? "rgba(255,255,255,0.2)" : "transparent",
+                color: "#fff",
+                cursor: "pointer"
+              }}
+            >
+              ร่าง
+            </button>
+            <button
+              type="button"
+              onClick={() => setStoryboardFilter("approved")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                border: "none",
+                borderRadius: "4px",
+                background: storyboardFilter === "approved" ? "rgba(16, 185, 129, 0.4)" : "transparent",
+                color: "#fff",
+                cursor: "pointer"
+              }}
+            >
+              อนุมัติแล้ว
+            </button>
+          </div>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => setIsCreateModalOpen(true)}
+            style={{
+              borderColor: "rgba(16, 185, 129, 0.5)",
+              color: "#34D399",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+          >
+            <span>➕</span> สร้าง Storyboard ใหม่
+          </button>
+        </div>
+      </div>
+      {filteredStoryboards.length > 0 ? (
+        <div className="workflow-cards">
+          {filteredStoryboards.map((storyboard) => (
+            <article className="workflow-card card" key={storyboard.storyboardId}>
+              <div>
+                <span className={`workflow-badge ${storyboard.status === "approved" ? "published" : "draft"}`}>
+                  {storyboard.status}
+                </span>
+                <h2>
+                  <Link to={`/storyboards/${storyboard.storyboardId}/edit`}>{storyboard.name}</Link>
+                </h2>
+                <p>
+                  {storyboard.items.length} editorial items · source revision {storyboard.revision}
+                </p>
+              </div>
+              <dl>
+                <div>
+                  <dt>Profile</dt>
+                  <dd>1080p25</dd>
+                </div>
+                <div>
+                  <dt>Approved</dt>
+                  <dd>{storyboard.approvedVersion ? `v${storyboard.approvedVersion}` : "—"}</dd>
+                </div>
+              </dl>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "16px" }}>
+                <Link
+                  className="button primary"
+                  to={`/storyboards/${storyboard.storyboardId}/edit`}
+                  style={{ flex: "1 1 auto", textAlign: "center" }}
+                >
+                  🎬 เปิดตัดต่อ
+                </Link>
+                <button
+                  type="button"
+                  className="button secondary"
+                  title="ทำสำเนา Storyboard นี้"
+                  onClick={() => handleCloneStoryboard(storyboard)}
+                  disabled={creating}
+                  style={{ padding: "6px 10px" }}
+                >
+                  📋 สำเนา
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  title="ลบ Storyboard นี้"
+                  onClick={() => handleDeleteStoryboard(storyboard)}
+                  disabled={deletingId === storyboard.storyboardId}
+                  style={{ padding: "6px 10px", color: "#EF4444", borderColor: "rgba(239, 68, 68, 0.3)" }}
+                >
+                  🗑️
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="card" style={{ padding: "32px", textAlign: "center", color: "#94A3B8" }}>
+          <p style={{ fontSize: "15px", margin: "0 0 16px 0" }}>ยังไม่มี Storyboard ที่ถูกสร้างขึ้นในระบบ</p>
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => setIsCreateModalOpen(true)}
+            style={{
+              background: "linear-gradient(135deg, #10B981, #059669)",
+              fontWeight: 700,
+              padding: "10px 22px"
+            }}
+          >
+            ➕ เลือกไฟล์ DOCX และสร้าง Storyboard แรก
+          </button>
+        </div>
+      )}
+    </section>
 
     {packages.length > 0 && <section className="starter-packages"><h2>Starter packages</h2><div className="workflow-cards">{packages.map((item) => <article className="workflow-card card" key={item.packageId}><div><span className="workflow-badge published">v{item.version}</span><h2>{item.name}</h2><p>{item.description}</p></div><dl><div><dt>Profile</dt><dd>{item.profile}</dd></div><div><dt>Duration</dt><dd>{item.durationFrames / 25}s</dd></div><div><dt>Nodes</dt><dd>{item.nodeCount}</dd></div></dl><button className="button primary" onClick={() => void usePackage(item)} disabled={creating}>Use starter</button></article>)}</div></section>}
     <form className="catalog-create card" onSubmit={create}><label htmlFor="workflow-name">New workflow name</label><input id="workflow-name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Weekly campus recap"/><button className="button primary" disabled={creating}>{creating ? "Creating…" : "Create workflow"}</button></form>
     {loading ? <p className="loading" role="status">Loading workflows…</p> : workflows.length ? <div className="workflow-cards">{workflows.map((workflow) => <article className="workflow-card card" key={workflow.id}><div><span className={`workflow-badge ${workflow.status}`}>{workflow.status}</span><h2><Link to={`/workflows/${workflow.id}/edit`}>{workflow.name}</Link></h2><p>{workflow.description || "No description"}</p></div><dl><div><dt>Revision</dt><dd>{workflow.revision}</dd></div><div><dt>Nodes</dt><dd>{workflow.nodes?.length ?? 0}</dd></div><div><dt>Updated</dt><dd>{workflow.updatedAt ? new Date(workflow.updatedAt).toLocaleString() : "—"}</dd></div></dl><div className="workflow-card-actions"><Link className="button secondary" to={`/workflows/${workflow.id}/edit`}>Open editor</Link><button className="button secondary" onClick={() => void clone(workflow)}>Clone</button><button className="button secondary danger" style={{ color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.4)" }} onClick={() => void remove(workflow)} disabled={deletingId === workflow.id}>{deletingId === workflow.id ? "Deleting…" : "Delete"}</button></div></article>)}</div> : !error && <p className="empty">No visual workflows yet.</p>}
+
+    <CreateStoryboardModal
+      isOpen={isCreateModalOpen}
+      onClose={() => {
+        setIsCreateModalOpen(false);
+        void load();
+      }}
+    />
   </main></GraphShell>;
 }
 

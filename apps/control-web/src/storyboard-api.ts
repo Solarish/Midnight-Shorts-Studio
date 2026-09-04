@@ -9,6 +9,21 @@ export async function getStoryboardImport(id: string) { return api<StoryboardImp
 export async function createStoryboard(importId: string, name?: string) { return api<Storyboard>("/api/v1/storyboards", { method: "POST", body: JSON.stringify({ importId, ...(name ? { name } : {}) }) }); }
 export async function createStoryboardFromDocx(path: string, name?: string) { const imported = await importStoryboardDocx(path); return createStoryboard(imported.importId, name); }
 export async function getStoryboard(id: string) { return api<Storyboard>(`/api/v1/storyboards/${encodeURIComponent(id)}`); }
+export async function deleteStoryboard(id: string) {
+  return api<{ ok: boolean; storyboardId: string }>(`/api/v1/storyboards/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+export async function cloneStoryboard(id: string, name?: string) {
+  return api<Storyboard>(`/api/v1/storyboards/${encodeURIComponent(id)}/clone`, {
+    method: "POST",
+    body: JSON.stringify(name ? { name } : {})
+  });
+}
+export async function resyncStoryboardDocx(id: string) {
+  return api<Storyboard>(`/api/v1/storyboards/${encodeURIComponent(id)}/resync-docx`, {
+    method: "POST",
+    body: "{}"
+  });
+}
 export async function patchStoryboard(storyboard: Storyboard, items: StoryboardItem[] = storyboard.items) {
   return api<Storyboard>(`/api/v1/storyboards/${encodeURIComponent(storyboard.storyboardId)}`, {
     method: "PATCH",
@@ -30,5 +45,75 @@ export async function runStoryboardNode(storyboardId: string, itemId: string, mo
     method: "POST",
     headers: { "idempotency-key": `storyboard-node-${storyboardId}-${itemId}-${Date.now()}` },
     body: JSON.stringify({ mode, stage, ...(item ? { item } : {}) })
+  });
+}
+
+export async function autoBrollStoryboardAll(storyboardId: string, options: { brollPoolDirs?: string[] } = {}) {
+  return api<{
+    storyboard: Storyboard;
+    stats: {
+      totalBrollsAssigned: number;
+      uniqueClipsUsed: number;
+      lowFootageMode: boolean;
+      notes: string[];
+    };
+  }>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/auto-broll-all`, {
+    method: "POST",
+    body: JSON.stringify(options)
+  });
+}
+
+export async function autoGenerateAssets(storyboardId: string) {
+  return api<{
+    storyboard: Storyboard;
+    stats: {
+      cutoutsGenerated: number;
+      backgroundsGenerated: number;
+    };
+  }>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/auto-generate-assets`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export async function fullAutoStoryboard(storyboardId: string, options: { brollPoolDirs?: string[] } = {}) {
+  return api<{
+    storyboard: Storyboard;
+    stats: {
+      totalBrollsAssigned: number;
+      uniqueClipsUsed: number;
+      lowFootageMode: boolean;
+      coverCardsFormatted: number;
+      titleCardsConfigured: number;
+      fontUsed: string;
+      titlePreset: string;
+      notes: string[];
+    };
+  }>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/full-auto`, {
+    method: "POST",
+    body: JSON.stringify(options)
+  });
+}
+
+export async function autoLowerThirdStoryboardAll(storyboardId: string) {
+  return api<{
+    storyboard: Storyboard;
+    stats: {
+      lowerThirdsConfigured: number;
+    };
+  }>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/auto-lowerthird`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export async function autoBrollStoryboardItem(storyboardId: string, itemId: string, body: Record<string, unknown> = {}) {
+  return api<{
+    broll: any[];
+    tags: { tags_th: string[]; tags_en: string[] };
+    rationale: string;
+  }>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/items/${encodeURIComponent(itemId)}/auto-broll`, {
+    method: "POST",
+    body: JSON.stringify(body)
   });
 }

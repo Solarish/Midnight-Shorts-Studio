@@ -1,22 +1,25 @@
+@import './design-tokens.css';
+
 :root {
-  --amber: #f7a63b;
-  --blue: #5aa8ff;
-  --green: #61d7ab;
-  --red: #ff7184;
-  --purple: #bb86fc;
-  --line: #1c2e4a;
-  --card: #0d1a2d;
-  --muted: #8ea3bf;
+  --amber: #E5A93C;
+  --blue: #3B82F6;
+  --green: #10B981;
+  --red: #F43F5E;
+  --purple: #8B5CF6;
+  --line: rgba(255, 255, 255, 0.08);
+  --card: #0B1220;
+  --muted: #94A3B8;
 }
 
 .topbar-links { display: flex; align-items: center; gap: 22px; }
 .topbar-links > a { color: #a9c2e1; text-decoration: none; font-size: 12px; font-weight: 800; }
-.graph-shell { min-height: 100vh; background: #050b16; color: #eff5ff; }
-.graph-topbar { height: 64px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: #071225; }
+.graph-shell { min-height: 100vh; background: var(--bg-canvas, #060A12); color: var(--text-primary, #F8FAFC); }
+.graph-topbar { height: 64px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08)); background: var(--glass-bg, rgba(11, 18, 32, 0.82)); backdrop-filter: var(--glass-blur, blur(16px)); -webkit-backdrop-filter: var(--glass-blur, blur(16px)); position: sticky; top: 0; z-index: 20; }
 .graph-brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
-.graph-brand > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--amber); color: #061022; font-weight: 900; }
+.graph-brand > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-gold, #E5A93C), #B45309); color: #061022; font-weight: 900; }
 .graph-topbar nav { display: flex; gap: 20px; }
-.graph-topbar nav a { color: #a9c2e1; text-decoration: none; font-size: 13px; font-weight: 600; }
+.graph-topbar nav a { color: var(--text-muted, #94A3B8); text-decoration: none; font-size: 13px; font-weight: 600; transition: color var(--nle-transition-fast, 150ms ease); }
+.graph-topbar nav a:hover { color: var(--accent-gold, #E5A93C); }
 
 .workflow-catalog { width: min(1180px, calc(100% - 40px)); margin: auto; padding: 48px 0 80px; }
 .catalog-heading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 28px; }

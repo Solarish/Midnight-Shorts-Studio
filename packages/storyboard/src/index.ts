@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
-import { access, readFile, stat } from "node:fs/promises";
+import { access, readdir, readFile, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { coverCardMissingFields } from "@psu-ava/contracts";
+import { resolveProjectContext } from "./project-context.js";
+import { extractCoverCardMetadata } from "./cover-card-extractor.js";
 import type {
   ApprovedStoryboardVersionV2,
   GraphDefinitionV1,
@@ -106,10 +108,50 @@ export function mediaCatalogDigest(storyboard: StoryboardSpecV2): string {
 
 export async function importDocxStoryboardV2(docxPath: string, timeoutMs = 15_000): Promise<StoryboardDocxImportV2> {
   const resolved = path.resolve(docxPath);
+  const docxDir = path.dirname(resolved);
   const source = await readFile(resolved);
   const sourceDigest = sha256(source);
   const xml = await capture("unzip", ["-p", resolved, "word/document.xml"], timeoutMs);
   const parsed = parseStoryboardXmlV2(xml);
+
+  // Auto-resolve project context (A-rolls, Cover Card portraits, B-roll pools)
+  try {
+    const projectContext = await resolveProjectContext(resolved);
+    const dirEntries = await readdir(docxDir);
+
+    for (const prop of parsed.proposals) {
+      // 1. Auto-resolve A-roll sourcePath
+      if (prop.item.kind === "a_roll" && !prop.item.params.sourcePath && prop.item.params.sourceKey) {
+        const key = String(prop.item.params.sourceKey).toLowerCase();
+        const matchFile = dirEntries.find((f) => {
+          const lower = f.toLowerCase();
+          return lower.startsWith(key) && (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".mxf"));
+        });
+        if (matchFile) {
+          prop.item.params.sourcePath = path.join(docxDir, matchFile);
+        }
+      }
+
+      // 2. Auto-bind Cover Card portrait image & metadata
+      if (prop.item.kind === "cover_card") {
+        if (!prop.item.params.sourceImage && projectContext.portraitImages.length > 0) {
+          prop.item.params.sourceImage = projectContext.portraitImages[0]!.path;
+        }
+        const rawCoverText = String(prop.item.params.prompt || prop.item.params.title || "").trim();
+        if (rawCoverText && (!prop.item.params.personName || !prop.item.params.award)) {
+          const meta = await extractCoverCardMetadata(rawCoverText);
+          prop.item.params.personName = meta.personName;
+          prop.item.params.positionTitle = meta.positionTitle;
+          prop.item.params.award = meta.award;
+          prop.item.params.prompt = meta.prompt;
+          prop.item.params.title = meta.personName;
+          prop.item.params.subtitle = meta.positionTitle;
+          prop.item.params.eyebrow = meta.award;
+        }
+      }
+    }
+  } catch {}
+
   return {
     schemaVersion: 2,
     importId: `import_${sourceDigest.slice(0, 16)}`,
@@ -135,21 +177,28 @@ export function parseStoryboardXmlV2(xml: string): Pick<StoryboardDocxImportV2, 
     const rowNumber = row.rowNumber - headerRows;
     if (rowNumber < 1) continue;
     let sound = normalizeText(row.sound);
-    const clipMatch = sound.match(/\bC\s*(\d{4})\b/i);
-    if (clipMatch) carriedSource = `C${clipMatch[1]}`.toUpperCase();
-    const ranges = [...sound.matchAll(/(?:(C\d{4})\s*)?(\d{1,2}):(\d{2})\s*(?:-|\s+)\s*(\d{1,2}):(\d{2})/gi)];
+    let picture = normalizeText(row.picture);
+    let combined = `${picture} ${sound}`.trim();
+
+    // Support Sony (C7724), Canon (2X7A9362), or general camera clip identifiers
+    const explicitClipMatch = combined.match(/\b([A-Z0-9_]{4,15})\b(?=\s*\d{1,2}:\d{2})/i)
+      || combined.match(/\b(C\d{4}|2X7A\d{4}|[A-Z]{1,4}\d{4,6})\b/i);
+    if (explicitClipMatch) {
+      const clipFound = explicitClipMatch[1] || explicitClipMatch[0];
+      if (clipFound) carriedSource = clipFound.toUpperCase();
+    }
+
+    const rangePattern = /(?:([A-Z0-9_]{3,15})\s*)?(\d{1,2}):(\d{2})\s*(?:-|\s+)\s*(\d{1,2}):(\d{2})/gi;
+    const ranges = [...sound.matchAll(rangePattern)];
     for (const [rangeIndex, match] of ranges.entries()) {
-      if (match[1]) carriedSource = match[1].toUpperCase();
+      if (match[1] && /[A-Z0-9_]{4,15}/i.test(match[1])) carriedSource = match[1].toUpperCase();
       const inMs = (Number(match[2]) * 60 + Number(match[3])) * 1000;
       const outMs = (Number(match[4]) * 60 + Number(match[5])) * 1000;
-      if (!carriedSource) {
-        diagnostics.push({ code: "missing_clip_id", severity: "blocker", message: "ช่วงเวลาไม่มีรหัสคลิป A-roll", rowNumber });
-        continue;
-      }
       if (outMs <= inMs) {
         diagnostics.push({ code: "invalid_time_range", severity: "blocker", message: "เวลาออกต้องมากกว่าเวลาเข้า", rowNumber });
         continue;
       }
+      const sourceKey = carriedSource || "PRIMARY_AROLL";
       const startIndex = (match.index ?? 0) + match[0].length;
       const endIndex = ranges[rangeIndex + 1]?.index ?? sound.length;
       const inherited = !match[1];
@@ -162,7 +211,7 @@ export function parseStoryboardXmlV2(xml: string): Pick<StoryboardDocxImportV2, 
         presetId: "a-roll-segment-v1",
         sourceRowNumbers: [rowNumber],
         params: {
-          sourceKey: carriedSource,
+          sourceKey,
           sourcePath: "",
           sourceInMs: inMs,
           sourceOutMs: outMs,
@@ -172,17 +221,16 @@ export function parseStoryboardXmlV2(xml: string): Pick<StoryboardDocxImportV2, 
         },
         broll: []
       }));
-      if (inherited) diagnostics.push({ code: "inherited_clip_id", severity: "warning", message: `ใช้รหัสคลิป ${carriedSource} ต่อเนื่องจากแถวก่อนหน้า`, itemId: id, rowNumber });
+      if (inherited) diagnostics.push({ code: "inherited_clip_id", severity: "warning", message: `ใช้รหัสคลิป ${sourceKey} ต่อเนื่องจากแถวก่อนหน้า`, itemId: id, rowNumber });
     }
 
-    const picture = normalizeText(row.picture);
     const joined = `${picture} ${sound}`.trim();
     if (!joined) continue;
     const isLogo = /logo|โลโก้|พิชัย\s*มงกุฏ|outro|end\s*card|ท้ายรายการ/i.test(joined);
     const isCover = /ภาพปก|ปกคั่น|cover\s*card|cover\s*interstitial|ภาพนิ่ง.*ปก|ความรู้สึก/i.test(picture);
     const isTitle = /ไตเติล|title|photo\s*carousel|carousel/i.test(picture);
     if (isCover) {
-      proposals.push(proposal(rowNumber, 0.91, ["explicit cover instruction"], baseEditorialItem(`cover_${rowNumber}`, "cover_card", 6000, "comfy-cover-card-v1", row, { sourceImage: "", prompt: picture, title: sound, seed: rowNumber }, rowNumber)));
+      proposals.push(proposal(rowNumber, 0.91, ["explicit cover instruction"], baseEditorialItem(`cover_${rowNumber}`, "cover_card", 6000, "comfy-cover-card-v2", row, { sourceImage: "", prompt: picture, title: sound, seed: rowNumber }, rowNumber)));
     } else if (isLogo) {
       proposals.push(proposal(rowNumber, 0.94, ["logo/outro phrase"], baseEditorialItem(`logo_${rowNumber}`, "logo_outro", 4000, "logo-outro-v1", row, { sourcePath: "", note: joined }, rowNumber)));
     } else if (isTitle) {
@@ -413,6 +461,7 @@ export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2,
         path: item.params.sourceImage,
         output: `media/storyboard-covers/${safeId}/cutout.png`
       }, x, 180);
+      const backgroundSource = selectedBackground ? addNode(item.id, "background_source", "asset.select", { path: selectedBackground }, x, 260) : undefined;
       const comfy = selectedBackground ? undefined : addNode(item.id, "generate_bg", "comfyui.workflow", {
         workflowFile: "workflows/generate-cover-background-zimage.api.json",
         promptLanguage: "en",
@@ -477,7 +526,6 @@ export function compileApprovedStoryboard(approved: ApprovedStoryboardVersionV2,
         editorialKind: "cover_card",
         audioPolicy: "mute"
       }, x + 240, 500);
-      const backgroundSource = selectedBackground ? addNode(item.id, "background_source", "asset.select", { path: selectedBackground }, x, 260) : undefined;
       addEdge(asset, "path", cutout, "image");
       if (comfy && review) {
         addEdge(comfy, "image", review, "asset");
@@ -720,7 +768,16 @@ function proposal(rowNumber: number, confidence: number, reasons: string[], item
 }
 
 function normalizeText(value: string): string {
-  return value.replace(/\u00a0/g, " ").replace(/\bC\s*(\d{4})\b/gi, "C$1").replace(/(\d{1,2})\s*[.:]\s*(\d{2})/g, "$1:$2").replace(/[\u2010-\u2015\u2212–—]/g, "-").replace(/\s+/g, " ").trim();
+  let s = value.replace(/\u00a0/g, " ");
+  // Separate merged alphanumeric clip ID (e.g. 2X7A936201.54) from timecode (01.54)
+  s = s.replace(/([A-Z0-9_]{3,15}?)(\d{1,2}[.:]\d{2})/gi, "$1 $2");
+  // Normalize Sony clips like C 7724 -> C7724
+  s = s.replace(/\bC\s*(\d{4})\b/gi, "C$1");
+  // Normalize timecode dots to colons
+  s = s.replace(/(\d{1,2})\s*[.:]\s*(\d{2})/g, "$1:$2");
+  // Normalize dashes
+  s = s.replace(/[\u2010-\u2015\u2212–—]/g, "-");
+  return s.replace(/\s+/g, " ").trim();
 }
 
 function xmlText(value: string): string {
@@ -831,3 +888,8 @@ export function compileStoryboardToRemotionProps(
     theme: options.theme
   };
 }
+
+export * from "./auto-broll.js";
+export * from "./project-context.js";
+export * from "./cover-card-extractor.js";
+export * from "./cover-formatting.js";

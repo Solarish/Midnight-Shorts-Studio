@@ -108,7 +108,7 @@ describe("LogoOutro Presets and LogoOutroInspector", () => {
 
     expect(screen.getByText(/Outro Video File/i)).toBeDefined();
     expect(screen.getByText(/Video Playback & Transitions/i)).toBeDefined();
-    expect(screen.getByLabelText("Fade In (ms)")).toHaveValue(480);
-    expect(screen.getByLabelText("Fade Out (ms)")).toHaveValue(480);
+    expect(screen.getByLabelText("Fade In (s)")).toHaveValue(0.48);
+    expect(screen.getByLabelText("Fade Out (s)")).toHaveValue(0.48);
   });
 });

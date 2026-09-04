@@ -4,8 +4,9 @@ import { StoryboardSequence, type StoryboardAssemblyProps, type StoryboardItemPr
 import type { Storyboard, StoryboardItem, StoryboardKind } from "../storyboard-types";
 import { RemoteFilePickerModal } from "./RemoteFilePickerModal";
 import { CgBlockEditor, normalizeCgBlocksForMasterDuration, type CgBlock } from "./CgBlockEditor";
-import { runStoryboardNode } from "../storyboard-api";
+import { approveAndCompileStoryboard, runStoryboardNode } from "../storyboard-api";
 import { api, mediaStreamUrl } from "../api";
+import { RenderProgressModal } from "./RenderProgressModal";
 import { TextLayerStyleEditor } from "./TextLayerStyleEditor";
 import "./text-layer-style-editor.css";
 import type { CoverTextStyles } from "@psu-ava/remotion-studio";
@@ -22,7 +23,9 @@ import {
   CoverCardInspector,
   LogoOutroInspector,
   NoteInspector,
-  TitleCarouselInspector
+  TitleCarouselInspector,
+  BgmInspector,
+  BGM_PRESETS
 } from "./inspectors";
 
 interface InteractiveTimelineStudioModalProps {
@@ -30,6 +33,7 @@ interface InteractiveTimelineStudioModalProps {
   onMutate: (updater: (prev: Storyboard) => Storyboard) => void;
   onClose: () => void;
   initialAspect?: "9:16" | "16:9" | "1:1";
+  bgmTrack?: any;
 }
 
 function formatTimecode(frames: number, fps = 25): string {
@@ -71,15 +75,29 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
   storyboard,
   onMutate,
   onClose,
-  initialAspect = "16:9"
+  initialAspect = "16:9",
+  bgmTrack
 }) => {
   const [aspect, setAspect] = useState<"9:16" | "16:9" | "1:1">(initialAspect);
   const [selectedItemId, setSelectedItemId] = useState<string>(() => storyboard.items[0]?.id || "");
   const [selectedBrollId, setSelectedBrollId] = useState<string>("");
+  const [isBgmSelected, setIsBgmSelected] = useState<boolean>(false);
+  const [bgmPresetId, setBgmPresetId] = useState<string>(() => {
+    if (!bgmTrack?.path) return "none";
+    const found = BGM_PRESETS.find((p) => p.path === bgmTrack.path);
+    return found ? found.id : "custom";
+  });
+  const [bgmPath, setBgmPath] = useState<string>(bgmTrack?.path || "");
+  const [bgmVolume, setBgmVolume] = useState<number>(bgmTrack?.volume ?? 0.6);
+  const [bgmDuckVolume, setBgmDuckVolume] = useState<number>(bgmTrack?.duckVolume ?? 0.12);
+  const [autoDucking, setAutoDucking] = useState<boolean>(bgmTrack?.autoDucking ?? true);
+  const [fadeInMs, setFadeInMs] = useState<number>(bgmTrack?.fadeInMs ?? 500);
+  const [fadeOutMs, setFadeOutMs] = useState<number>(bgmTrack?.fadeOutMs ?? 1500);
+
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1); // 1 = normal, 2 = zoomed in, 0.5 = compact
-  const [filePickerField, setFilePickerField] = useState<{ open: boolean; target: "sourcePath" | "sourceImage" | "backgroundImage" | "personImage" | "broll"; brollId?: string }>({ open: false, target: "sourcePath" });
+  const [filePickerField, setFilePickerField] = useState<{ open: boolean; target: "sourcePath" | "sourceImage" | "backgroundImage" | "personImage" | "broll" | "bgmAudio"; brollId?: string }>({ open: false, target: "sourcePath" });
   const [nodeRun, setNodeRun] = useState<{ runId: string; itemId: string; stage: "background" | "doodle" | "person" | "assets"; status: string; dryRun: boolean; health?: "starting" | "active" | "stalled" | "connection_lost" | "terminal"; lastHeartbeatAt?: string; systemStatus?: { reachable: boolean; checkedAt?: string; data?: { cpu?: { load?: string }; memory?: { percentage?: string } }; error?: string }; comfyStatus?: { reachable: boolean; checkedAt?: string; queue?: { running?: unknown[]; pending?: unknown[] }; error?: string }; error?: string; progress?: { completed: number; total: number; percent: number }; steps?: Array<{ id: string; label?: string; status: string }> }>();
   const [nodeRunBusy, setNodeRunBusy] = useState(false);
   const [nodeRunError, setNodeRunError] = useState<string>();
@@ -88,6 +106,28 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
   const [selectedDoodlePath, setSelectedDoodlePath] = useState(0);
   const [selectedDoodlePathId, setSelectedDoodlePathId] = useState<string>();
   const [selectedDoodlePointIndex, setSelectedDoodlePointIndex] = useState<number>();
+  const [isRenderModalOpen, setIsRenderModalOpen] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approveFeedback, setApproveFeedback] = useState<string | null>(null);
+
+  const handleApproveAndCompile = async () => {
+    setIsApproving(true);
+    try {
+      const res = await approveAndCompileStoryboard(storyboard);
+      onMutate((prev) => ({
+        ...prev,
+        status: "approved",
+        approvedVersion: res.approved.version
+      }));
+      setApproveFeedback(`✓ อนุมัติ v${res.approved.version} สำเร็จ`);
+      setTimeout(() => setApproveFeedback(null), 3000);
+    } catch (err: any) {
+      setApproveFeedback(`⚠️ ${err.message || "อนุมัติไม่สำเร็จ"}`);
+      setTimeout(() => setApproveFeedback(null), 4000);
+    } finally {
+      setIsApproving(false);
+    }
+  };
 
   const playerRef = useRef<PlayerRef>(null);
   const timelineRulerRef = useRef<HTMLDivElement>(null);
@@ -114,7 +154,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
             const output = step?.outputs ?? {};
             return step?.status === "success" ? output.images?.[0]?.localPath ?? output.image ?? output.path : undefined;
           };
-          const generated = nodeRun.stage === "background" ? { backgroundImage: outputFor("__generate_bg") } : nodeRun.stage === "person" ? { personImage: outputFor("__cutout") } : nodeRun.stage === "doodle" ? { doodleImage: outputFor("__doodle_alpha") } : { backgroundImage: outputFor("__generate_bg"), personImage: outputFor("__cutout"), doodleImage: outputFor("__doodle_alpha") };
+          const generated = nodeRun.stage === "background" ? { backgroundImage: outputFor("__generate_bg") ?? outputFor("__generate") } : nodeRun.stage === "person" ? { personImage: outputFor("__cutout") } : nodeRun.stage === "doodle" ? { doodleImage: outputFor("__doodle_alpha") } : { backgroundImage: outputFor("__generate_bg") ?? outputFor("__generate"), personImage: outputFor("__cutout"), doodleImage: outputFor("__doodle_alpha") };
           const changed = Object.fromEntries(Object.entries(generated).filter(([, value]) => typeof value === "string" && value));
           if (Object.keys(changed).length) onMutate((previous) => ({ ...previous, items: previous.items.map((item) => {
             if (item.id !== nodeRun.itemId) return item;
@@ -227,7 +267,15 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
     setNodeRunBusy(true);
     setNodeRunError(undefined);
     try {
-      const runItem = { ...selectedScene.item, params: { ...selectedScene.item.params, randomSeed: true, ...(stage === "background" || stage === "assets" ? { backgroundImage: "" } : {}) } };
+      const runItem = {
+        ...selectedScene.item,
+        presetId: "comfy-cover-card-v2",
+        params: {
+          ...selectedScene.item.params,
+          randomSeed: true,
+          ...(stage === "background" || stage === "assets" ? { backgroundImage: "" } : {})
+        }
+      };
       const result = await runStoryboardNode(storyboard.storyboardId, selectedScene.item.id, "live", runItem, stage);
       setNodeRun({ ...result, itemId: selectedScene.item.id, stage, health: "starting", progress: { completed: 0, total: 5, percent: 0 } }); setSelectedItemId(selectedScene.item.id);
     } catch (error) {
@@ -253,6 +301,41 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
       setNodeRunBusy(false);
     }
   }, [selectedScene, storyboard.storyboardId]);
+
+  // Active BGM Track configuration for Remotion Player
+  const activeBgmTrack = useMemo(() => {
+    const preset = BGM_PRESETS.find((p) => p.id === bgmPresetId);
+    const resolvedPath = bgmPresetId === "custom" ? bgmPath : preset?.path || "";
+    if (!resolvedPath || bgmPresetId === "none") return undefined;
+    return {
+      path: resolvedPath,
+      volume: bgmVolume,
+      duckVolume: bgmDuckVolume,
+      autoDucking,
+      fadeInMs,
+      fadeOutMs,
+      role: "music" as const
+    };
+  }, [bgmPresetId, bgmPath, bgmVolume, bgmDuckVolume, autoDucking, fadeInMs, fadeOutMs]);
+
+  // Detected Speech Windows for BGM Inspector List
+  const speechWindowsList = useMemo(() => {
+    const list: Array<{ sceneNumber: number; title: string; startSec: number; endSec: number }> = [];
+    let currentMs = 0;
+    (storyboard.items || []).forEach((item, idx) => {
+      const dur = Number(item.durationMs) || 4000;
+      if (item.kind === "a_roll" && item.audioPolicy !== "mute") {
+        list.push({
+          sceneNumber: idx + 1,
+          title: String(item.params?.speaker || item.params?.title || item.id),
+          startSec: currentMs / 1000,
+          endSec: (currentMs + dur) / 1000
+        });
+      }
+      currentMs += dur;
+    });
+    return list;
+  }, [storyboard.items]);
 
   // Convert active storyboard to Remotion Assembly Props
   const remotionProps: StoryboardAssemblyProps & { aspectRatio: "9:16" | "16:9" | "1:1" } = useMemo(() => {
@@ -281,7 +364,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
           assetPath: b.asset?.path,
           offsetMs: b.offsetMs ?? 0,
           durationMs: b.durationMs ?? 3000,
-          preset: "Spring",
+          preset: (b as any).preset || "none",
           fit: b.fit || "cover",
           audioPolicy: b.audioPolicy || "mute",
           title: b.note,
@@ -296,6 +379,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
       fps: 25,
       durationInFrames: totalDurationFrames,
       aspectRatio: aspect,
+      bgmTrack: activeBgmTrack,
       theme: {
         primaryColor: "#E5A93C",
         secondaryColor: "#0B1220",
@@ -305,7 +389,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
       },
       items
     };
-  }, [storyboard, aspect, totalDurationFrames]);
+  }, [storyboard, aspect, totalDurationFrames, activeBgmTrack]);
 
   // Jump player to a specific frame
   const seekToFrame = useCallback((frame: number) => {
@@ -471,31 +555,100 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ fontSize: "12px", color: "#94A3B8", fontWeight: 600 }}>Format:</span>
           <div style={{ display: "flex", background: "#1E293B", borderRadius: "8px", padding: "3px" }}>
-            {(["9:16", "16:9", "1:1"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setAspect(mode)}
-                style={{
-                  padding: "5px 12px",
-                  borderRadius: "6px",
-                  border: "none",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  backgroundColor: aspect === mode ? "#3B82F6" : "transparent",
-                  color: aspect === mode ? "#FFFFFF" : "#94A3B8",
-                  transition: "all 0.15s ease"
-                }}
-              >
-                {mode === "9:16" ? "📱 9:16 (Shorts)" : mode === "16:9" ? "🖥️ 16:9 (Broadcast)" : "⏹️ 1:1 (Square)"}
-              </button>
-            ))}
+            {(["16:9", "9:16", "1:1"] as const).map((mode) => {
+              const isLocked = mode !== "16:9";
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => !isLocked && setAspect(mode)}
+                  title={isLocked ? "Auto-Compositing สำหรับขนาดนี้อยู่ระหว่างพัฒนา (เปิดใช้งาน 16:9 เท่านั้น)" : "16:9 Broadcast Master"}
+                  style={{
+                    padding: "5px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: isLocked ? "not-allowed" : "pointer",
+                    opacity: isLocked ? 0.35 : 1,
+                    backgroundColor: aspect === mode ? "#3B82F6" : "transparent",
+                    color: aspect === mode ? "#FFFFFF" : "#94A3B8",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  {mode === "16:9" ? "🖥️ 16:9 (Broadcast Master)" : mode === "9:16" ? "📱 9:16 (เร็วๆ นี้)" : "⏹️ 1:1 (เร็วๆ นี้)"}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Right Close button */}
+        {/* Right Actions: Approve, Render Master Video, Close */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {approveFeedback && (
+            <span
+              style={{
+                fontSize: "12px",
+                color: approveFeedback.startsWith("✓") ? "#34D399" : "#FCA5A5",
+                fontWeight: 700,
+                background: "rgba(0, 0, 0, 0.4)",
+                padding: "4px 8px",
+                borderRadius: "6px"
+              }}
+            >
+              {approveFeedback}
+            </span>
+          )}
+
+          {/* [●] Approve & Compile */}
+          <button
+            type="button"
+            onClick={handleApproveAndCompile}
+            disabled={isApproving}
+            style={{
+              background: storyboard.status === "approved" ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.15)",
+              border: "1px solid rgba(16, 185, 129, 0.5)",
+              borderRadius: "8px",
+              color: "#34D399",
+              padding: "6px 14px",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: isApproving ? "wait" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all 0.15s ease"
+            }}
+            title="อนุมัติ Storyboard เวอร์ชันปัจจุบันและคอมไพล์ Execution Graph"
+          >
+            <span>●</span> {isApproving ? "กำลังอนุมัติ..." : storyboard.status === "approved" ? `Approved v${storyboard.approvedVersion} ✓` : "Approve & Compile"}
+          </button>
+
+          {/* [🚀] Render Master Video */}
+          <button
+            type="button"
+            onClick={() => setIsRenderModalOpen(true)}
+            style={{
+              background: "linear-gradient(135deg, #E5A93C 0%, #D97706 100%)",
+              border: "none",
+              borderRadius: "8px",
+              color: "#0B132B",
+              padding: "6px 16px",
+              fontSize: "13px",
+              fontWeight: 800,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(229, 169, 60, 0.35)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+            title="เปิดหน้าต่างสั่ง Render วิดีโอ Master 1080p @ 25fps พร้อมส่งออกลงโฟลเดอร์ปลายทาง"
+          >
+            <span>🚀</span> Render Master Video
+          </button>
+
+          {/* Close button */}
           <button
             type="button"
             onClick={onClose}
@@ -505,12 +658,12 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
               borderRadius: "8px",
               color: "#F8FAFC",
               padding: "6px 16px",
-              fontSize: "14px",
+              fontSize: "13px",
               fontWeight: 700,
               cursor: "pointer"
             }}
           >
-            ✕ บันทึก &amp; กลับสู่หน้าหลัก
+            ✕ บันทึก &amp; กลับ
           </button>
         </div>
       </header>
@@ -598,7 +751,25 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
             gap: "16px"
           }}
         >
-          {selectedScene ? (
+          {isBgmSelected ? (
+            <BgmInspector
+              bgmPresetId={bgmPresetId}
+              onPresetChange={setBgmPresetId}
+              bgmPath={bgmPath}
+              onPathChange={setBgmPath}
+              volume={bgmVolume}
+              onVolumeChange={setBgmVolume}
+              duckVolume={bgmDuckVolume}
+              onDuckVolumeChange={setBgmDuckVolume}
+              autoDucking={autoDucking}
+              onAutoDuckingChange={setAutoDucking}
+              fadeInMs={fadeInMs}
+              onFadeInMsChange={setFadeInMs}
+              fadeOutMs={fadeOutMs}
+              onFadeOutMsChange={setFadeOutMs}
+              speechWindows={speechWindowsList}
+            />
+          ) : selectedScene ? (
             <>
               {/* Scene Header Card */}
               <div
@@ -742,7 +913,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
             </>
           ) : (
             <div style={{ textAlign: "center", color: "#64748B", marginTop: "40px" }}>
-              คลิกเลือกฉากบนไทม์ไลน์ด้านล่างเพื่อเริ่มปรับแต่ง
+              คลิกเลือกฉากหรือแทร็กเสียงบนไทม์ไลน์ด้านล่างเพื่อเริ่มปรับแต่ง
             </div>
           )}
         </div>
@@ -751,7 +922,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
       {/* 3. Bottom Multi-Track Interactive Timeline Editor */}
       <div
         style={{
-          height: "260px",
+          height: "320px",
           backgroundColor: "#0B1220",
           borderTop: "2px solid rgba(59, 130, 246, 0.4)",
           display: "flex",
@@ -824,7 +995,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
         >
           <div style={{ width: `${100 * zoomLevel}%`, height: "100%", position: "relative", minWidth: "100%" }}>
             {/* Timecode Grid Ruler */}
-            <div style={{ height: "20px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", display: "flex", position: "relative", marginBottom: "6px" }}>
+            <div style={{ height: "18px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", display: "flex", position: "relative", marginBottom: "4px" }}>
               {Array.from({ length: Math.ceil(totalDurationFrames / 250) + 1 }).map((_, rIdx) => {
                 const markFrame = rIdx * 250; // Every 10 seconds
                 const pct = (markFrame / totalDurationFrames) * 100;
@@ -836,11 +1007,10 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
               })}
             </div>
 
-            {/* TRACK V2: B-Roll Stack Overlays */}
-            <div style={{ height: "30px", marginBottom: "4px", position: "relative", display: "flex", backgroundColor: "rgba(30, 41, 59, 0.4)", borderRadius: "4px" }}>
-              <div style={{ position: "absolute", left: "6px", top: "6px", fontSize: "10px", fontWeight: 800, color: "#60A5FA", pointerEvents: "none", zIndex: 10 }}>V2 B-ROLL</div>
+            {/* TRACK 1: V2 B-Roll Stack Overlays */}
+            <div style={{ height: "26px", marginBottom: "3px", position: "relative", display: "flex", backgroundColor: "rgba(30, 41, 59, 0.4)", borderRadius: "4px" }}>
+              <div style={{ position: "absolute", left: "6px", top: "5px", fontSize: "9px", fontWeight: 800, color: "#60A5FA", pointerEvents: "none", zIndex: 10 }}>V2 B-ROLL</div>
               {schedule.map((s) => {
-                const sPctWidth = (s.durationFrames / totalDurationFrames) * 100;
                 const sPctLeft = (s.startFrame / totalDurationFrames) * 100;
 
                 return (s.item.broll || []).map((b, bIdx) => {
@@ -854,6 +1024,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                       key={b.id}
                       onClick={(e) => {
                         e.stopPropagation();
+                        setIsBgmSelected(false);
                         setSelectedItemId(s.item.id);
                         setSelectedBrollId(b.id);
                         seekToFrame(s.startFrame + bOffsetFrames);
@@ -869,7 +1040,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                         display: "flex",
                         alignItems: "center",
                         padding: "0 6px",
-                        fontSize: "10px",
+                        fontSize: "9px",
                         fontWeight: 700,
                         color: "#FFFFFF",
                         overflow: "hidden",
@@ -884,12 +1055,65 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
               })}
             </div>
 
-            {/* TRACK V1: Main Sequential Storyboard Scenes (A-Roll, Cover, Title, Outro) */}
-            <div style={{ height: "54px", marginBottom: "4px", position: "relative", display: "flex", backgroundColor: "rgba(15, 23, 42, 0.6)", borderRadius: "6px" }}>
-              <div style={{ position: "absolute", left: "6px", top: "6px", fontSize: "10px", fontWeight: 800, color: "#E5A93C", pointerEvents: "none", zIndex: 10 }}>V1 MAIN</div>
+            {/* TRACK 2: CG LOWER-THIRD (PSU Glass Beacon) */}
+            <div style={{ height: "24px", marginBottom: "3px", position: "relative", display: "flex", backgroundColor: "rgba(6, 182, 212, 0.08)", borderRadius: "4px", border: "1px dashed rgba(6, 182, 212, 0.25)" }}>
+              <div style={{ position: "absolute", left: "6px", top: "4px", fontSize: "9px", fontWeight: 800, color: "#22D3EE", pointerEvents: "none", zIndex: 10 }}>CG LOWER-THIRD</div>
+              {schedule.map((s) => {
+                const lt = (s.item.params?.lowerThird || {}) as any;
+                const isEnabled = lt?.enabled !== false && Boolean(lt?.name || s.item.params?.speaker);
+                if (s.item.kind !== "a_roll" || !isEnabled) return null;
+
+                const sPctLeft = (s.startFrame / totalDurationFrames) * 100;
+                const ltOffsetMs = Number(lt?.offsetMs ?? 500);
+                const ltDurMs = Number(lt?.durationMs ?? 4500);
+                const ltOffsetFrames = Math.round((ltOffsetMs / 1000) * 25);
+                const ltDurFrames = Math.round((ltDurMs / 1000) * 25);
+                const ltLeft = sPctLeft + (ltOffsetFrames / totalDurationFrames) * 100;
+                const ltWidth = (ltDurFrames / totalDurationFrames) * 100;
+
+                return (
+                  <div
+                    key={`lt_${s.item.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsBgmSelected(false);
+                      setSelectedItemId(s.item.id);
+                      setSelectedBrollId("");
+                      seekToFrame(s.startFrame + ltOffsetFrames);
+                    }}
+                    style={{
+                      position: "absolute",
+                      left: `${ltLeft}%`,
+                      width: `${Math.max(1, ltWidth)}%`,
+                      height: "100%",
+                      background: "linear-gradient(135deg, rgba(6, 182, 212, 0.85), rgba(217, 119, 6, 0.85))",
+                      border: "1px solid #67E8F9",
+                      borderRadius: "4px",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "0 6px",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      color: "#FFFFFF",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 0 8px rgba(6, 182, 212, 0.4)"
+                    }}
+                    title={`Lower-Third: ${lt?.name || s.item.params?.speaker} (${(ltDurMs / 1000).toFixed(1)}s)`}
+                  >
+                    🏷️ {lt?.name || s.item.params?.speaker || "วิทยากร"}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* TRACK 3: V1 MAIN Sequential Storyboard Scenes */}
+            <div style={{ height: "48px", marginBottom: "3px", position: "relative", display: "flex", backgroundColor: "rgba(15, 23, 42, 0.6)", borderRadius: "6px" }}>
+              <div style={{ position: "absolute", left: "6px", top: "6px", fontSize: "9px", fontWeight: 800, color: "#E5A93C", pointerEvents: "none", zIndex: 10 }}>V1 MAIN</div>
               {schedule.map((s) => {
                 const widthPct = (s.durationFrames / totalDurationFrames) * 100;
-                const isSelected = selectedScene?.item.id === s.item.id;
+                const isSelected = !isBgmSelected && selectedScene?.item.id === s.item.id;
 
                 const bgColors: Record<string, string> = {
                   cover_card: "linear-gradient(135deg, #D97706, #B45309)",
@@ -904,6 +1128,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                     key={s.item.id}
                     onClick={(e) => {
                       e.stopPropagation();
+                      setIsBgmSelected(false);
                       setSelectedItemId(s.item.id);
                       setSelectedBrollId("");
                       seekToFrame(s.startFrame);
@@ -938,9 +1163,9 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
               })}
             </div>
 
-            {/* TRACK T1: Dynamic Subtitles Dialogue */}
-            <div style={{ height: "26px", position: "relative", display: "flex", backgroundColor: "rgba(30, 41, 59, 0.3)", borderRadius: "4px" }}>
-              <div style={{ position: "absolute", left: "6px", top: "4px", fontSize: "10px", fontWeight: 800, color: "#10B981", pointerEvents: "none", zIndex: 10 }}>T1 SUB</div>
+            {/* TRACK 4: T1 Subtitle Dialogue */}
+            <div style={{ height: "22px", marginBottom: "3px", position: "relative", display: "flex", backgroundColor: "rgba(30, 41, 59, 0.3)", borderRadius: "4px" }}>
+              <div style={{ position: "absolute", left: "6px", top: "3px", fontSize: "9px", fontWeight: 800, color: "#10B981", pointerEvents: "none", zIndex: 10 }}>T1 SUB</div>
               {schedule.map((s) => {
                 const widthPct = (s.durationFrames / totalDurationFrames) * 100;
                 const hasDialogue = Boolean(s.item.params?.dialogue);
@@ -955,7 +1180,7 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                       borderRight: "1px solid rgba(255, 255, 255, 0.05)",
                       borderLeft: hasDialogue ? "2px solid #10B981" : "none",
                       padding: "0 6px",
-                      fontSize: "10px",
+                      fontSize: "9px",
                       color: "#A7F3D0",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -965,6 +1190,74 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
                     }}
                   >
                     {hasDialogue ? String(s.item.params.dialogue) : ""}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* TRACK 5: A1 Background Music & Auto-Ducking Waveform */}
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsBgmSelected(true);
+              }}
+              style={{
+                height: "32px",
+                position: "relative",
+                display: "flex",
+                backgroundColor: isBgmSelected ? "rgba(139, 92, 246, 0.25)" : "rgba(30, 27, 75, 0.5)",
+                border: isBgmSelected ? "2px solid #A78BFA" : "1px solid rgba(139, 92, 246, 0.2)",
+                borderRadius: "4px",
+                overflow: "hidden",
+                cursor: "pointer",
+                boxShadow: isBgmSelected ? "0 0 12px rgba(139, 92, 246, 0.3)" : "none"
+              }}
+              title="คลิกเพื่อเปิด BGM Soundtrack & Auto-Ducking Inspector"
+            >
+              <div style={{ position: "absolute", left: "6px", top: "7px", fontSize: "9px", fontWeight: 800, color: "#C4B5FD", pointerEvents: "none", zIndex: 10 }}>
+                🎵 A1 BGM {bgmPresetId !== "none" ? `(${Math.round(bgmVolume * 100)}%)` : "(OFF)"}
+              </div>
+
+              {schedule.map((s) => {
+                const widthPct = (s.durationFrames / totalDurationFrames) * 100;
+                const isSpeech = s.item.kind === "a_roll" && s.item.audioPolicy !== "mute";
+                const isDucked = isSpeech && autoDucking && bgmPresetId !== "none";
+
+                return (
+                  <div
+                    key={`bgm_${s.item.id}`}
+                    style={{
+                      width: `${widthPct}%`,
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "flex-end",
+                      borderRight: "1px dashed rgba(139, 92, 246, 0.3)",
+                      padding: "2px 4px",
+                      position: "relative"
+                    }}
+                  >
+                    {bgmPresetId !== "none" ? (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: isDucked ? "32%" : "90%",
+                          background: isDucked
+                            ? "linear-gradient(180deg, #06B6D4 0%, rgba(6, 182, 212, 0.3) 100%)"
+                            : "linear-gradient(180deg, #8B5CF6 0%, #6366F1 100%)",
+                          borderRadius: "2px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "height 0.2s ease"
+                        }}
+                      >
+                        <span style={{ fontSize: "8px", fontWeight: 700, color: isDucked ? "#E0F2FE" : "#EDE9FE" }}>
+                          {isDucked ? "-14dB Ducked" : "BGM Full"}
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ width: "100%", height: "2px", backgroundColor: "#475569", alignSelf: "center" }} />
+                    )}
                   </div>
                 );
               })}
@@ -1007,7 +1300,13 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
           isOpen={filePickerField.open}
           initialPath=""
           mode="file"
-          filter={filePickerField.target === "sourcePath" || filePickerField.target === "broll" ? "video" : ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff"}
+          filter={
+            filePickerField.target === "bgmAudio"
+              ? ".mp3,.wav,.m4a,.aac,.flac,.ogg"
+              : filePickerField.target === "sourcePath" || filePickerField.target === "broll"
+              ? "video"
+              : ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff"
+          }
           onSelect={(selectedPath) => {
             if (filePickerField.target === "sourcePath") {
               updateSelectedSceneParams("sourcePath", selectedPath);
@@ -1015,6 +1314,9 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
               updateSelectedSceneParams("sourceImage", selectedPath);
             } else if (filePickerField.target === "backgroundImage") {
               updateSelectedSceneParams("backgroundImage", selectedPath);
+            } else if (filePickerField.target === "bgmAudio") {
+              setBgmPath(selectedPath);
+              setBgmPresetId("custom");
             } else if (filePickerField.target === "broll" && filePickerField.brollId && selectedScene) {
               onMutate((prev) => ({
                 ...prev,
@@ -1027,6 +1329,17 @@ export const InteractiveTimelineStudioModal: React.FC<InteractiveTimelineStudioM
             setFilePickerField({ open: false, target: "sourcePath" });
           }}
           onClose={() => setFilePickerField({ open: false, target: "sourcePath" })}
+        />
+      )}
+
+      {/* Remotion Master Render Progress & Verification Modal */}
+      {isRenderModalOpen && (
+        <RenderProgressModal
+          isOpen={isRenderModalOpen}
+          onClose={() => setIsRenderModalOpen(false)}
+          storyboard={storyboard}
+          bgmTrack={activeBgmTrack}
+          initialFormat={aspect === "9:16" ? "9:16" : "16:9"}
         />
       )}
     </div>

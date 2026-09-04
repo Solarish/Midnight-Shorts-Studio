@@ -25,14 +25,22 @@ function runFfmpeg(args, desc) {
   }
 }
 
-function trimNasClip(src, startSec, durSec, outName) {
+function trimNasClip(src, startSec, durSec, outName, lowerThird = null) {
   const outPath = path.join(CACHE_DIR, outName);
   console.log(`   ✂️ Trimming: ${path.basename(src)} [${startSec}s -> +${durSec}s] -> ${outName}`);
+  let vf = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p";
+  if (lowerThird) {
+    const { name, title, startT = 1.0, endT = 7.0 } = lowerThird;
+    vf += `,drawbox=enable='between(t\\,${startT}\\,${endT})':x=80:y=ih-170:w=760:h=110:color=#0B1220@0.88:t=fill`;
+    vf += `,drawbox=enable='between(t\\,${startT}\\,${endT})':x=80:y=ih-170:w=6:h=110:color=#E5A93C:t=fill`;
+    vf += `,drawtext=enable='between(t\\,${startT}\\,${endT})':fontfile='/Library/Fonts/PSU-Stidti-Bold.otf':text='${name}':fontcolor=#FFFFFF:fontsize=36:x=106:y=h-152`;
+    vf += `,drawtext=enable='between(t\\,${startT}\\,${endT})':fontfile='/Library/Fonts/PSU-Stidti-Bold.otf':text='${title}':fontcolor=#00E5FF:fontsize=22:x=106:y=h-104`;
+  }
   runFfmpeg([
     "-ss", String(startSec),
     "-i", src,
     "-t", String(durSec),
-    "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+    "-vf", vf,
     "-r", "25",
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
     "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-ac", "2",
@@ -58,19 +66,31 @@ async function main() {
   const c01_hook = trimNasClip(C7724, 3 * 60 + 4, 10.0, "01_real_hook.mp4");
   
   // 2. Intro Profile (DOCX Row 3: C7723 00:11 - 00:28) -> 17s
-  const c02_intro = trimNasClip(C7723, 11.0, 17.0, "02_real_intro.mp4");
+  const c02_intro = trimNasClip(C7723, 11.0, 17.0, "02_real_intro.mp4", {
+    name: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    title: "อาจารย์ตัวอย่างดีเด่น คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์"
+  });
   
   // 3. Harvard & Experience (DOCX Row 5: C7723 00:43 - 01:59) -> 76s
-  const c04_harvard = trimNasClip(C7723, 43.0, 76.0, "04_real_harvard.mp4");
+  const c04_harvard = trimNasClip(C7723, 43.0, 76.0, "04_real_harvard.mp4", {
+    name: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    title: "อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ • คณะทันตแพทยศาสตร์ ม.อ."
+  });
   
   // 4. Mentorship (C7724 00:25 - 00:50) -> 25s
   const c06_mentor = trimNasClip(C7724, 25.0, 25.0, "06_real_mentor.mp4");
   
   // 5. 3D Teeth Innovation (C7724 03:51 - 04:35) -> 44s
-  const c08_teeth3d = trimNasClip(C7724, 3 * 60 + 51, 44.0, "08_real_teeth3d.mp4");
+  const c08_teeth3d = trimNasClip(C7724, 3 * 60 + 51, 44.0, "08_real_teeth3d.mp4", {
+    name: "นวัตกรรมการสอน: ชิ้นฟันจำลอง 3 มิติ (3D Printing)",
+    title: "Active Learning & Digital Dental Innovation"
+  });
 
   // 6. Award Speech (DOCX Row 7: C7724 05:41 - 06:40) -> 59s
-  const c10_award = trimNasClip(C7724, 5 * 60 + 41, 59.0, "10_real_award.mp4");
+  const c10_award = trimNasClip(C7724, 5 * 60 + 41, 59.0, "10_real_award.mp4", {
+    name: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+    title: "ความรู้สึกต่อรางวัลอาจารย์ตัวอย่างดีเด่น มหาวิทยาลัยสงขลานครินทร์"
+  });
 
   // 7. Real B-Roll Videos from NAS /Ins
   const b01_mentor = trimNasClip(path.join(INS_DIR, "C7742.MP4"), 2.0, 14.0, "05_broll_mentor.mp4");
@@ -102,10 +122,21 @@ async function main() {
           id: "card_cover",
           kind: "cover_card",
           title: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+          personName: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
           subtitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+          positionTitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
           eyebrow: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
+          award: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
           durationMs: 6000,
-          motionPreset: "ZoomPunch"
+          motionPreset: "ZoomPunch",
+          params: {
+            title: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+            personName: "รศ.ดร.ทพญ.เกวลิน ธรรมสิทธิ์บูรณ์",
+            subtitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+            positionTitle: "คณะทันตแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์",
+            eyebrow: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦",
+            award: "✦ อาจารย์ตัวอย่างดีเด่น ประจำปี ๒๕๖๙ ✦"
+          }
         }
       ],
       aspectRatio: "16:9"

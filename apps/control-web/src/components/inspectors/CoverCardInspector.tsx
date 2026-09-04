@@ -261,8 +261,8 @@ export function CoverCardInspector({
 
   return (
     <div className="inspector-container">
-      {/* ⚡ Top Level Run All Header */}
-      <div className="inspector-run-card">
+      {/* Top Level Run All Header */}
+      <div className="inspector-run-card" style={{ background: "#161F30", border: "1px solid #F59E0B" }}>
         <div className="inspector-run-card-header">
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <button
@@ -271,14 +271,15 @@ export function CoverCardInspector({
               onClick={() => onRun?.("assets")}
               disabled={Boolean(nodeRunBusy) || saveState === "saving" || assetsMissing.length > 0}
             >
-              ⚡ {nodeRunBusy ? "Running…" : "Run all"}
+              <span className={nodeRunBusy ? "tva-lamp" : "tva-lamp-green"} />
+              <strong>{nodeRunBusy ? "PROCESSING..." : "RUN ALL ASSETS // สั่งสร้างทั้งหมด"}</strong>
             </button>
-            <span style={{ fontSize: "12px", color: "#94A3B8" }}>Run all Cover Card assets</span>
+            <span style={{ fontSize: "11px", color: "#94A3B8" }}>Cover Card Pipeline</span>
           </div>
         </div>
         {assetsMissing.length > 0 && (
           <small style={{ color: "#F59E0B", fontSize: "11px" }}>
-            กรอกก่อน Run: {assetsMissing.join(", ")}
+            [●] ข้อมูลที่ต้องระบุก่อน Run: {assetsMissing.join(", ")}
           </small>
         )}
         {stageProgress("assets") !== undefined && (
@@ -290,86 +291,187 @@ export function CoverCardInspector({
       </div>
 
       {/* Layer 1: Image Person */}
-      <div className="inspector-card accent-blue" style={{ order: 1 }}>
+      <div className="inspector-card accent-amber" style={{ order: 1 }}>
         <details open>
-          <summary style={{ color: "#60A5FA" }}>🧍 Image Person *</summary>
-          <div className="inspector-card-body">
+          <summary style={{ color: "#FBBF24" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">IMAGE PERSON // ภาพบุคคล</span>
+          </summary>
+          <div className="inspector-card-body" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <PathField
-              label="ภาพต้นฉบับบุคคล (Remove Background Input)"
+              label="ภาพต้นฉบับบุคคล"
               value={sourceImage}
               filter=".png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff"
               onChange={(value) => onParams({ sourceImage: value })}
             />
-            {sourceImage && (
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <img
-                  className="inspector-thumb-preview"
-                  src={`/api/v1/media/stream?path=${encodeURIComponent(sourceImage)}`}
-                  alt="Person input"
-                />
-                <code className="inspector-code-display" style={{ flex: 1 }}>{sourceImage}</code>
-              </div>
-            )}
 
-            <div className="inspector-field">
-              <label className="inspector-label">ผลลัพธ์บุคคลตัดพื้นหลัง (Person Cutout Output)</label>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <code className="inspector-code-display" style={{ flex: 1 }}>
-                  {personImage || "ยังไม่มี cutout — กด Remove background"}
-                </code>
-                {personImage && (
-                  <img
-                    className="inspector-thumb-preview contain"
-                    src={`/api/v1/media/stream?path=${encodeURIComponent(personImage)}`}
-                    alt="Selected person"
+            {/* Large Full-Width 16:9 Thumbnail Box */}
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "16/9",
+                maxHeight: "220px",
+                backgroundColor: "#070D18",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                borderRadius: "8px",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              {personImage ? (
+                <>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "radial-gradient(circle at center, #1E293B 0%, #070D18 100%)",
+                      opacity: 0.8
+                    }}
                   />
-                )}
+                  <img
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      padding: "8px",
+                      zIndex: 2
+                    }}
+                    src={`/api/v1/media/stream?path=${encodeURIComponent(personImage)}`}
+                    alt="Person cutout"
+                    title="ผลลัพธ์บุคคลไดคัต (16:9)"
+                  />
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: "8px",
+                      right: "8px",
+                      backgroundColor: "rgba(16, 185, 129, 0.9)",
+                      color: "#FFFFFF",
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                      zIndex: 3
+                    }}
+                  >
+                    ✓ Cutout 16:9
+                  </span>
+                </>
+              ) : sourceImage ? (
+                <>
+                  <img
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    src={`/api/v1/media/stream?path=${encodeURIComponent(sourceImage)}`}
+                    alt="Source person"
+                    title="ภาพต้นฉบับ (16:9)"
+                  />
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: "8px",
+                      right: "8px",
+                      backgroundColor: "rgba(59, 130, 246, 0.9)",
+                      color: "#FFFFFF",
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.5)"
+                    }}
+                  >
+                    Source 16:9
+                  </span>
+                </>
+              ) : (
+                <div style={{ textAlign: "center", color: "#475569" }}>
+                  <div style={{ fontSize: "28px" }}>🧍</div>
+                  <small style={{ fontSize: "11px" }}>16:9 Person Preview</small>
+                </div>
+              )}
+            </div>
+
+            {/* Transform & Sticker Controls Row */}
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px", alignItems: "center" }}>
+              {/* Compact X, Y, Scale row */}
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "rgba(15, 23, 42, 0.6)", padding: "5px 8px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "11px", color: "#94A3B8", fontWeight: 600 }}>X</span>
+                  <input
+                    className="inspector-input"
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    title="Position X"
+                    style={{ width: "48px", padding: "3px 4px", fontSize: "12px", textAlign: "center" }}
+                    value={Number(item.params.personX ?? 0.72)}
+                    onChange={(event) => onParams({ personX: Number(event.target.value) })}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "11px", color: "#94A3B8", fontWeight: 600 }}>Y</span>
+                  <input
+                    className="inspector-input"
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    title="Position Y"
+                    style={{ width: "48px", padding: "3px 4px", fontSize: "12px", textAlign: "center" }}
+                    value={Number(item.params.personY ?? 0.5)}
+                    onChange={(event) => onParams({ personY: Number(event.target.value) })}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "11px", color: "#94A3B8", fontWeight: 600 }}>Scale</span>
+                  <input
+                    className="inspector-input"
+                    type="number"
+                    min="0.1"
+                    max="4"
+                    step="0.05"
+                    title="Scale"
+                    style={{ width: "48px", padding: "3px 4px", fontSize: "12px", textAlign: "center" }}
+                    value={Number(item.params.personScale ?? 1)}
+                    onChange={(event) => onParams({ personScale: Number(event.target.value) })}
+                  />
+                </div>
+              </div>
+
+              {/* Sticker Preset Selector */}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "11px", color: "#CBD5E1", flexShrink: 0 }}>🏷️ Sticker:</span>
+                <select
+                  className="inspector-select"
+                  style={{ flex: 1, padding: "3px 8px", fontSize: "11px", height: "28px" }}
+                  value={(item.params.personStickerPreset as string) || (item.params.personSticker === false ? "none" : "solid-white")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onParams({
+                      personSticker: val !== "none",
+                      personStickerPreset: val
+                    });
+                  }}
+                >
+                  <option value="solid-white">🤍 ขอบขาวสติกเกอร์ (Solid White)</option>
+                  <option value="comic-pop">⚡ คอมมิคป็อป ขอบทอง (Comic Pop)</option>
+                  <option value="retro-shadow">🕶️ เรโทรการ์ตูน เงาฟ้า (Retro Cyan)</option>
+                  <option value="none">🚫 ไม่ใส่ขอบ (Natural Photo)</option>
+                </select>
               </div>
             </div>
 
-            <div className="inspector-grid-3">
-              <div className="inspector-field">
-                <label className="inspector-label">Position X</label>
-                <input
-                  className="inspector-input"
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={Number(item.params.personX ?? 0.72)}
-                  onChange={(event) => onParams({ personX: Number(event.target.value) })}
-                />
-              </div>
-              <div className="inspector-field">
-                <label className="inspector-label">Position Y</label>
-                <input
-                  className="inspector-input"
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={Number(item.params.personY ?? 0.5)}
-                  onChange={(event) => onParams({ personY: Number(event.target.value) })}
-                />
-              </div>
-              <div className="inspector-field">
-                <label className="inspector-label">Scale</label>
-                <input
-                  className="inspector-input"
-                  type="number"
-                  min="0.1"
-                  max="4"
-                  step="0.05"
-                  value={Number(item.params.personScale ?? 1)}
-                  onChange={(event) => onParams({ personScale: Number(event.target.value) })}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {/* Remove background Action */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <button
                 type="button"
                 className="inspector-btn inspector-btn-secondary"
+                style={{ width: "100%", padding: "6px 10px" }}
                 onClick={() => onRun?.("person")}
                 disabled={Boolean(nodeRunBusy) || personMissing.length > 0}
               >
@@ -381,7 +483,7 @@ export function CoverCardInspector({
                 </div>
               )}
               {personMissing.length > 0 && (
-                <small style={{ color: "#F59E0B", fontSize: "11px" }}>เลือกภาพต้นฉบับบุคคลด้านบนก่อน</small>
+                <small style={{ color: "#F59E0B", fontSize: "10px" }}>เลือกภาพต้นฉบับด้านบนก่อน</small>
               )}
             </div>
           </div>
@@ -424,10 +526,11 @@ export function CoverCardInspector({
       </div>
 
       {/* Layer 3: Doodle */}
-      <div className="inspector-card accent-gold" style={{ order: 3 }}>
+      <div className="inspector-card accent-amber" style={{ order: 3 }}>
         <details open>
-          <summary style={{ color: "#E5A93C" }}>
-            🖍️ Doodle * <small style={{ color: "#64748B", fontWeight: 400 }}>Adobe-free · ComfyUI + Remotion</small>
+          <summary style={{ color: "#FBBF24" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">DOODLE OVERLAY // กราฟิกลายเส้น</span>
           </summary>
           <div className="inspector-card-body">
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -437,7 +540,7 @@ export function CoverCardInspector({
                 onClick={() => onRun?.("doodle")}
                 disabled={Boolean(nodeRunBusy) || doodleMissing.length > 0}
               >
-                🖍️ Generate / refresh doodle
+                [●] GENERATE DOODLE // สร้างลายเส้น ComfyUI
               </button>
               {stageProgress("doodle") !== undefined && (
                 <div className="node-run-progress" aria-label={`Doodle progress ${stageProgress("doodle")}%`}>
@@ -455,8 +558,8 @@ export function CoverCardInspector({
               Doodle overlay
             </label>
 
-            <details open style={{ borderTop: "1px solid rgba(229,169,60,.18)", paddingTop: "8px" }}>
-              <summary style={{ color: "#E5A93C", fontSize: "12px", cursor: "pointer", listStyle: "none" }}>
+            <details open style={{ borderTop: "1px solid rgba(245,158,11,.18)", paddingTop: "8px" }}>
+              <summary style={{ color: "#FBBF24", fontSize: "12px", cursor: "pointer", listStyle: "none" }}>
                 Doodle &amp; reusable assets
               </summary>
               {item.params.doodleEnabled === true && (
@@ -579,7 +682,7 @@ export function CoverCardInspector({
                           />
                         </div>
                         <div className="inspector-field">
-                          <label className="inspector-label">Path size</label>
+                          <label className="inspector-label">Path size (ขนาดสติกเกอร์)</label>
                           <input
                             className="inspector-input"
                             type="number"
@@ -591,43 +694,19 @@ export function CoverCardInspector({
                           />
                         </div>
                         <div className="inspector-field">
-                          <label className="inspector-label">Offset jitter</label>
+                          <label className="inspector-label">Density (ความหนาแน่น)</label>
                           <input
                             className="inspector-input"
                             type="number"
-                            min="0"
-                            max="0.2"
-                            step="0.01"
-                            value={Number(doodlePaths[activeDoodlePathIndex]?.offsetJitter ?? 0.02)}
-                            onChange={(e) => updateSelectedDoodlePath({ offsetJitter: Number(e.target.value) })}
+                            min="0.1"
+                            max="1"
+                            step="0.05"
+                            value={Number(doodlePaths[activeDoodlePathIndex]?.frequency ?? 0.65)}
+                            onChange={(e) => updateSelectedDoodlePath({ frequency: Number(e.target.value) })}
                           />
                         </div>
                         <div className="inspector-field">
-                          <label className="inspector-label">Rotation</label>
-                          <select
-                            className="inspector-select"
-                            value={String(doodlePaths[activeDoodlePathIndex]?.rotation ?? "follow-path")}
-                            onChange={(e) => updateSelectedDoodlePath({ rotation: e.target.value })}
-                          >
-                            <option value="follow-path">Follow path</option>
-                            <option value="fixed">Fixed</option>
-                            <option value="random">Random</option>
-                          </select>
-                        </div>
-                        <div className="inspector-field">
-                          <label className="inspector-label">Rotation jitter</label>
-                          <input
-                            className="inspector-input"
-                            type="number"
-                            min="0"
-                            max="180"
-                            step="1"
-                            value={Number(doodlePaths[activeDoodlePathIndex]?.rotationJitter ?? 18)}
-                            onChange={(e) => updateSelectedDoodlePath({ rotationJitter: Number(e.target.value) })}
-                          />
-                        </div>
-                        <div className="inspector-field">
-                          <label className="inspector-label">Opacity</label>
+                          <label className="inspector-label">Opacity (ความโปร่งแสง)</label>
                           <input
                             className="inspector-input"
                             type="number"
@@ -638,66 +717,36 @@ export function CoverCardInspector({
                             onChange={(e) => updateSelectedDoodlePath({ opacity: Number(e.target.value) })}
                           />
                         </div>
-                        <div className="inspector-field">
-                          <label className="inspector-label">Seed</label>
-                          <input
-                            className="inspector-input"
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={Number(doodlePaths[activeDoodlePathIndex]?.seed ?? 1)}
-                            onChange={(e) => updateSelectedDoodlePath({ seed: Number(e.target.value) })}
-                          />
-                        </div>
                       </div>
 
-                      <DoodlePathAdvancedFields
-                        path={doodlePaths[activeDoodlePathIndex]}
-                        onChange={updateSelectedDoodlePath}
-                      />
+                      {/* Fine-Tuning Drawer for Doodle */}
+                      <details style={{ marginTop: "6px", borderTop: "1px dashed rgba(245, 158, 11, 0.25)", paddingTop: "6px" }}>
+                        <summary style={{ color: "#FBBF24", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
+                          [●] FINE-TUNING // ปรับแต่งคณิตศาสตร์ขั้นสูง
+                        </summary>
+                        <div style={{ marginTop: "8px" }}>
+                          <DoodlePathAdvancedFields
+                            path={doodlePaths[activeDoodlePathIndex]}
+                            onChange={updateSelectedDoodlePath}
+                          />
+                        </div>
+                      </details>
                     </>
                   )}
 
-                  <div className="inspector-field">
-                    <label className="inspector-label">
-                      Preset
-                      <select
-                        aria-label="Preset"
-                        className="inspector-select"
-                        value={String(item.params.doodlePreset ?? "academic")}
-                        onChange={(event) => onParams({ doodlePreset: event.target.value })}
-                      >
-                        <option value="academic">Academic</option>
-                        <option value="science">Science</option>
-                        <option value="psychic">Psychic</option>
-                        <option value="engineering">Engineering</option>
-                        <option value="celebration">Celebration</option>
-                        <option value="vlog">Vlog stickers</option>
-                        <option value="none">Custom Doodle / AI</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  {item.params.doodlePreset === "none" && (
+                  {/* Custom Doodle Keyword Generator */}
+                  {doodlePaths.length > 0 && (
                     <>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px", alignItems: "end" }}>
-                        <div className="inspector-field">
-                          <label className="inspector-label">
-                            Custom doodle word (English, one word)
-                            <input
-                              className="inspector-input"
-                              value={String(item.params.customDoodleWord ?? "")}
-                              onChange={(event) =>
-                                onParams({
-                                  customDoodleWord: event.target.value
-                                    .replace(/[^a-zA-Z-]/g, "")
-                                    .slice(0, 32)
-                                })
-                              }
-                              placeholder="atom"
-                            />
-                          </label>
-                        </div>
+                      <div className="inspector-field" style={{ marginTop: "8px" }}>
+                        <label className="inspector-label">Keyword custom doodle (เช่น "stethoscope", "microscope")</label>
+                        <input
+                          className="inspector-input"
+                          value={String(item.params.customDoodleWord ?? "")}
+                          onChange={(e) => onParams({ customDoodleWord: e.target.value })}
+                          placeholder="ภาษาอังกฤษ 1 คำ..."
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                         <button
                           type="button"
                           className="inspector-btn inspector-btn-secondary inspector-btn-sm"
@@ -707,9 +756,6 @@ export function CoverCardInspector({
                           Generate 512px
                         </button>
                       </div>
-                      <small style={{ color: "#64748B", fontSize: "10px" }}>
-                        Fixed recipe: black/white, transparent-ready PNG, registered in output history.
-                      </small>
                       <DoodleAssetLibrary
                         assets={registeredCustomAssets}
                         activeIds={
@@ -759,16 +805,9 @@ export function CoverCardInspector({
                           onChange={(event) => onParams({ doodleScale: Number(event.target.value) })}
                         />
                       </div>
-                      <div className="inspector-field">
-                        <label className="inspector-label">Seed</label>
-                        <input
-                          className="inspector-input"
-                          type="number"
-                          min="0"
-                          value={Number(item.params.doodleSeed ?? Number(item.params.seed ?? 1) + 1)}
-                          onChange={(event) => onParams({ doodleSeed: Number(event.target.value) })}
-                        />
-                      </div>
+                      <button type="button" className="inspector-btn inspector-btn-secondary" onClick={() => onParams({ doodleSeed: Math.floor(Math.random() * 2_147_483_647) + 1 })}>
+                        [●] Randomize preset
+                      </button>
                     </div>
                   )}
                 </div>
@@ -779,11 +818,14 @@ export function CoverCardInspector({
       </div>
 
       {/* Layer 4: Background */}
-      <div className="inspector-card accent-cyan" style={{ order: 4 }}>
+      <div className="inspector-card accent-amber" style={{ order: 4 }}>
         <details open>
-          <summary style={{ color: "#22D3EE", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>🖼️ Background *</span>
-            <strong className="translation-badge" style={{ fontSize: "11px", padding: "2px 8px", background: "rgba(34,211,238,0.15)", borderRadius: "99px", color: "#22D3EE" }}>English prompt</strong>
+          <summary style={{ color: "#FBBF24", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span className="tva-lamp" />
+              <span className="tva-telemetry-title">BACKGROUND // ภาพพื้นหลัง</span>
+            </div>
+            <span className="tva-badge">English prompt</span>
           </summary>
           <div className="inspector-card-body">
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -793,7 +835,7 @@ export function CoverCardInspector({
                 onClick={() => onRun?.("background")}
                 disabled={Boolean(nodeRunBusy) || bgMissing.length > 0}
               >
-                🖼️ Generate / refresh background
+                [●] GENERATE BACKGROUND // สร้างฉากหลัง ComfyUI
               </button>
               {stageProgress("background") !== undefined && (
                 <div className="node-run-progress" aria-label={`Background progress ${stageProgress("background")}%`}>
@@ -844,7 +886,10 @@ export function CoverCardInspector({
       {/* Layer 5: Output preview */}
       <div className="inspector-card accent-slate" style={{ order: 5 }}>
         <details open>
-          <summary style={{ color: "#CBD5E1" }}>🧾 Output preview</summary>
+          <summary style={{ color: "#CBD5E1" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">OUTPUT PREVIEW // ผลลัพธ์และประวัติ</span>
+          </summary>
           <div className="inspector-card-body">
             <CoverCardOutputPreview
               params={item.params}

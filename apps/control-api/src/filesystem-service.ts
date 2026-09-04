@@ -1,6 +1,7 @@
 import { access, readdir, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { resolveProjectContext } from "@psu-ava/storyboard";
 
 export interface FsEntry {
   name: string;
@@ -57,6 +58,12 @@ export interface DocxPreviewResult {
   cardCount: number;
   totalDialogueMs: number;
   totalDialogueFormatted: string;
+  brollPoolDirs?: string[];
+  photoDirs?: string[];
+  brollCount?: number;
+  photoCount?: number;
+  brollSamples?: string[];
+  photoSamples?: string[];
   segments: DocxSegmentSummary[];
   cards: DocxCardSummary[];
 }
@@ -357,25 +364,34 @@ export async function previewDocxStoryboard(
       const sound = cells[1] ?? "";
       let combined = `${picture} ${sound}`.replace(/\u00a0/g, " ");
 
+      // Separate merged alphanumeric clip ID (like 2X7A9362) from timecode (like 01.54)
+      combined = combined.replace(/([A-Z0-9_]{3,15}?)(\d{1,2}[.:]\d{2})/gi, "$1 $2");
       // Normalize clip IDs like "C 7724" -> "C7724"
       combined = combined.replace(/\bC\s*(\d{4})\b/gi, "C$1");
       // Normalize timecodes like "05. 24" or "00.25" -> "00:25"
       combined = combined.replace(/(\d{1,2})\s*[.:]\s*(\d{2})/g, "$1:$2");
-      const clipMatch = combined.match(/\bC\s*(\d{4})\b/i);
-      if (clipMatch) carriedSource = clipMatch[0].replace(/\s+/g, "").toUpperCase();
+      // Normalize dashes
+      combined = combined.replace(/[\u2010-\u2015\u2212–—]/g, "-");
 
-      const pattern = /(?:(C\d{4})\s*)?(\d{1,2}):(\d{2})\s*(?:[-–—]|\s+)\s*(\d{1,2}):(\d{2})/gi;
+      const clipMatch = combined.match(/\b([A-Z0-9_]{4,15})\b(?=\s*\d{1,2}:\d{2})/i)
+        || combined.match(/\b(C\d{4}|2X7A\d{4}|[A-Z]{1,4}\d{4,6})\b/i);
+      if (clipMatch) {
+        const found = clipMatch[1] || clipMatch[0];
+        if (found) carriedSource = found.toUpperCase();
+      }
+
+      const pattern = /(?:([A-Z0-9_]{3,15})\s*)?(\d{1,2}):(\d{2})\s*(?:[-–—]|\s+)\s*(\d{1,2}):(\d{2})/gi;
       const matches = [...combined.matchAll(pattern)];
 
       for (let i = 0; i < matches.length; i++) {
         const match = matches[i];
         if (!match) continue;
         const [fullMatch = "", clipId, inMin = "0", inSecStr = "0", outMin = "0", outSecStr = "0"] = match;
-        if (clipId) carriedSource = clipId.toUpperCase();
+        if (clipId && /[A-Z0-9_]{4,15}/i.test(clipId)) carriedSource = clipId.toUpperCase();
         const inSec = Number(inMin) * 60 + Number(inSecStr);
         const outSec = Number(outMin) * 60 + Number(outSecStr);
 
-        if (carriedSource && outSec > inSec) {
+        if (outSec > inSec) {
           const matchIndex = match.index ?? 0;
           const startIndex = matchIndex + fullMatch.length;
           const nextMatch = i + 1 < matches.length ? matches[i + 1] : undefined;
@@ -384,7 +400,7 @@ export async function previewDocxStoryboard(
 
           segments.push({
             id: `interview_${String(segments.length + 1).padStart(2, "0")}`,
-            sourceKey: carriedSource,
+            sourceKey: carriedSource || "PRIMARY_AROLL",
             sourceInMs: inSec * 1000,
             sourceOutMs: outSec * 1000,
             durationMs: (outSec - inSec) * 1000,
@@ -410,6 +426,8 @@ export async function previewDocxStoryboard(
     const secs = totalSeconds % 60;
     const formatted = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")} นาที`;
 
+    const projectContext = await resolveProjectContext(resolved).catch(() => null);
+
     return {
       ok: true,
       path: resolved,
@@ -417,6 +435,12 @@ export async function previewDocxStoryboard(
       cardCount: cards.length,
       totalDialogueMs,
       totalDialogueFormatted: formatted,
+      brollPoolDirs: projectContext?.brollPoolDirs ?? [],
+      photoDirs: projectContext?.photoDirs ?? [],
+      brollCount: projectContext?.candidateBrolls.length ?? 0,
+      photoCount: projectContext?.portraitImages.length ?? 0,
+      brollSamples: projectContext?.candidateBrolls.slice(0, 6).map((b) => b.name) ?? [],
+      photoSamples: projectContext?.portraitImages.slice(0, 6).map((p) => p.name) ?? [],
       segments,
       cards
     };

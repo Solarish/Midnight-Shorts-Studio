@@ -20,6 +20,8 @@ export default function App() {
       <Route path="/run/:runId" element={<RunPage />} />
       <Route path="/admin/workflows" element={<Navigate to="/" replace />} />
       <Route path="/workflows/:workflowId/edit" element={<WorkflowGraphEditorPage />} />
+      <Route path="/storyboards" element={<WorkflowCatalogPage />} />
+      <Route path="/storyboards/:storyboardId" element={<StoryboardEditorPage />} />
       <Route path="/storyboards/:storyboardId/edit" element={<StoryboardEditorPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

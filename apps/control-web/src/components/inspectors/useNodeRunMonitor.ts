@@ -39,7 +39,16 @@ export function useNodeRunMonitor({
       if (!item || !storyboardId) return;
       setNodeRunBusy(true);
       try {
-        const result = await runStoryboardNode(storyboardId, item.id, "live", item, stage);
+        const runItem = {
+          ...item,
+          presetId: item.kind === "cover_card" ? "comfy-cover-card-v2" : item.presetId,
+          params: {
+            ...item.params,
+            randomSeed: true,
+            ...(stage === "background" || stage === "assets" ? { backgroundImage: "" } : {})
+          }
+        };
+        const result = await runStoryboardNode(storyboardId, item.id, "live", runItem, stage);
         setNodeRun({
           runId: result.runId,
           stage,
@@ -121,13 +130,13 @@ export function useNodeRunMonitor({
 
           const generated =
             nodeRun.stage === "background"
-              ? { backgroundImage: outputFor("__generate_bg") }
+              ? { backgroundImage: outputFor("__generate_bg") ?? outputFor("__generate") }
               : nodeRun.stage === "person"
                 ? { personImage: outputFor("__cutout") }
                 : nodeRun.stage === "doodle"
                   ? { doodleImage: outputFor("__doodle_alpha") }
                   : {
-                      backgroundImage: outputFor("__generate_bg"),
+                      backgroundImage: outputFor("__generate_bg") ?? outputFor("__generate"),
                       personImage: outputFor("__cutout"),
                       doodleImage: outputFor("__doodle_alpha")
                     };

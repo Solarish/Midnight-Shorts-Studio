@@ -51,7 +51,7 @@ export const InlineTimelinePlayerModal: React.FC<InlineTimelinePlayerModalProps>
           assetPath: b.asset?.path,
           offsetMs: b.offsetMs ?? 0,
           durationMs: b.durationMs ?? 3000,
-          preset: "Spring",
+          preset: (b as any).preset || "none",
           fit: b.fit || "cover",
           audioPolicy: b.audioPolicy || "mute",
           title: b.note,
@@ -140,26 +140,32 @@ export const InlineTimelinePlayerModal: React.FC<InlineTimelinePlayerModalProps>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {/* Aspect Ratio Mode Switcher */}
             <div style={{ display: "flex", background: "#1E293B", borderRadius: "8px", padding: "2px" }}>
-              {(["9:16", "16:9", "1:1"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setAspect(mode)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    border: "none",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    backgroundColor: aspect === mode ? "#3B82F6" : "transparent",
-                    color: aspect === mode ? "#FFFFFF" : "#94A3B8",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  {mode === "9:16" ? "📱 9:16 Vertical" : mode === "16:9" ? "🖥️ 16:9 Landscape" : "⏹️ 1:1 Square"}
-                </button>
-              ))}
+              {(["16:9", "9:16", "1:1"] as const).map((mode) => {
+                const isLocked = mode !== "16:9";
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => !isLocked && setAspect(mode)}
+                    title={isLocked ? "Auto-Compositing สำหรับขนาดนี้อยู่ระหว่างพัฒนา (เปิดใช้งาน 16:9 เท่านั้น)" : "16:9 Broadcast Master"}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: isLocked ? "not-allowed" : "pointer",
+                      opacity: isLocked ? 0.35 : 1,
+                      backgroundColor: aspect === mode ? "#3B82F6" : "transparent",
+                      color: aspect === mode ? "#FFFFFF" : "#94A3B8",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    {mode === "16:9" ? "🖥️ 16:9 Master" : mode === "9:16" ? "📱 9:16 (เร็วๆ นี้)" : "⏹️ 1:1 (เร็วๆ นี้)"}
+                  </button>
+                );
+              })}
             </div>
 
             <button

@@ -560,8 +560,16 @@ export async function createBrollStack(input) {
     const candidate = item.selectedCandidate ?? item.candidates?.find((value) => value.assetId === item.selectedAssetId) ?? item.candidates?.[0] ?? (item.path ? item : undefined);
     const assetPath = candidate?.path ?? item.path;
     if (!segment || !assetPath) return [];
-    const durationMs = frameTime(Math.min(Number(input.maxDurationMs ?? 5_000), segment.durationMs), "B-roll duration");
-    return [{ id: `broll_${String(index + 1).padStart(2, "0")}`, asset: assetPath, startMs: segment.startMs, durationMs, track: 2, opacity: 1, scale: 1, audioPolicy: "mute" }];
+
+    // Broadcast breathing room: Head >= 2.5s (2520ms) and Tail >= 1.5s (1520ms)
+    const headMarginMs = segment.durationMs >= 8000 ? 2520 : 0;
+    const tailMarginMs = segment.durationMs >= 8000 ? 1520 : 0;
+    const maxAllowedDuration = Math.max(1000, segment.durationMs - headMarginMs - tailMarginMs);
+    const targetDurationMs = Math.min(Number(input.maxDurationMs ?? 5_000), maxAllowedDuration);
+    const durationMs = frameTime(targetDurationMs, "B-roll duration");
+    const startMs = frameTime(segment.startMs + headMarginMs, "B-roll startMs");
+
+    return [{ id: `broll_${String(index + 1).padStart(2, "0")}`, asset: assetPath, startMs, durationMs, track: 2, opacity: 1, scale: 1, audioPolicy: "mute" }];
   });
   return { overlays };
 }

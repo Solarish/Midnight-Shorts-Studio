@@ -57,10 +57,13 @@ export function CarouselMediaField({
   const add = (paths: string[]) => onChange([...new Set([...value, ...paths])]);
 
   return (
-    <div className="inspector-card accent-gold carousel-media-field">
+    <div className="inspector-card accent-amber carousel-media-field">
       <details open>
-        <summary style={{ color: "#E5A93C", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>{title} ({value.length} files)</span>
+        <summary style={{ color: "#FBBF24", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">{title} ({value.length} files)</span>
+          </div>
           <button
             type="button"
             className="inspector-btn inspector-btn-gold inspector-btn-sm"
@@ -80,9 +83,25 @@ export function CarouselMediaField({
           {value.length ? (
             <ol>
               {value.map((mediaPath, index) => (
-                <li key={mediaPath}>
+                <li key={mediaPath} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span className="media-order">{index + 1}</span>
-                  <span className="media-name" title={mediaPath}>
+                  <img
+                    src={`/api/v1/media/stream?path=${encodeURIComponent(mediaPath)}`}
+                    alt="thumb"
+                    style={{
+                      width: "36px",
+                      height: "24px",
+                      objectFit: "cover",
+                      borderRadius: "4px",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      background: "#090D16",
+                      flexShrink: 0
+                    }}
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  <span className="media-name" title={mediaPath} style={{ flex: 1 }}>
                     <strong>{mediaPath.split(/[\\/]/).filter(Boolean).at(-1)}</strong>
                     <small>{mediaPath}</small>
                   </span>
@@ -122,7 +141,7 @@ export function CarouselMediaField({
               style={{ width: "100%", padding: "16px", borderStyle: "dashed" }}
               onClick={() => setOpen(true)}
             >
-              ยังไม่มีภาพ · กดที่นี่เพื่อเลือกหลายไฟล์จาก Finder
+              + เพิ่มรูปภาพ / วิดีโอสำหรับ Carousel
             </button>
           )}
         </div>
@@ -145,7 +164,7 @@ export function CarouselMediaField({
 export interface TitleCarouselInspectorProps {
   item: StoryboardItem;
   onParams: (patch: Record<string, unknown>) => void;
-  onItem: (item: StoryboardItem) => void;
+  onItem?: (item: StoryboardItem) => void;
 }
 
 export function TitleCarouselInspector({
@@ -179,14 +198,12 @@ export function TitleCarouselInspector({
   const subtitle = String(item.params.subtitle ?? texts.subtitle ?? texts["Text 4"] ?? "");
   const eyebrow = String(item.params.eyebrow ?? texts.eyebrow ?? texts["Text 5"] ?? "");
   const cgBlocks = getCgBlocksFromParams(item.params);
-
-  // 3D / Preset Controls
+  const heroImage = media[0] ?? "";
   const rotationSpeed = Number((item.params as any)?.rotationSpeed ?? 1.0);
   const cameraTilt = Number((item.params as any)?.cameraTilt ?? 8);
   const enableReflection = Boolean((item.params as any)?.enableReflection ?? true);
   const splitAngle = Number((item.params as any)?.splitAngle ?? -6);
   const motionPreset = String(item.params.motionPreset ?? "ZoomPunch");
-  const heroImage = media[0] ?? "";
 
   const updateText = (key: string, value: string) => {
     onParams({
@@ -217,9 +234,12 @@ export function TitleCarouselInspector({
   return (
     <div className="inspector-container">
       {/* 1. Preset Selector Card */}
-      <div className="inspector-card accent-gold">
+      <div className="inspector-card accent-amber">
         <details open>
-          <summary style={{ color: "#E5A93C" }}>🎬 Intro Presentation Preset</summary>
+          <summary style={{ color: "#FBBF24" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">INTRO PRESET // โหมดการนำเสนอ</span>
+          </summary>
           <div className="inspector-card-body">
             <div className="inspector-field">
               <label className="inspector-label">
@@ -249,10 +269,11 @@ export function TitleCarouselInspector({
       {is3DCarousel && (
         <>
           {/* Typography Card */}
-          <div className="inspector-card accent-gold">
+          <div className="inspector-card accent-amber">
             <details open>
-              <summary style={{ color: "#E5A93C" }}>
-                🎡 3D Showcase Typography (Titles &amp; Texts)
+              <summary style={{ color: "#FBBF24" }}>
+                <span className="tva-lamp" />
+                <span className="tva-telemetry-title">3D SHOWCASE TYPOGRAPHY // ข้อความและไตเติล</span>
               </summary>
               <div className="inspector-card-body">
                 <div className="inspector-grid-2">
@@ -386,7 +407,7 @@ export function TitleCarouselInspector({
                 <CgBlockEditor
                   blocks={cgBlocks}
                   onChange={(nextBlocks) => {
-                    onItem({
+                    onItem?.({
                       ...item,
                       params: {
                         ...item.params,

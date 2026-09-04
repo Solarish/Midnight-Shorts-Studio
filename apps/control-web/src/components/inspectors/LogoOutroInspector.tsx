@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { StoryboardItem } from "../../storyboard-types";
-import { PathField } from "./CommonFields";
+import { PathField, SecondsField } from "./CommonFields";
 import { RemoteFilePickerModal } from "../RemoteFilePickerModal";
 import "./inspectors.css";
 
@@ -55,9 +55,12 @@ export function LogoOutroInspector({ item, onParams, onItem }: LogoOutroInspecto
   return (
     <div className="inspector-container">
       {/* 1. Preset Selector Card */}
-      <div className="inspector-card accent-gold">
+      <div className="inspector-card accent-amber">
         <details open>
-          <summary style={{ color: "#E5A93C" }}>🎬 Outro Presentation Preset</summary>
+          <summary style={{ color: "#FBBF24" }}>
+            <span className="tva-lamp" />
+            <span className="tva-telemetry-title">OUTRO PRESET // โหมดการนำเสนอ</span>
+          </summary>
           <div className="inspector-card-body">
             <div className="inspector-field">
               <label className="inspector-label">
@@ -76,7 +79,7 @@ export function LogoOutroInspector({ item, onParams, onItem }: LogoOutroInspecto
                 </select>
               </label>
               <small style={{ color: "#94A3B8", fontSize: "11px" }}>
-                UI จะปรับแต่งฟิลด์อัตโนมัติตาม Preset ที่เลือก (Broadcast Grade 5-Dimension Motion Standards)
+                UI ปรับแต่งฟิลด์อัตโนมัติตาม Preset ที่เลือก (Broadcast Grade Motion Standards)
               </small>
             </div>
           </div>
@@ -90,13 +93,16 @@ export function LogoOutroInspector({ item, onParams, onItem }: LogoOutroInspecto
           <div className="inspector-card accent-slate">
             <details open>
               <summary style={{ color: "#CBD5E1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>🖼️ PSU Logo Media</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className="tva-lamp" />
+                  <span className="tva-telemetry-title">PSU LOGO MEDIA // ตราสัญลักษณ์</span>
+                </div>
                 <button
                   type="button"
                   className="inspector-btn inspector-btn-gold inspector-btn-sm"
                   onClick={() => onParams({ sourcePath: DEFAULT_PSU_LOGO })}
                 >
-                  🎯 Use Default PSU Logo
+                  [●] Default Emblem
                 </button>
               </summary>
               <div className="inspector-card-body">
@@ -110,7 +116,7 @@ export function LogoOutroInspector({ item, onParams, onItem }: LogoOutroInspecto
                   <img
                     src={`/api/v1/media/stream?path=${encodeURIComponent(sourcePath || DEFAULT_PSU_LOGO)}`}
                     alt="Logo Preview"
-                    style={{ width: "48px", height: "48px", objectFit: "contain", borderRadius: "8px", background: "#0B1220", border: "1px solid rgba(229,169,60,0.3)", padding: "4px" }}
+                    style={{ width: "48px", height: "48px", objectFit: "contain", borderRadius: "8px", background: "#0B1220", border: "1px solid rgba(245,158,11,0.3)", padding: "4px" }}
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";
                     }}
@@ -124,9 +130,12 @@ export function LogoOutroInspector({ item, onParams, onItem }: LogoOutroInspecto
           </div>
 
           {/* Typography Card */}
-          <div className="inspector-card accent-gold">
+          <div className="inspector-card accent-amber">
             <details open>
-              <summary style={{ color: "#E5A93C" }}>✍️ Outro Typography (3-Tier Inverted Mask)</summary>
+              <summary style={{ color: "#FBBF24" }}>
+                <span className="tva-lamp" />
+                <span className="tva-telemetry-title">OUTRO TYPOGRAPHY // ข้อความปิดท้าย (3-Tier Inverted Mask)</span>
+              </summary>
               <div className="inspector-card-body">
                 <div className="inspector-field">
                   <label className="inspector-label">
@@ -392,34 +401,20 @@ export function LogoOutroInspector({ item, onParams, onItem }: LogoOutroInspecto
                   </label>
                 </div>
                 <div className="inspector-grid-2">
-                  <div className="inspector-field">
-                    <label className="inspector-label">
-                      Fade In (ms)
-                      <input
-                        className="inspector-input"
-                        type="number"
-                        min="0"
-                        max="2000"
-                        step="100"
-                        value={fadeInMs}
-                        onChange={(e) => onParams({ fadeInMs: Number(e.target.value) })}
-                      />
-                    </label>
-                  </div>
-                  <div className="inspector-field">
-                    <label className="inspector-label">
-                      Fade Out (ms)
-                      <input
-                        className="inspector-input"
-                        type="number"
-                        min="0"
-                        max="2000"
-                        step="100"
-                        value={fadeOutMs}
-                        onChange={(e) => onParams({ fadeOutMs: Number(e.target.value) })}
-                      />
-                    </label>
-                  </div>
+                  <SecondsField
+                    label="Fade In"
+                    valueMs={fadeInMs}
+                    minMs={0}
+                    onChange={(ms) => onParams({ fadeInMs: ms })}
+                    compact
+                  />
+                  <SecondsField
+                    label="Fade Out"
+                    valueMs={fadeOutMs}
+                    minMs={0}
+                    onChange={(ms) => onParams({ fadeOutMs: ms })}
+                    compact
+                  />
                 </div>
               </div>
             </details>

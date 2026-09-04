@@ -27,13 +27,7 @@ export class LocalStoryboardStore {
     assertId(value.importId);
     await this.init();
     const target = path.join(this.importsDir, `${value.importId}.json`);
-    try { await writeFile(target, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" }); }
-    catch (error: any) {
-      if (error.code !== "EEXIST") throw error;
-      const existing = await this.getImport(value.importId);
-      if (existing?.sourceDigest !== value.sourceDigest) throw new Error("Storyboard import ID collision");
-      return existing;
-    }
+    await writeFile(target, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     return structuredClone(value);
   }
 
@@ -47,7 +41,7 @@ export class LocalStoryboardStore {
     return values.filter((value): value is StoryboardSpecV2 => Boolean(value)).sort((a, b) => a.name.localeCompare(b.name, "th"));
   }
 
-  async saveDraft(storyboard: StoryboardSpecV2, expectedRevision: number): Promise<StoryboardSpecV2> {
+  async saveDraft(storyboard: StoryboardSpecV2, expectedRevision: number, allowSourceImportUpdate = false): Promise<StoryboardSpecV2> {
     assertId(storyboard.storyboardId); assertRevision(expectedRevision);
     if (storyboard.revision !== expectedRevision) throw new StoryboardRevisionConflictError(expectedRevision, storyboard.revision);
     assertDraft(storyboard);
@@ -55,12 +49,39 @@ export class LocalStoryboardStore {
       const current = await this.getDraft(storyboard.storyboardId);
       const actual = current?.revision ?? 0;
       if (actual !== expectedRevision) throw new StoryboardRevisionConflictError(expectedRevision, actual);
-      if (current && JSON.stringify(current.sourceImport) !== JSON.stringify(storyboard.sourceImport)) throw new Error("Storyboard source import is immutable");
+      if (!allowSourceImportUpdate && current && JSON.stringify(current.sourceImport) !== JSON.stringify(storyboard.sourceImport)) throw new Error("Storyboard source import is immutable");
       const saved = structuredClone({ ...storyboard, revision: expectedRevision + 1 });
       assertDraft(saved);
       await atomicWrite(this.draftPath(storyboard.storyboardId), `${JSON.stringify(saved, null, 2)}\n`);
       return saved;
     });
+  }
+
+  async deleteDraft(storyboardId: string): Promise<boolean> {
+    assertId(storyboardId);
+    const dir = this.storyboardDir(storyboardId);
+    try {
+      await rm(dir, { recursive: true, force: true });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async cloneDraft(storyboardId: string, newStoryboardId: string, newName?: string): Promise<StoryboardSpecV2> {
+    assertId(storyboardId);
+    assertId(newStoryboardId);
+    const source = await this.getDraft(storyboardId);
+    if (!source) throw new Error(`Storyboard '${storyboardId}' was not found`);
+    const cloned: StoryboardSpecV2 = structuredClone({
+      ...source,
+      storyboardId: newStoryboardId,
+      name: newName?.trim() || `${source.name} (สำเนา)`,
+      revision: 1
+    });
+    await mkdir(this.storyboardDir(newStoryboardId), { recursive: true });
+    await atomicWrite(this.draftPath(newStoryboardId), `${JSON.stringify(cloned, null, 2)}\n`);
+    return cloned;
   }
 
   async listVersions(storyboardId: string): Promise<ApprovedStoryboardVersionV2[]> {

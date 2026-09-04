@@ -67,23 +67,25 @@ export function PathField({
           />
           <button
             type="button"
+            aria-label={`เลือกจาก NAS (${label})`}
             onClick={() => setOpen(true)}
             style={{
               padding: "7px 12px",
               background: "linear-gradient(135deg, #0284c7, #0369a1)",
-              border: "none",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
               borderRadius: "6px",
               color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 600,
+              fontSize: "11px",
+              fontWeight: 700,
+              letterSpacing: "0.03em",
               cursor: "pointer",
               whiteSpace: "nowrap",
               display: "flex",
               alignItems: "center",
-              gap: "4px"
+              gap: "5px"
             }}
           >
-            🔍 เลือกจาก NAS
+            <span style={{ opacity: 0.8 }}>[⌕]</span> NAS PICKER <span style={{ fontSize: "10px", opacity: 0.85, fontWeight: 500 }}>(เลือกจาก NAS)</span>
           </button>
         </span>
         {value && !compact && (

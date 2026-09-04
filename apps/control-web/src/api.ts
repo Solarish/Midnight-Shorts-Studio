@@ -33,6 +33,21 @@ export async function api<T>(url: string, options: RequestInit = {}): Promise<T>
   if (options.method && options.method !== "GET") headers.set("x-ava-csrf", csrfToken);
   const response = await fetch(url, { ...options, headers });
   const value = await response.json().catch(() => ({}));
+
+  if (response.status === 403 && typeof value.error === "string" && value.error.toLowerCase().includes("csrf")) {
+    await getHealth();
+    headers.set("x-ava-csrf", csrfToken);
+    const retryResponse = await fetch(url, { ...options, headers });
+    const retryValue = await retryResponse.json().catch(() => ({}));
+    if (!retryResponse.ok) {
+      throw Object.assign(new Error(retryValue.error ?? `Request failed with HTTP ${retryResponse.status}`), {
+        status: retryResponse.status,
+        details: retryValue
+      });
+    }
+    return retryValue;
+  }
+
   if (!response.ok) throw Object.assign(new Error(value.error ?? `Request failed with HTTP ${response.status}`), { status: response.status, details: value });
   return value;
 }
@@ -43,7 +58,23 @@ export type FsBrowseResult = { currentPath: string; parentPath: string | null; b
 export type FsValidateResult = { exists: boolean; path: string; normalizedPath: string; isDirectory: boolean; isFile: boolean; sizeBytes?: number; mtime?: string; ext?: string };
 export type DocxSegmentSummary = { id: string; sourceKey: string; sourceInMs: number; sourceOutMs: number; durationMs: number; dialogue: string; picture: string; sound: string; rowIndex: number };
 export type DocxCardSummary = { id: string; picture: string; sound: string; rowIndex: number };
-export type DocxPreviewResult = { ok: boolean; path: string; error?: string; segmentCount: number; cardCount: number; totalDialogueMs: number; totalDialogueFormatted: string; segments: DocxSegmentSummary[]; cards: DocxCardSummary[] };
+export type DocxPreviewResult = {
+  ok: boolean;
+  path: string;
+  error?: string;
+  segmentCount: number;
+  cardCount: number;
+  totalDialogueMs: number;
+  totalDialogueFormatted: string;
+  brollPoolDirs?: string[];
+  photoDirs?: string[];
+  brollCount?: number;
+  photoCount?: number;
+  brollSamples?: string[];
+  photoSamples?: string[];
+  segments: DocxSegmentSummary[];
+  cards: DocxCardSummary[];
+};
 
 export async function uploadAsset(file: File) {
   const body = new FormData();
@@ -81,3 +112,58 @@ export async function previewDocx(targetPath: string): Promise<DocxPreviewResult
     body: JSON.stringify({ path: targetPath })
   });
 }
+
+export interface RenderDefaultsResult {
+  defaultDirectory: string;
+  defaultFileName: string;
+  isDocxSource: boolean;
+  docxPath: string | null;
+}
+
+export interface RenderJobStatus {
+  jobId: string;
+  storyboardId: string;
+  version?: number;
+  status: "queued" | "rendering" | "completed" | "failed";
+  progress: number;
+  renderedFrames: number;
+  totalFrames: number;
+  fps: number;
+  etaSeconds?: number;
+  startedAt: string;
+  completedAt?: string;
+  outputDirectory: string;
+  fileName: string;
+  outputPath?: string;
+  fileUrl?: string;
+  sizeBytes?: number;
+  durationMs?: number;
+  renderTimeMs?: number;
+  error?: string;
+}
+
+export interface TriggerRenderOptions {
+  version?: number;
+  format?: "16:9" | "9:16";
+  quality?: "master" | "draft";
+  fps?: number;
+  outputDirectory?: string;
+  fileName?: string;
+  bgmTrack?: any;
+}
+
+export async function getStoryboardRenderDefaults(storyboardId: string): Promise<RenderDefaultsResult> {
+  return api<RenderDefaultsResult>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/render-defaults`);
+}
+
+export async function triggerStoryboardRender(storyboardId: string, options: TriggerRenderOptions = {}): Promise<{ jobId: string; status: string; monitorUrl: string; outputDirectory: string; fileName: string }> {
+  return api(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/render`, {
+    method: "POST",
+    body: JSON.stringify(options)
+  });
+}
+
+export async function getStoryboardRenderJob(storyboardId: string, jobId: string): Promise<RenderJobStatus> {
+  return api<RenderJobStatus>(`/api/v1/storyboards/${encodeURIComponent(storyboardId)}/render-jobs/${encodeURIComponent(jobId)}`);
+}
+
